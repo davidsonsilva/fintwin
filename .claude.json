@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "uv",
+      "args": ["run", "serena", "mcp"],
+      "disabled": false
+    },
+    "headroom": {
+      "command": "headroom",
+      "args": ["mcp"],
+      "disabled": false
+    }
+  }
+}

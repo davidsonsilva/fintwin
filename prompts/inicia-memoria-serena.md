@@ -1,0 +1,17 @@
+$content = @"
+Este é um projeto novo. Preciso que você inicialize as memórias do Serena para este projeto.
+
+Analise o codebase atual (use o Serena para ler a estrutura e o Graphify report em graphify-out/GRAPH_REPORT.md se existir).
+
+Crie as seguintes 4 memórias básicas com base na sua análise real do código:
+
+1. **project_overview**: Stack, estrutura de pastas, objetivo, comandos principais.
+2. **graphify_architecture**: God nodes, comunidades, fluxos críticos e riscos de acoplamento (baseado no relatório do Graphify).
+3. **coding_conventions**: Padrões de nomenclatura, organização de imports, e estilos de código que você detectar nos arquivos existentes.
+4. **project_decisions**: (Deixe esta vazia por enquanto, apenas com o cabeçalho, pois é um projeto novo).
+
+Seja conciso, use bullet points e baseie-se estritamente no que você ler no código.
+"@
+
+New-Item -ItemType Directory -Force -Path "D:\IA Projects\ai-dev-template\prompts"
+$content | Out-File -FilePath "D:\IA Projects\ai-dev-template\prompts\iniciamemoriaserena.md" -Encoding UTF8

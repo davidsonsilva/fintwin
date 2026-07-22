@@ -1,0 +1,47 @@
+{
+  "harness": {
+    "mode": "enforce",
+    "kpi_weights": {
+      "quality": 0.40,
+      "cost": 0.30,
+      "latency": 0.20,
+      "energy": 0.10
+    }
+  },
+  "budget_enforcement": {
+    "session_cap_usd": 2.00,
+    "query_cap_usd": 0.15,
+    "action_on_limit": "stop"
+  },
+  "compliance_gating": {
+    "allowlist": [
+      "sonnet-5",
+      "fable-5",
+      "opus-4.8",
+      "haiku-4.5"
+    ],
+    "enforce_gdpr_compliance": true
+  },
+  "domain_routing": {
+    "code": {
+      "default_drafter": "haiku-4.5",
+      "default_verifier": "sonnet-5",
+      "validation_threshold": 0.85
+    },
+    "documentation": {
+      "default_drafter": "haiku-4.5",
+      "default_verifier": "sonnet-5",
+      "validation_threshold": 0.70
+    },
+    "complex_refactoring": {
+      "default_drafter": "sonnet-5",
+      "default_verifier": "opus-4.8",
+      "validation_threshold": 0.90
+    },
+    "general": {
+      "default_drafter": "haiku-4.5",
+      "default_verifier": "opus-4.8",
+      "validation_threshold": 0.75
+    }
+  }
+}

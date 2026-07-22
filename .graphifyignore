@@ -1,0 +1,112 @@
+# =============================================================================
+# .graphifyignore - Versão Consolidada e Otimizada
+# =============================================================================
+
+# ── 1. Dependências (Yarn, PnP e Node) ───────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+.yarn/
+bower_components/
+jspm_packages/
+
+# ── 2. Build, Produção e Compilação ─────────────────────────────────────────
+dist/
+build/
+.next/
+out/
+.output/
+.nuxt/
+bin/
+obj/
+*.tsbuildinfo
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+*.class
+
+# ── 3. Testes e Coverage ────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+htmlcov/
+
+# ── 4. IDE, Editores e Metadados de Sessão ──────────────────────────────────
+.vscode/
+.idea/
+.cursor/
+.windsurf/
+.claude/
+.mega-brain/
+*.swp
+*.swo
+.git/
+.github/
+MEMORY.md
+
+# ── 5. Ambiente, Secrets e Logs de Telemetria ───────────────────────────────
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Evita indexar logs de telemetria em tempo real do Dashboard/Headroom
+events.jsonl
+*.jsonl
+
+# ── 6. Cache, Temporários e Linters ─────────────────────────────────────────
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+tmp/
+temp/
+session-data/
+
+# ── 7. Arquivos Gerados (TypeScript & GraphQL) ──────────────────────────────
+*.generated.ts
+*.generated.tsx
+graphql-schema.json
+schema.graphql
+
+# ── 8. Graphify Output (Preve recursão infinita e lê apenas o código) ───────
+# Ignora toda a pasta de saída para que o Graphify não tente ler o próprio graph.json
+graphify-out/
+
+# ── 9. Serena (se existir) ──────────────────────────────────────────────────
+.serena/
+
+# ── 10. Ambientes Virtuais (Python) ─────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# ── 11. Arquivos não-estruturados, Mídias e Binários Pesados ────────────────
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.mp4
+*.mov
+*.mp3
+*.wav
+*.pdf
+*.docx
+*.xlsx
+*.pptx
+*.zip
+*.tar.gz
+*.tgz
+*.rar
