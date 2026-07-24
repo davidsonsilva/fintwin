@@ -116,18 +116,60 @@ def _load_baseline(path: Optional[str]) -> dict[str, Any]:
     return json.loads(baseline_path.read_text(encoding="utf-8"))
 
 
+_TSC_KNOWN_PATTERN = re.compile(r"^(?P<file>.+?)\((?P<line>\d+),\d+\):")
+_LINT_KNOWN_PATTERN = re.compile(r"^(?P<line>\d+):\d+\s+(error|warning)")
+
+
+def _extract_known_locations(baseline: dict[str, Any]) -> list[tuple[str, int]]:
+    """Extrai pares (nome-do-arquivo, linha) das falhas conhecidas da baseline.
+
+    Matching por arquivo+linha (não só nome do arquivo) evita que um finding
+    novo numa linha diferente do mesmo arquivo seja mascarado como
+    pré-existente — bug real encontrado pelo próprio Meta Harness ao revisar
+    este script.
+    """
+    locations: list[tuple[str, int]] = []
+
+    for entry in baseline.get("typecheck", {}).get("knownFailures", []):
+        match = _TSC_KNOWN_PATTERN.match(entry.strip())
+        if match:
+            locations.append((Path(match.group("file")).name.lower(), int(match.group("line"))))
+
+    current_file: Optional[str] = None
+    for entry in baseline.get("lint", {}).get("knownFailures", []):
+        stripped = entry.strip()
+        match = _LINT_KNOWN_PATTERN.match(stripped)
+        if match:
+            if current_file:
+                locations.append((Path(current_file).name.lower(), int(match.group("line"))))
+            continue
+        if stripped and not stripped[0].isdigit() and ("/" in stripped or "\\" in stripped):
+            current_file = stripped
+
+    return locations
+
+
+def _finding_line_numbers(line_field: Any) -> set[int]:
+    if not line_field:
+        return set()
+    numbers = [int(n) for n in re.findall(r"\d+", str(line_field))]
+    if len(numbers) >= 2:
+        return set(range(numbers[0], numbers[1] + 1))
+    return set(numbers)
+
+
 def _mark_pre_existing(findings: list[dict[str, Any]], baseline: dict[str, Any]) -> None:
-    known_failures: list[str] = []
-    for gate in ("typecheck", "lint"):
-        known_failures.extend(baseline.get(gate, {}).get("knownFailures", []))
+    known_locations = _extract_known_locations(baseline)
 
     for finding in findings:
         file_path = finding.get("file") or ""
         finding["baseline_status"] = "NEW_FAILURE"
         if not file_path:
             continue
-        for known in known_failures:
-            if file_path in known or Path(file_path).name in known:
+        basename = Path(file_path).name.lower()
+        finding_lines = _finding_line_numbers(finding.get("line"))
+        for known_basename, known_line in known_locations:
+            if known_basename == basename and (not finding_lines or known_line in finding_lines):
                 finding["baseline_status"] = "PRE_EXISTING_FAILURE"
                 break
 
