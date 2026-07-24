@@ -3,40 +3,39 @@
 
 ## 📅 Criado em: 2026-07-24
 
-## 🎯 Status: IMPLEMENTADO, VALIDADO E COM FINDINGS CORRIGIDOS (2 rodadas reais concluídas)
+## 🎯 Status: IMPLEMENTADO E ESTÁVEL (5 rodadas reais, incluindo 3 de auto-revisão que encontraram e corrigiram bugs no próprio harness)
 
 ---
 
 ## 📋 Resumo Executivo
 
-O Meta Harness (`.meta-harness/` + `scripts/validate-step.sh`) está funcional: `codex review` (sem flags de escopo, prompt customizado via stdin, instruções de `git diff <pai>..<commit>` embutidas no prompt) revisa um commit específico de forma independente.
+O Meta Harness está funcional e maduro: `.meta-harness/` (prompt, config, contratos, baselines, raw, reports, state) + 3 scripts (`capture-baseline.sh`, `validate-step.sh`, `normalize-codex-review.py`). `codex review` (sem flags de escopo, prompt customizado via stdin) revisa um commit específico; um normalizador determinístico (sem gastar outra chamada de IA) parseia a saída nativa (Markdown ou JSON) e deriva um veredito por regra fixa, cruzando com uma baseline de quality gates para distinguir falha nova de falha pré-existente.
 
-**Duas rodadas reais já rodaram:**
-1. Piloto contra o commit de checkpoint (`eff1199`, VS-01–VS-07 inteiras) — achou 4 bugs HIGH reais (LOAN não creditava o principal; custo total de financiamento não escalava por duração; parâmetros de decisão sem validação; `scenario_override` não persistido) + 1 MEDIUM pré-existente (lint quebrado em `resourceConfigs.ts`).
-2. Após eu corrigir os 4 HIGH e commitar (`28f0a58`), rodei o harness de novo contra esse commit menor (~17 arquivos) para validar — **achou mais 1 bug real**, introduzido pela própria correção: o novo campo `expense_reduction_capacity` no `DecisionForm` aceitava valores fora de 0–1 e gerava 500 em vez de 422. Corrigido e commitado (`próximo commit` — ver git log).
-
-Isso confirma o valor do harness: ele pegou um bug genuíno numa correção feita *depois* do primeiro relatório, não só na implementação original.
+**O harness já se provou revisando a si mesmo**: nas rodadas de melhoria pós-piloto, ele encontrou 3 bugs reais e sucessivos na própria lógica de matching de baseline do `normalize-codex-review.py`, cada um corrigido antes da próxima rodada — um caso raro e valioso de uma ferramenta de qualidade sendo validada pelo próprio processo que ela implementa.
 
 ---
 
-## 🏗️ Arquitetura Final (estável, validada em 2 execuções reais)
+## 🏗️ Arquitetura Final (estável)
 
 ```
+Antes de implementar uma slice: scripts/capture-baseline.sh <slug>
+  → captura exit codes + falhas conhecidas (pytest/tsc/lint/vitest) em .meta-harness/baselines/<slug>-before.json
+  ↓
 Claude implementa a slice (plano aprovado → código → testes → demo real via Docker)
   ↓
-Claude cria um commit de checkpoint ao final da slice (obrigatório — ver Decisão 1b)
+Claude cria um commit de checkpoint ao final da slice
   ↓
 Claude gera/atualiza os contratos (.meta-harness/contracts/*) a partir do plano já aprovado
   ↓
-Claude roda scripts/validate-step.sh [commit-sha opcional, default HEAD]
+scripts/validate-step.sh [commit] [baseline.json]
+  → monta prompt (codex-review.md + contratos + baseline embutida + BASE_COMMIT/TARGET_COMMIT)
+  → chama `codex review` sem flag de escopo, prompt via stdin
+  → salva saída nativa em .meta-harness/raw/codex-review-<timestamp>.txt
+  → chama normalize-codex-review.py (raw → relatório padronizado em reports/, veredito derivado por regra fixa)
+  → grava .meta-harness/state/current-review.json
+  → exit code: 0 = APPROVED/APPROVED_WITH_WARNINGS, 2 = REJECTED, 1 = erro de ferramenta
   ↓
-Script resolve SHA + pai, monta prompt+contratos+instruções de git diff, chama
-  `codex review` SEM flags de escopo (só -c model=... -c model_reasoning_effort=...),
-  prompt via stdin, salva relatório em .meta-harness/reports/codex-review-<timestamp>.md
-  ↓
-Claude lê o relatório (formato pode ser Markdown livre OU JSON — ver Decisão sobre formato)
-  ↓
-Se achar findings reais → corrige, commita de novo, roda o harness de novo (loop até limpo)
+Claude lê o relatório padronizado; se REJECTED, corrige e roda de novo (loop até limpo)
   ↓
 Claude apresenta a slice ao usuário com o(s) relatório(s) como evidência
 ```
@@ -45,80 +44,97 @@ Claude apresenta a slice ao usuário com o(s) relatório(s) como evidência
 
 ```
 .meta-harness/
-├─ prompts/codex-review.md       # prompt fixo — sandbox read-only assumido explicitamente,
-│                                  formato de saída flexibilizado (aceita nativo do Codex)
-├─ contracts/current-slice.md    # gerado a partir do plano aprovado da slice em curso
-├─ contracts/acceptance-criteria.md
-├─ reports/                       # todos os relatórios versionados (Markdown ou JSON, conforme o Codex escolher)
-└─ config.json                    # model="gpt-5.6-terra", reasoning_effort="high", sandbox="read-only" (refletindo a realidade)
-scripts/validate-step.sh          # bash; aceita SHA opcional (default HEAD), resolve pai via git rev-parse
+├─ prompts/codex-review.md   # prompt fixo — escopo reforçado (não auditar repo inteiro),
+│                              exige NEW_FAILURE/PRE_EXISTING_FAILURE + código exato do diagnóstico
+├─ contracts/current-slice.md, acceptance-criteria.md
+├─ baselines/<slug>-before.json   # capturado por capture-baseline.sh antes de cada slice
+├─ raw/codex-review-<timestamp>.txt      # saída nativa do Codex, preservada sem alteração
+├─ reports/codex-review-<timestamp>.md   # relatório padronizado, gerado deterministicamente
+├─ state/current-review.json             # metadados da última execução (commit, veredito, paths)
+└─ config.json                # model="gpt-5.6-terra", reasoning_effort="high", sandbox="read-only" (real)
+scripts/
+├─ capture-baseline.sh         # bash; roda pytest/tsc/lint/vitest, salva baseline JSON
+├─ validate-step.sh            # bash; orquestra tudo (prompt → codex review → normalizador → state)
+├─ normalize-codex-review.py   # parser determinístico Markdown/JSON, veredito por regra fixa
+└─ test_normalize_codex_review.py   # 7 testes de regressão, sem framework externo
 ```
 
 ---
 
-## ✅ Decisões Tomadas (estado final, pós-2-rodadas)
+## ✅ Decisões Tomadas (estado final)
 
-### Decisão 1 (final): `codex review` sem flags de escopo, git diff explícito no prompt
-`--uncommitted`/`--base`/`--commit` são mutuamente exclusivos com `[PROMPT]` nesta versão da CLI (0.145.0). Solução: chamar sem flag de escopo, prompt via stdin, com o SHA do commit e do pai embutidos no "CONTEXTO DE EXECUÇÃO", instruindo o Codex a rodar `git diff <pai>..<commit>` ele mesmo.
+### `codex review` sem flags de escopo
+`--uncommitted`/`--base`/`--commit` são mutuamente exclusivos com `[PROMPT]` nesta versão da CLI (0.145.0). Chamamos `codex review` puro, com BASE_COMMIT/TARGET_COMMIT e instruções de `git diff` explícitas no próprio prompt.
 
-### Decisão 1b (final): commit de checkpoint obrigatório por slice
-Cada Vertical Slice (ou correção pós-revisão) recebe um commit ao final. Sem isso, não há "pai" para o Codex comparar. Validado nas 2 rodadas: commit `eff1199` (checkpoint VS-01–07) e `28f0a58` (fixes), cada um revisado separadamente.
+### Commit de checkpoint obrigatório por slice
+Sem commit não há "pai" para o Codex comparar. Todas as correções desta sessão (VS-07 fixes + melhorias do harness) seguiram esse padrão: cada rodada de correção = um commit novo, revisado separadamente.
 
-### Decisão 4 (final): sandbox `read-only` aceito como suficiente
-`codex review` não expõe `--sandbox` e roda sempre `read-only`. **Aceito formalmente** (não mais um problema em aberto): o Codex não consegue rodar pytest/vitest de ponta a ponta neste ambiente (falta de venv/Docker equivalentes, sem permissão de escrita em TEMP), mas mesmo assim achou 5 bugs reais nas 2 rodadas via análise estática cuidadosa do diff. O prompt foi ajustado para tratar comandos bloqueados pelo sandbox como `NOT_VERIFIED` (não como falha do processo), e para basear a análise principalmente na leitura do diff quando a execução não for possível. Claude continua sendo responsável por rodar os quality gates de verdade (pytest/vitest/tsc) antes de cada revisão — o Codex é um revisor estático independente, não um substituto disso.
+### Sandbox `read-only` aceito como definitivo
+`codex review` não expõe `--sandbox`; roda sempre `read-only`. O Codex não executa a suíte de testes de ponta a ponta neste ambiente (falta venv/Docker equivalentes), mas isso não impediu achar bugs reais via análise estática cuidadosa — inclusive nos próprios scripts do harness.
 
-### Decisão sobre formato de saída (nova, final): aceitar o formato nativo do Codex
-O `codex review` não obedece um template Markdown rígido — na 1ª rodada devolveu prosa+lista com prioridade P1/P2; na 2ª rodada devolveu **JSON estruturado** (`findings[]`, `overall_correctness`, `overall_explanation`). O prompt foi ajustado para não exigir cabeçalhos exatos, só garantir que os elementos essenciais apareçam em algum lugar (veredito explícito, evidências executadas, critérios de aceitação, findings com severidade). **Claude deve estar preparado para parsear tanto Markdown quanto JSON ao ler os relatórios.**
+### Baseline de quality gates (`capture-baseline.sh`)
+Captura ANTES da implementação: pytest exit code, `tsc --noEmit` com lista de erros (`file(line,col): error TSxxxx: ...`), `npm run lint` com o log completo (não filtrado — o cabeçalho de arquivo por bloco é necessário para associar erros de lint ao arquivo certo), vitest exit code. Usada pelo normalizador para classificar findings como `NEW_FAILURE` ou `PRE_EXISTING_FAILURE`.
 
-### Demais decisões (2, 3, 5, 6, 7 do desenho original) permanecem válidas.
+### Normalizador determinístico (`normalize-codex-review.py`)
+Parseia tanto o formato Markdown-com-prioridade-P# quanto JSON estruturado (os dois formatos nativos já observados do `codex review`). Deriva veredito por regra fixa (BLOCKER/HIGH → REJECTED; só MEDIUM → APPROVED_WITH_WARNINGS; só LOW/INFO ou vazio → APPROVED), sem gastar outra chamada de IA.
+
+### Matching de baseline: EXIGE identidade exata do diagnóstico (código TS / regra ESLint), não gate genérico
+**Esta foi a decisão que levou 3 rodadas de auto-revisão para amadurecer** (ver seção abaixo). A versão final: `_extract_known_locations` extrai trios (arquivo, linha, código-TS-ou-regra-ESLint) da baseline; um finding só é `PRE_EXISTING_FAILURE` se arquivo + linha baterem **e** o código/regra exato aparecer na descrição do finding. O prompt (`codex-review.md`) agora **exige explicitamente** que o Codex cite esse código/regra ao reportar findings de typecheck/lint — sem isso, o normalizador não tem como confirmar que é o mesmo diagnóstico. Trade-off aceito conscientemente: se o Codex não citar o código, o finding vira `NEW_FAILURE` por padrão (nunca mascara um bug real; na pior hipótese, gera falso-positivo de "novo" para dívida técnica antiga).
 
 ---
 
-## 🎯 Findings reais encontrados e corrigidos (2 rodadas)
+## 🎯 Os 3 bugs de auto-revisão encontrados e corrigidos (cronologia)
 
-**Rodada 1** (commit `eff1199`, revisão completa VS-01–07):
-1. HIGH — `LOAN` não creditava o principal recebido como renda → corrigido em `appliers.py::apply_loan` (evento de renda "loan_disbursement").
-2. HIGH — custo total de financiamento não escalava custos recorrentes pela duração → corrigido em `engine.py::_total_cost` (multiplica por `installments`).
-3. HIGH — parâmetros de decisão sem validação (500 em vez de 422) → corrigido com `src/domain/decisions/validation.py::validate_decision_parameters`, chamado no use case, convertido para 422 no router.
-4. HIGH — `scenario_override` não persistido com a simulação → corrigido: `ScenarioOverride.to_dict()` + persistido em `parameters["scenario_override"]` no use case.
-5. MEDIUM (pré-existente, não corrigido nesta rodada) — `resourceConfigs.ts` com `any` quebra `npm run lint`. Fica registrado como dívida técnica conhecida.
+1. **Matching só por nome de arquivo** (sem checar linha) — um finding novo em qualquer linha de um arquivo com falha conhecida era mascarado. Corrigido exigindo também a linha.
+2. **Matching por arquivo+linha, sem identidade** — um finding novo e DIFERENTE (ex: bug de segurança) que caía por coincidência na mesma linha de uma falha de lint/typecheck conhecida ainda era mascarado. Corrigido exigindo que a descrição do finding mencionasse o mesmo *gate* (tsc/lint).
+3. **Matching por gate genérico, não por diagnóstico exato** — dois diagnósticos DIFERENTES do MESMO gate na MESMA linha (ex: TS2769 conhecido vs. TS2322 novo) ainda podiam ser confundidos. Corrigido definitivamente: o prompt agora exige que o Codex cite o código/regra exato, e o normalizador compara por essa identidade específica.
 
-**Rodada 2** (commit `28f0a58`, revisão só das correções acima):
-6. P2/MEDIUM — o novo campo `expense_reduction_capacity` no `DecisionForm` aceitava valores fora de 0–1, gerando 500 em vez de 422 → corrigido: router captura `InvalidPercentageError`/`InvalidMoneyError`/`InvalidOperation` na construção do `ScenarioOverride` e retorna 422; input do form ganhou `min={0} max={1}` como reforço de UX.
+Cada um desses foi encontrado pelo próprio `codex review` ao revisar o commit que implementou a correção do bug anterior — uma cadeia de auto-revisão genuína, não hipotética.
 
-Todos os 6 findings reais (5 HIGH/MEDIUM da rodada 1 relevantes à VS-07 + 1 da rodada 2) foram corrigidos, exceto o lint pré-existente (fora do escopo da VS-07, registrado como dívida técnica separada). Testes: 133 backend / 23 frontend passando após todas as correções.
+---
+
+## 🎯 Findings reais na VS-07 (rodada 1, commit de checkpoint) — todos corrigidos
+
+1. HIGH — `LOAN` não creditava o principal recebido → corrigido em `appliers.py::apply_loan`.
+2. HIGH — custo total de financiamento não escalava custos recorrentes pela duração → corrigido em `engine.py::_total_cost`.
+3. HIGH — parâmetros de decisão sem validação (500 em vez de 422) → corrigido com `validation.py::validate_decision_parameters`.
+4. HIGH — `scenario_override` não persistido → corrigido: `ScenarioOverride.to_dict()` + persistido no use case.
+5. MEDIUM (rodada 2) — `expense_reduction_capacity` fora de 0–1 gerava 500 → corrigido no router.
+6. MEDIUM (pré-existente, não da VS-07) — `resourceConfigs.ts` com `any` quebra `npm run lint` — dívida técnica registrada, não corrigida nesta sessão.
+
+Testes: 133 backend / 23 frontend passando após todas as correções da VS-07. 7 testes de regressão do normalizador do harness.
 
 ---
 
 ## ❌ Lições / Achados Técnicos (críticos para não repetir)
 
 1. **Sempre testar a combinação exata de flags antes de assumir que funciona** — `--help` não deixa claro quais combinações são mutuamente exclusivas.
-2. **`codex review` não tem formato de saída fixo** — varia entre prosa/Markdown e JSON estruturado dependendo da execução. O prompt deve pedir os elementos essenciais, não um template rígido, e Claude deve saber ler ambos os formatos.
-3. **`--sandbox` só existe em `codex`/`codex exec`, não em `codex review`** — checar `<subcomando> --help` especificamente.
-4. **O harness já provou valor real duas vezes seguidas**, inclusive achando um bug introduzido pela própria correção anterior — reforça que vale a pena manter o ciclo "corrige → commita → revalida" até o relatório não trazer findings novos, antes de apresentar a slice como pronta ao usuário.
-5. Repositório sem histórico de commits granulares é incompatível com review baseado em diff de commit — commit por slice (ou por rodada de correção) é obrigatório para o harness funcionar.
+2. **`codex review` não tem formato de saída fixo** — varia entre prosa/Markdown e JSON estruturado. O normalizador precisa suportar ambos.
+3. **`--sandbox` só existe em `codex`/`codex exec`, não em `codex review`**.
+4. **Matching de texto livre para "é o mesmo problema de antes?" é genuinamente difícil** — muito permissivo mascara bugs reais, muito rígido nunca casa nada. A solução robusta não é ajustar a heurística do lado do parser, é **instruir a fonte (o prompt do Codex) a incluir o dado estruturado necessário** (código do diagnóstico) — resolve na raiz em vez de tentar adivinhar depois.
+5. **Bug em bash: paths do Windows com espaço (`D:\IA Projects\...`) quebram regex que assume `\S+` para "resto da linha"** — usar `.+` quando o campo é garantidamente o último da linha.
+6. **Bug em bash: `python -c` com paths estilo `/d/...` do Git Bash não funciona no Python nativo do Windows** — sempre converter com `cygpath -w` antes de passar paths para o Python.
+7. **RTK (hook de otimização de tokens do ambiente) condensa a saída de comandos quando rodados interativamente, mas não quando chamados de dentro de um script** — a saída "crua" (mais detalhada) vem de dentro de scripts, não de chamadas diretas no terminal — relevante para quem for depurar por que `capture-baseline.sh` captura mais detalhe que rodar `npm run lint` manualmente.
 
 ---
 
-## 📚 Pendências conhecidas (não resolvidas ainda, deliberadamente adiadas)
+## 📚 Pendências conhecidas (deliberadamente adiadas)
 
-- **Não fixar ainda `gpt-5.6-terra` + `reasoning_effort=high` como padrão definitivo** — um documento de acompanhamento do usuário (`docs/features/ajustes-meta-harness.md`) sugere medir pelo menos mais 2 execuções (uma slice pequena, uma média) antes de comprometer essa combinação permanentemente, com foco em quota consumida/duração/quantidade de findings úteis por revisão, não em custo em dólar (que não existe aqui — auth via ChatGPT, não API key).
-- O mesmo documento sugere um script `normalize-codex-review.py` para padronizar deterministicamente a saída do Codex (Markdown ou JSON) num relatório único, preservando o raw em `raw/`. **Não implementado ainda** — presente como sugestão a validar com o usuário antes de construir, não fazia parte do pedido explícito desta rodada ("faça os dois" = corrigir findings + ajustar decisões de sandbox/formato).
-- Dívida técnica pré-existente identificada pelo Codex (não da VS-07): `apps/web/src/features/onboarding/resourceConfigs.ts` com `ResourceStepConfig<any>` quebra `npm run lint`; erros de `tsc --noEmit` em `ProjectionChart.tsx`, `FragilityList.tsx`, `ProfileStep.tsx`, `ResourceStepForm.tsx` (já conhecidos, documentados em `project_overview`).
+- **Não fixar ainda `gpt-5.6-terra` + `reasoning_effort=high` como padrão definitivo** — medir mais 2 execuções (slice pequena, slice média) focando em quota consumida/duração/findings úteis por revisão antes de comprometer essa combinação. Não há custo em $ (auth via ChatGPT).
+- Dívida técnica pré-existente (não da VS-07): `resourceConfigs.ts` com `any` quebra `npm run lint`; erros de `tsc --noEmit` em `ProjectionChart.tsx`, `FragilityList.tsx`, `ProfileStep.tsx`, `ResourceStepForm.tsx` (já documentados em `project_overview`).
 
 ---
 
 ## 📚 Contexto e Referências
 
 - Memória original: `planning/temp_20260724_150000` (deletada)
-- Documentos de origem: `docs/features/meta-harness.md` (proposta inicial), `docs/features/ajustes-meta-harness.md` (ajustes pós-piloto, trazido pelo usuário)
-- Codex CLI: v0.145.0, autenticado via ChatGPT (sem custo em $ por chamada, consome quota do plano)
-- Commits: `eff1199` (checkpoint VS-01–07), `28f0a58` (fixes rodada 1), commit seguinte (fix rodada 2 — validação de scenario_override)
-- Relatórios: `.meta-harness/reports/codex-review-20260724-102956.md` (rodada 1), `.meta-harness/reports/codex-review-20260724-112849.md` (rodada 2, formato JSON)
+- Documentos de origem: `docs/features/meta-harness.md` (proposta inicial), `docs/features/ajustes-meta-harness.md` (ajustes pós-piloto)
+- Codex CLI: v0.145.0, autenticado via ChatGPT (sem custo em $ por chamada)
+- Commits desta sessão (ordem): `eff1199` (checkpoint VS-01–07) → `28f0a58` (fix 4 HIGH da VS-07) → fix scenario_override validation → `feat(meta-harness)` baseline+normalizador+raw/state → fix matching arquivo+linha → fix matching por gate → fix matching por identidade exata (final)
 - Repo: `D:\IA Projects\gemeo-financeiro`, branch `master`
 
 ---
 
 ## 🚦 Próximo Passo
 
-Reportar ao usuário: 2ª rodada limpa (achou e já corrigi o único finding novo). Perguntar se quer que eu rode uma 3ª rodada para confirmar que está tudo limpo agora, e decidir sobre as pendências (medições adicionais de modelo, normalize-codex-review.py) antes de seguir para VS-08.
+Meta Harness pronto para uso operacional a partir da VS-08. Fluxo por slice: `capture-baseline.sh` antes de implementar → implementar → commit → `validate-step.sh` com a baseline → ler relatório → corrigir se REJECTED → revalidar → apresentar ao usuário quando limpo.
