@@ -13,7 +13,7 @@ refletir o estado atual do perfil no momento da geração.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, ROUND_UP, Decimal
 from typing import Any, Callable, Optional
 from uuid import uuid4
 
@@ -188,7 +188,10 @@ def _template_reserve_below_three_months(
     shortfall_months = max(shortfall_months, Decimal("0"))
     due_date = _default_due_date(today)
     total_gap = shortfall_months * ctx.autonomy.essential_expenses_monthly.amount
-    impact = _money(total_gap / _FUNDING_PERIOD_MONTHS, currency)
+    # Arredonda para cima: 3 aportes deste valor sempre cobrem o total_gap,
+    # mesmo quando a divisão exata não é representável em centavos.
+    monthly_amount = (total_gap / _FUNDING_PERIOD_MONTHS).quantize(Decimal("0.01"), rounding=ROUND_UP)
+    impact = _money(monthly_amount, currency)
     description = (
         f"Aumentar a reserva de emergência em {impact} por mês até {due_date.isoformat()} "
         "para atingir 3 meses de autonomia básica."

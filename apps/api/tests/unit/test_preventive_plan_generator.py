@@ -305,6 +305,20 @@ def test_reserve_below_three_months_action_amount_targets_three_months() -> None
     assert plan.expected_result["autonomy_change_months"] is not None
 
 
+def test_reserve_below_three_months_rounds_up_so_three_installments_cover_the_gap() -> None:
+    # essential=1000.01, basic_autonomy=1 mês (1000.01/1000.01) -> shortfall=2 meses
+    # -> total_gap=2000.02, que não divide exatamente por 3 (regressão de um finding
+    # real do Meta Harness: 3 parcelas arredondadas para baixo somavam menos que o gap).
+    plans = _generate(
+        accounts=[_account("1000.01")],
+        incomes=[_income("4000.00")],
+        obligations=[_obligation("1000.01", essential=True)],
+    )
+    plan = _plan_for(plans, "RESERVE_BELOW_THREE_MONTHS")
+    monthly_impact = _impact_amount(plan)
+    assert monthly_impact * Decimal("3") >= Decimal("2000.02")
+
+
 def test_unprovisioned_annual_expense_action_amount_is_annual_total_over_twelve() -> None:
     plans = _generate(
         accounts=[_account("30000.00")],
