@@ -359,3 +359,94 @@ def test_simulate_new_goal_via_api(client: TestClient) -> None:
     )
     assert response.status_code == 201
     assert response.json()["type"] == "NEW_GOAL"
+
+
+def test_generate_plans_missing_profile_returns_404(client: TestClient) -> None:
+    response = client.post("/api/v1/profiles/does-not-exist/plans/generate")
+    assert response.status_code == 404
+
+
+def test_plans_list_missing_profile_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/profiles/does-not-exist/plans")
+    assert response.status_code == 404
+
+
+def test_generate_and_list_plans_for_demo_profile(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+    client.post(f"/api/v1/profiles/{profile['id']}/fragilities/detect")
+
+    generate_response = client.post(f"/api/v1/profiles/{profile['id']}/plans/generate")
+    assert generate_response.status_code == 201
+    generated = generate_response.json()
+    assert len(generated) > 0
+    codes = {item["risk_code"] for item in generated}
+    assert "UNPROVISIONED_ANNUAL_EXPENSE" in codes
+    for item in generated:
+        assert item["status"] == "proposed"
+        assert item["actions"]
+        assert "deficit_avoided" in item["expected_result"]
+
+    list_response = client.get(f"/api/v1/profiles/{profile['id']}/plans")
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == len(generated)
+
+
+def test_generate_plans_does_not_duplicate_non_terminal_plans(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+    client.post(f"/api/v1/profiles/{profile['id']}/fragilities/detect")
+
+    first = client.post(f"/api/v1/profiles/{profile['id']}/plans/generate").json()
+    second = client.post(f"/api/v1/profiles/{profile['id']}/plans/generate").json()
+
+    assert len(second) == 0
+    listed = client.get(f"/api/v1/profiles/{profile['id']}/plans").json()
+    assert len(listed) == len(first)
+
+
+def test_plans_list_filters_by_status(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+    client.post(f"/api/v1/profiles/{profile['id']}/fragilities/detect")
+    client.post(f"/api/v1/profiles/{profile['id']}/plans/generate")
+
+    response = client.get(f"/api/v1/profiles/{profile['id']}/plans", params={"status": "approved"})
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_approve_and_reject_plan_status_transitions(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+    client.post(f"/api/v1/profiles/{profile['id']}/fragilities/detect")
+    plans = client.post(f"/api/v1/profiles/{profile['id']}/plans/generate").json()
+    assert len(plans) >= 2
+
+    approved = client.patch(f"/api/v1/plans/{plans[0]['id']}/status", json={"status": "approved"})
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "approved"
+    assert approved.json()["approved_at"] is not None
+
+    in_progress = client.patch(f"/api/v1/plans/{plans[0]['id']}/status", json={"status": "in_progress"})
+    assert in_progress.status_code == 200
+    assert in_progress.json()["status"] == "in_progress"
+
+    rejected = client.patch(f"/api/v1/plans/{plans[1]['id']}/status", json={"status": "rejected"})
+    assert rejected.status_code == 200
+    assert rejected.json()["status"] == "rejected"
+
+
+def test_reject_status_transition_invalid_returns_422(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+    client.post(f"/api/v1/profiles/{profile['id']}/fragilities/detect")
+    plans = client.post(f"/api/v1/profiles/{profile['id']}/plans/generate").json()
+
+    response = client.patch(f"/api/v1/plans/{plans[0]['id']}/status", json={"status": "completed"})
+    assert response.status_code == 422
+
+
+def test_update_plan_status_missing_plan_returns_404(client: TestClient) -> None:
+    response = client.patch("/api/v1/plans/does-not-exist/status", json={"status": "approved"})
+    assert response.status_code == 404

@@ -170,12 +170,20 @@ export function DashboardView({ profileId }: { profileId: string }) {
             </CardContent>
           </Card>
 
-          <Button
-            variant="outline"
-            className="w-fit"
-            nativeButton={false}
-            render={<Link href={`/dashboard/${profileId}/simulations`}>Simular decisão</Link>}
-          />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="w-fit"
+              nativeButton={false}
+              render={<Link href={`/dashboard/${profileId}/simulations`}>Simular decisão</Link>}
+            />
+            <Button
+              variant="outline"
+              className="w-fit"
+              nativeButton={false}
+              render={<Link href={`/dashboard/${profileId}/plans`}>Planos preventivos</Link>}
+            />
+          </div>
         </>
       )}
     </div>

@@ -13,6 +13,7 @@ from src.interfaces.http.routers import (
     goal,
     income,
     obligation,
+    preventive_plan,
     profile,
     simulation,
 )
@@ -51,3 +52,5 @@ app.include_router(dashboard.router)
 app.include_router(fragility.router)
 app.include_router(simulation.profiles_router)
 app.include_router(simulation.simulations_router)
+app.include_router(preventive_plan.profiles_router)
+app.include_router(preventive_plan.plans_router)

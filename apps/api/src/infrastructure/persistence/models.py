@@ -1,9 +1,9 @@
 """Models SQLAlchemy para as entidades manipuladas no onboarding (VS-02), no
-radar de fragilidade (VS-06) e no simulador de decisões (VS-07).
+radar de fragilidade (VS-06), no simulador de decisões (VS-07) e nos planos
+preventivos (VS-08).
 
-Tabelas de `preventive_plans`, `conversations` e `agent_messages`
-(Spec seção 24) serão adicionadas quando as respectivas Vertical Slices
-existirem.
+Tabelas de `conversations` e `agent_messages` (Spec seção 24) serão
+adicionadas quando a Vertical Slice do agente conversacional existir.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from src.domain.shared.enums import (
     Direction,
     IncomeStability,
     LiquidityType,
+    PlanStatus,
     Recurrence,
     Severity,
 )
@@ -44,6 +45,9 @@ class ProfileModel(Base):
         back_populates="profile", cascade="all, delete-orphan"
     )
     simulations: Mapped[list["SimulationModel"]] = relationship(back_populates="profile", cascade="all, delete-orphan")
+    preventive_plans: Mapped[list["PreventivePlanModel"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan"
+    )
 
 
 class AccountModel(Base):
@@ -172,3 +176,18 @@ class SimulationModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     profile: Mapped[ProfileModel] = relationship(back_populates="simulations")
+
+
+class PreventivePlanModel(Base):
+    __tablename__ = "preventive_plans"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(36), ForeignKey("profiles.id"), nullable=False)
+    risk_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[PlanStatus] = mapped_column(Enum(PlanStatus), nullable=False)
+    actions: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    expected_result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    profile: Mapped[ProfileModel] = relationship(back_populates="preventive_plans")
