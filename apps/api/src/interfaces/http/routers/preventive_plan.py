@@ -64,7 +64,11 @@ def list_plans(
 ) -> list[PreventivePlanResponse]:
     _get_profile_or_404(profile_id, session)
 
-    status_enum = PlanStatus(status) if status is not None else None
+    try:
+        status_enum = PlanStatus(status) if status is not None else None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Status inválido: {status!r}") from exc
+
     plans = ListPreventivePlansUseCase(SqlAlchemyPreventivePlanRepository(session)).execute(
         profile_id, status=status_enum
     )

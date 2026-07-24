@@ -1,8 +1,8 @@
 {
-  "target_commit": "bb69539bbe613afbc364f2351fe8f624d37516f4",
-  "base_commit": "4b814ff46b8ded21a853c4c9f25be286874eab2e",
-  "timestamp": "20260724-142149",
+  "target_commit": "9964b37c9b58c6c75f62803d693bbc762aa1688f",
+  "base_commit": "e4899b760316e6e6d8876ba3db43d1f32bc831f5",
+  "timestamp": "20260724-170823",
   "verdict": "REJECTED",
-  "report_path": "D:/IA Projects/gemeo-financeiro/.meta-harness/reports/codex-review-20260724-142149.md",
-  "raw_path": "D:/IA Projects/gemeo-financeiro/.meta-harness/raw/codex-review-20260724-142149.txt"
+  "report_path": "D:/IA Projects/gemeo-financeiro/.meta-harness/reports/codex-review-20260724-170823.md",
+  "raw_path": "D:/IA Projects/gemeo-financeiro/.meta-harness/raw/codex-review-20260724-170823.txt"
 }

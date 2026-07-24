@@ -1,39 +1,39 @@
-# Slice atual: VS-07 — Simulador visual
+# Slice atual: VS-08 — Planos preventivos
 
 > Gerado a partir do plano aprovado em `C:\Users\david\.claude\plans\fancy-jingling-sprout.md` (sessão de 2026-07-24).
 
-> **NOTA PARA ESTA EXECUÇÃO (piloto do Meta Harness)**: o repositório nunca recebeu commits além de um scaffold inicial vazio, então o diff não commitado atual (`--uncommitted`) abrange **todas as slices VS-01 a VS-07**, não só a VS-07. Trate esta execução como uma auditoria de baseline única do projeto inteiro até aqui. A partir da próxima slice, um commit de checkpoint será criado ao final de cada VS, e o escopo voltará a ser apenas a slice em andamento — não repita esta observação como um "finding" de processo, é uma decisão já tomada e aceita pelo usuário.
-
 ## Contexto
 
-VS-01 a VS-06 entregaram persistência, onboarding, dashboard, motor de projeção (VS-04), motor de autonomia (VS-05) e radar de fragilidade (VS-06). A VS-07 (Spec seção 12, seção 10.4, seção 18.9) entrega o Simulador de Decisões: o usuário monta uma decisão financeira hipotética (compra, financiamento, perda de renda, nova meta etc.), o sistema compara o cenário-base (estado atual, sem a decisão) com o cenário simulado (com a decisão aplicada) e mostra o impacto (delta de autonomia, delta de saldo final, novo primeiro déficit, atraso de meta). Inclui também o cenário personalizado completo (seção 10.4) e os 9 tipos de decisão da seção 12.1, sem corte de escopo.
+VS-01–07 entregaram persistência, onboarding, dashboard, projeção (VS-04), autonomia (VS-05), radar de fragilidade (VS-06) e simulador de decisões (VS-07). A VS-08 (Spec seção 13, seção 6.7, seção 18.10) entrega Planos Preventivos: a partir das fragilidades já detectadas e persistidas (VS-06), o sistema gera propostas de ação por regras fixas (sem IA generativa), o usuário aprova/rejeita via cards, e o plano é acompanhado através de um ciclo de status (`proposed → approved/rejected → in_progress → completed/cancelled`).
 
-Nenhuma mudança foi necessária no motor de projeção (`project_cashflow`, VS-04) nem no motor de autonomia (`calculate_autonomy`, VS-05) — ambos reaproveitados sem alteração.
+Nenhuma mudança foi necessária nos motores de projeção/autonomia/fragilidade — o gerador só lê as saídas já existentes, reaproveitando `FragilityContext` (`src.domain.fragility.detector`).
 
 ## Escopo entregue
 
-### Domínio (`apps/api/src/domain/decisions/`)
-- `scenario_override.py::ScenarioOverride` — cenário personalizado (seção 10.4).
-- `context.py::DecisionContext` — bundle das 6 listas de entidades.
-- `types.py::DECISION_TYPES` — registro estático dos 9 tipos de decisão (seção 12.1).
-- `appliers.py` — 9 funções puras (`apply_cash_purchase`, `apply_installment_purchase`, `apply_financing`/`apply_loan`, `apply_income_loss`/`apply_salary_reduction`, `apply_new_recurring_expense`, `apply_new_goal`, `apply_reserve_increase`).
-- `engine.py::simulate_decision(...)` — baseline vs. simulado, custo total (seção 12.3), impacto (seção 12.2).
+### Domínio (`apps/api/src/domain/preventive_plans/`)
+- `entities.py::PreventivePlan` — já existia como placeholder, sem mudanças.
+- `validation.py` — `PLAN_STATUS_TRANSITIONS` + `validate_status_transition` (transições válidas do ciclo de status da seção 6.7).
+- `generator.py::generate_preventive_plans(...)` — 11 templates (1 por código de fragilidade da VS-06), cada um calculando ação + `expected_result` a partir de `FragilityContext` recomputado (projeção + autonomia). Regra de não-duplicação: só gera plano novo para um `risk_code` sem plano não-terminal (`proposed`/`approved`/`in_progress`) já existente.
 
-### Persistência
-- `SimulationModel` (`simulations`), migração Alembic `0a457ffa0a4d`.
-- `SimulationRepository` (Protocol + SQLAlchemy), cada `/simulations` cria um novo registro (histórico acumulado).
+### Persistência (4ª tabela desde a VS-02)
+- `PreventivePlanModel` (`preventive_plans`), migração Alembic `cc81d6a213fa` — `actions`/`expected_result` como JSON embutido (mesma decisão consciente da VS-07 para `Simulation`).
+- `PreventivePlanRepository` (Protocol + SQLAlchemy).
 
-### Interface HTTP (Spec seção 18.9)
-- `POST/GET /api/v1/profiles/{profile_id}/simulations`
-- `GET/DELETE /api/v1/simulations/{simulation_id}`
+### Aplicação (`apps/api/src/application/use_cases/preventive_plan_use_cases.py`)
+- `GeneratePreventivePlansUseCase`, `ListPreventivePlansUseCase`, `UpdatePlanStatusUseCase`.
+
+### Interface HTTP (Spec seção 18.10, literal)
+- `POST /api/v1/profiles/{profile_id}/plans/generate`
+- `GET /api/v1/profiles/{profile_id}/plans`
+- `PATCH /api/v1/plans/{plan_id}/status`
 
 ### Front-end (`apps/web`)
-- `src/features/simulation/`: `types.ts`, `api.ts`, `decisionFields.ts`, `DecisionForm.tsx`, `SimulationComparison.tsx`, `SimulationHistory.tsx`.
-- Rotas `dashboard/[profileId]/simulations/page.tsx` e `.../simulations/[simulationId]/page.tsx`.
-- Card "Simular decisão" no dashboard (antes placeholder desabilitado) agora é link real.
+- `src/features/preventive-plans/`: `types.ts`, `api.ts`, `PlanCard.tsx` (ações, impacto esperado, aprovar/rejeitar, acompanhamento), `PreventivePlanList.tsx`.
+- Rota `dashboard/[profileId]/plans/page.tsx`.
+- Botão "Planos preventivos" no dashboard, ao lado de "Simular decisão".
 
 ## Fora de escopo (não implementado nesta slice)
 
-- Planos preventivos, agente conversacional (VS-08/VS-09).
-- Custo de oportunidade do financiamento (fórmula não definida na Spec — documentado como limitação, não inventado).
-- Edição de uma simulação existente (Spec só define criar/listar/obter/excluir).
+- Execução financeira real de qualquer ação do plano (Spec seção 5: nenhuma ação financeira é executada no MVP — aprovar só registra estado).
+- Agente conversacional (VS-09).
+- Edição de ações de um plano já gerado — só a transição de status é editável.

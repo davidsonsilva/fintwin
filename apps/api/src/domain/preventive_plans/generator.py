@@ -177,17 +177,23 @@ def _template_projected_deficit_90_days(
     return actions, _expected_result(True, _autonomy_change_from_impact(impact, ctx))
 
 
+_FUNDING_PERIOD_MONTHS = Decimal(_DEFAULT_DUE_OFFSET_DAYS) / Decimal("30")
+
+
 def _template_reserve_below_three_months(
     finding: FragilityFinding, ctx: FragilityContext, currency: str, today: date
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     months = ctx.autonomy.basic_autonomy_months
     shortfall_months = Decimal("3") - months if months is not None else Decimal("3")
     shortfall_months = max(shortfall_months, Decimal("0"))
-    impact = _money(shortfall_months * ctx.autonomy.essential_expenses_monthly.amount, currency)
+    due_date = _default_due_date(today)
+    total_gap = shortfall_months * ctx.autonomy.essential_expenses_monthly.amount
+    impact = _money(total_gap / _FUNDING_PERIOD_MONTHS, currency)
     description = (
-        f"Aumentar a reserva de emergência em {impact} por mês para atingir 3 meses de autonomia básica."
+        f"Aumentar a reserva de emergência em {impact} por mês até {due_date.isoformat()} "
+        "para atingir 3 meses de autonomia básica."
     )
-    actions = [_action(description, impact, _default_due_date(today))]
+    actions = [_action(description, impact, due_date)]
     return actions, _expected_result(True, shortfall_months)
 
 

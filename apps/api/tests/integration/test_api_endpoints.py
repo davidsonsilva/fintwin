@@ -405,6 +405,12 @@ def test_generate_plans_does_not_duplicate_non_terminal_plans(client: TestClient
     assert len(listed) == len(first)
 
 
+def test_plans_list_rejects_invalid_status_filter(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    response = client.get(f"/api/v1/profiles/{profile['id']}/plans", params={"status": "not-a-status"})
+    assert response.status_code == 422
+
+
 def test_plans_list_filters_by_status(client: TestClient) -> None:
     profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
     client.post(f"/api/v1/profiles/{profile['id']}/demo")
