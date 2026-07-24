@@ -98,7 +98,8 @@ def _total_cost(decision_type: str, parameters: Mapping[str, Any], currency: str
 
     recurring_total = zero
     for cost in parameters.get("recurring_costs", []):
-        recurring_total = recurring_total.add(Money(Decimal(str(cost["amount"])), currency))
+        monthly_cost = Money(Decimal(str(cost["amount"])), currency)
+        recurring_total = recurring_total.add(monthly_cost.multiply(Decimal(installments)))
 
     one_off_total = zero
     for cost in parameters.get("one_off_costs", []):

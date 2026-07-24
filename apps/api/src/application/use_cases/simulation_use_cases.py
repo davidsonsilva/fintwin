@@ -10,6 +10,7 @@ from src.domain.decisions.context import DecisionContext
 from src.domain.decisions.engine import simulate_decision
 from src.domain.decisions.entities import Simulation
 from src.domain.decisions.scenario_override import ScenarioOverride
+from src.domain.decisions.validation import validate_decision_parameters
 
 
 class SimulateDecisionUseCase:
@@ -40,6 +41,8 @@ class SimulateDecisionUseCase:
         horizon_months: int,
         currency: str,
     ) -> Simulation:
+        validate_decision_parameters(decision_type, parameters)
+
         context = DecisionContext(
             accounts=self._account_repo.list_by_profile(profile_id),
             incomes=self._income_repo.list_by_profile(profile_id),
@@ -63,11 +66,15 @@ class SimulateDecisionUseCase:
         simulated_result["total_cost"] = outcome.total_cost
         simulated_result["assumptions"] = outcome.assumptions
 
+        persisted_parameters = dict(parameters)
+        if scenario_override is not None:
+            persisted_parameters["scenario_override"] = scenario_override.to_dict()
+
         simulation = Simulation(
             id=str(uuid4()),
             profile_id=profile_id,
             type=decision_type,
-            parameters=dict(parameters),
+            parameters=persisted_parameters,
             baseline_result=dict(outcome.baseline_result),
             simulated_result=simulated_result,
             created_at=datetime.utcnow(),

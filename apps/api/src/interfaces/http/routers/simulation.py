@@ -13,6 +13,7 @@ from src.application.use_cases.simulation_use_cases import (
     SimulateDecisionUseCase,
 )
 from src.domain.decisions.scenario_override import ScenarioOverride
+from src.domain.decisions.validation import InvalidDecisionParametersError
 from src.domain.shared.money import Money
 from src.domain.shared.percentage import Percentage
 from src.infrastructure.persistence.session import get_session
@@ -75,14 +76,17 @@ def create_simulation(
         event_repo=SqlAlchemyEventRepository(session),
         simulation_repo=SqlAlchemySimulationRepository(session),
     )
-    simulation = use_case.execute(
-        profile_id=profile_id,
-        decision_type=payload.decision_type,
-        parameters=payload.parameters,
-        scenario_override=scenario_override,
-        horizon_months=payload.horizon_months,
-        currency=profile.currency,
-    )
+    try:
+        simulation = use_case.execute(
+            profile_id=profile_id,
+            decision_type=payload.decision_type,
+            parameters=payload.parameters,
+            scenario_override=scenario_override,
+            horizon_months=payload.horizon_months,
+            currency=profile.currency,
+        )
+    except InvalidDecisionParametersError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return SimulationResponse.from_domain(simulation)
 
 

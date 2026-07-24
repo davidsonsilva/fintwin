@@ -88,6 +88,29 @@ def test_simulate_installment_purchase_computes_total_cost():
     assert outcome.total_cost["total_cost"]["amount"] == "1200.00"
 
 
+def test_simulate_financing_total_cost_scales_recurring_costs_by_installments():
+    context = _base_context()
+    outcome = simulate_decision(
+        context=context,
+        decision_type="FINANCING",
+        parameters={
+            "total_amount": "50000.00",
+            "down_payment": "10000.00",
+            "installments": 40,
+            "description": "Carro",
+            "recurring_costs": [{"description": "Seguro", "amount": "150.00"}],
+        },
+        scenario_override=None,
+        horizon_months=1,
+        currency=CURRENCY,
+        today=TODAY,
+    )
+
+    # 150.00/mês ao longo de 40 parcelas = 6000.00, não 150.00 uma única vez.
+    assert outcome.total_cost["recurring_costs_total"]["amount"] == "6000.00"
+    assert outcome.total_cost["total_cost"]["amount"] == "56000.00"
+
+
 def test_simulate_income_loss_creates_deficit_in_projection():
     context = _base_context()
     context.accounts[0] = FinancialAccount(

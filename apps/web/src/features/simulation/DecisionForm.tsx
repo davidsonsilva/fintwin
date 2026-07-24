@@ -190,6 +190,18 @@ export function DecisionForm({ profileId, onCreated }: { profileId: string; onCr
                   onChange={(event) => setScenarioOverride((prev) => ({ ...prev, unexpected_expense: event.target.value }))}
                 />
               </div>
+              <div className="space-y-1">
+                <Label htmlFor="expense-reduction-capacity">Capacidade de redução de despesas (0 a 1)</Label>
+                <Input
+                  id="expense-reduction-capacity"
+                  type="number"
+                  step="0.01"
+                  value={scenarioOverride.expense_reduction_capacity ?? ""}
+                  onChange={(event) =>
+                    setScenarioOverride((prev) => ({ ...prev, expense_reduction_capacity: event.target.value }))
+                  }
+                />
+              </div>
             </div>
           )}
         </div>

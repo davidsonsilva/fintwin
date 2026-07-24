@@ -162,8 +162,23 @@ def apply_financing(context: DecisionContext, parameters: Mapping[str, Any], cur
 def apply_loan(context: DecisionContext, parameters: Mapping[str, Any], currency: str, today: date) -> DecisionContext:
     parameters = dict(parameters)
     parameters.setdefault("down_payment", 0)
-    parameters.setdefault("total_amount", parameters.get("amount"))
-    return apply_financing(context, parameters, currency, today)
+    total_amount = Decimal(str(parameters.get("total_amount", parameters.get("amount"))))
+    down_payment = Decimal(str(parameters["down_payment"]))
+    parameters["total_amount"] = total_amount
+
+    context = apply_financing(context, parameters, currency, today)
+
+    financed = total_amount - down_payment
+    if financed > 0:
+        _new_event(
+            context,
+            description=f"Recebimento do empréstimo — {parameters.get('description', 'Empréstimo')}",
+            amount=_money(financed, currency),
+            direction=Direction.INCOME,
+            event_date=today,
+            event_type="loan_disbursement",
+        )
+    return context
 
 
 def _apply_income_adjustment(context: DecisionContext, parameters: Mapping[str, Any], today: date) -> DecisionContext:

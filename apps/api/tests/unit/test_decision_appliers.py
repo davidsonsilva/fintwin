@@ -83,8 +83,27 @@ def test_loan_defaults_down_payment_to_zero():
         TODAY,
     )
 
-    assert not result.events  # sem entrada
+    assert len(result.events) == 1  # sem entrada, mas credita o recebimento do empréstimo
+    assert result.events[0].direction.value == "income"
+    assert result.events[0].amount == Money(Decimal("5000.00"), CURRENCY)
     assert result.debts[0].outstanding_balance == Money(Decimal("5000.00"), CURRENCY)
+
+
+def test_loan_credits_disbursement_net_of_down_payment():
+    context = DecisionContext()
+    result = appliers.apply_loan(
+        context,
+        {"amount": "5000.00", "down_payment": "500.00", "installments": 12, "description": "Empréstimo consignado"},
+        CURRENCY,
+        TODAY,
+    )
+
+    income_events = [e for e in result.events if e.direction.value == "income"]
+    expense_events = [e for e in result.events if e.direction.value == "expense"]
+    assert len(income_events) == 1
+    assert income_events[0].amount == Money(Decimal("4500.00"), CURRENCY)
+    assert len(expense_events) == 1
+    assert expense_events[0].amount == Money(Decimal("500.00"), CURRENCY)
 
 
 def test_income_loss_zeroes_income_for_duration_then_resumes():

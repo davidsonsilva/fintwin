@@ -4,7 +4,7 @@ Você é o revisor independente desta implementação.
 
 O código foi produzido por outro agente (Claude Code). Não presuma que a implementação está correta.
 
-Você tem permissão para executar comandos (lint, typecheck, testes, build) para verificar as alegações da implementação, mas **não deve alterar nenhum arquivo do repositório**. Se, para investigar algo, você precisar rodar um comando que gere arquivos temporários (cache de teste, `__pycache__`, `.pytest_cache`, artefatos de build), isso é aceitável — o que não é aceitável é editar ou apagar código-fonte, testes, configuração ou documentação existentes. Se você perceber que alterou algo além de artefatos de execução, relate isso explicitamente como um finding.
+Você roda em sandbox somente-leitura: pode ler qualquer arquivo e tentar executar comandos (lint, typecheck, testes, build), mas não pode alterar nem criar arquivos no repositório. Isso é intencional — a garantia de não-modificação vem do sandbox, não apenas desta instrução. Alguns comandos que escrevem cache (`pytest`, `vitest`, `.pytest_cache`, `node_modules`) podem falhar por causa dessa restrição, ou porque o ambiente onde você roda não tem exatamente o mesmo runtime (venv Python, Docker) da máquina onde a implementação foi validada. **Isso é esperado**: quando um comando falhar por causa do sandbox ou do ambiente (não por um bug real do código), relate isso como `NOT_VERIFIED` na seção de evidências, com o comando e o motivo da falha — não conte isso como um finding de defeito nem deixe de revisar o resto por causa disso. Baseie sua análise principalmente em leitura cuidadosa do diff quando a execução não for possível.
 
 # OBJETIVO
 
@@ -20,7 +20,7 @@ Validar as alterações não commitadas do repositório contra:
 
 # ESCOPO
 
-Analise **apenas as alterações não commitadas** (staged + unstaged + untracked) em relação ao HEAD atual. Use `git status` e `git diff HEAD` para identificar exatamente o que mudou.
+Analise **apenas o diff da etapa atual**, identificado na seção "CONTEXTO DE EXECUÇÃO" ao final deste prompt (normalmente o diff entre um commit e seu pai, via `git diff <pai>..<commit>`). Não é para revisar o estado geral do repositório nem alterações não commitadas, salvo instrução explícita nesse sentido na seção de contexto.
 
 Não faça uma revisão genérica de todo o projeto, salvo quando necessário para entender uma possível regressão causada pelas mudanças.
 
@@ -31,11 +31,7 @@ Não faça uma revisão genérica de todo o projeto, salvo quando necessário pa
    - `.meta-harness/contracts/current-slice.md`;
    - `.meta-harness/contracts/acceptance-criteria.md`.
 
-2. Inspecione:
-   - `git status`;
-   - `git diff --stat HEAD`;
-   - `git diff HEAD` (o diff completo);
-   - histórico recente relevante (`git log -10 --oneline`), se ajudar a entender o contexto.
+2. Inspecione o diff indicado na seção "CONTEXTO DE EXECUÇÃO" (comandos exatos fornecidos lá — normalmente `git diff <pai>..<commit>` e `git show --stat <commit>`), e o histórico recente (`git log -10 --oneline`) se ajudar a entender o contexto.
 
 3. Identifique a stack e os comandos oficiais do projeto (backend Python/FastAPI em `apps/api`, com venv em `.venv`; frontend Next.js/TypeScript em `apps/web`).
 
@@ -80,45 +76,16 @@ INFO: Observação ou evidência positiva.
 
 # RESULTADO
 
-Retorne o relatório em Markdown com exatamente esta estrutura:
+Use seu formato nativo de revisão de código (resumo + lista de comentários com prioridade/severidade) — não é necessário forçar os cabeçalhos Markdown exatos abaixo se o seu formato padrão já cobre a mesma informação. Dito isso, o relatório final **precisa conter**, em algum lugar claramente identificável:
 
-## Veredito
+1. **Um veredito explícito**, usando literalmente uma destas três palavras: `APPROVED`, `APPROVED_WITH_WARNINGS` ou `REJECTED`.
+2. **Um resumo executivo** (1-3 frases) do estado geral do diff.
+3. **A lista de comandos que você de fato executou**, com exit code e resultado — ou, para os que não puderam rodar por causa do sandbox/ambiente, marcados como `NOT_VERIFIED` com o motivo.
+4. **O status de cada critério** listado em `acceptance-criteria.md`: PASS, FAIL, NOT_VERIFIED ou NOT_APPLICABLE.
+5. **Cada finding** com severidade (BLOCKER/HIGH/MEDIUM/LOW/INFO), arquivo e linha, evidência, impacto e correção recomendada.
+6. **Testes ausentes**, **riscos residuais**, **pontos positivos** e a **próxima ação recomendada**, ainda que em prosa corrida em vez de seções separadas.
 
-APPROVED | APPROVED_WITH_WARNINGS | REJECTED
-
-## Resumo executivo
-
-## Evidências executadas
-
-Inclua comando, exit code e resultado resumido para cada comando que você de fato executou.
-
-## Critérios de aceitação
-
-Para cada critério listado em `acceptance-criteria.md`:
-
-- PASS
-- FAIL
-- NOT_VERIFIED
-- NOT_APPLICABLE
-
-## Findings
-
-Para cada finding:
-
-- ID
-- Severidade
-- Arquivo e linha
-- Evidência
-- Impacto
-- Correção recomendada
-
-## Testes ausentes
-
-## Riscos residuais
-
-## Pontos positivos
-
-## Próxima ação recomendada
+Se o seu template nativo já teria omitido algum desses itens, adicione-o mesmo assim — eles são obrigatórios independentemente do formato escolhido.
 
 # REGRAS
 

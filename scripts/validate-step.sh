@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
-# Meta Harness — roda o Codex CLI como revisor independente contra o diff
-# não commitado atual, uma vez por Vertical Slice concluída.
+# Meta Harness — roda o Codex CLI como revisor independente do commit mais
+# recente (uma Vertical Slice = um commit), uma vez por slice concluída.
+#
+# `codex review --uncommitted` não aceita prompt customizado (mutuamente
+# exclusivo nesta versão da CLI), por isso usamos `--commit <sha>`, que
+# revisa exatamente o diff introduzido por um commit já existente.
+#
+# Uso:
+#   scripts/validate-step.sh              # revisa o commit HEAD
+#   scripts/validate-step.sh <sha-ou-ref>  # revisa um commit específico
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
+
+TARGET_COMMIT="${1:-HEAD}"
+RESOLVED_SHA="$(git rev-parse "$TARGET_COMMIT")"
 
 HARNESS_DIR="$PROJECT_ROOT/.meta-harness"
 PROMPT_PATH="$HARNESS_DIR/prompts/codex-review.md"
@@ -60,22 +71,36 @@ if [[ -f "$CONTRACTS_DIR/acceptance-criteria.md" ]]; then
   } >> "$FULL_PROMPT_FILE"
 fi
 
+PARENT_SHA="$(git rev-parse "$RESOLVED_SHA^" 2>/dev/null || echo "")"
+
 {
   echo ""
   echo "# CONTEXTO DE EXECUÇÃO"
   echo ""
   echo "Diretório do projeto: $PROJECT_ROOT"
   echo ""
+  echo "Commit a revisar: $RESOLVED_SHA"
+  if [[ -n "$PARENT_SHA" ]]; then
+    echo "Commit pai (base da comparação): $PARENT_SHA"
+    echo ""
+    echo "IMPORTANTE: este comando não usa as flags de escopo da CLI (--uncommitted/--base/--commit)"
+    echo "porque elas são mutuamente exclusivas com instruções de prompt customizadas nesta versão"
+    echo "do Codex CLI. Em vez disso, identifique o diff a revisar você mesmo, executando:"
+    echo "  git diff $PARENT_SHA..$RESOLVED_SHA"
+    echo "  git show --stat $RESOLVED_SHA"
+    echo "Trate esse diff (não o estado geral do repositório) como o escopo desta revisão."
+  else
+    echo "Este commit não tem pai (commit raiz) — revise o conteúdo completo dele."
+  fi
+  echo ""
   echo "Execute a revisão agora e devolva somente o relatório solicitado."
 } >> "$FULL_PROMPT_FILE"
 
-echo "Iniciando revisão independente com Codex ($MODEL, reasoning_effort=$REASONING_EFFORT)..."
-echo "Nota: 'codex review' não aceita --sandbox como flag; sandbox de $SANDBOX é o valor pretendido em config.json, mas não é aplicado por este comando (ver .meta-harness/config.json)."
+echo "Iniciando revisão independente com Codex ($MODEL, reasoning_effort=$REASONING_EFFORT, sandbox=$SANDBOX) sobre o commit $RESOLVED_SHA..."
 echo "Relatório: $REPORT_PATH"
 
 set +e
 codex review \
-  --uncommitted \
   -c "model=\"$MODEL\"" \
   -c "model_reasoning_effort=\"$REASONING_EFFORT\"" \
   - < "$FULL_PROMPT_FILE" \
