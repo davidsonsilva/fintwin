@@ -73,7 +73,7 @@ export function FragilityList({ profileId }: { profileId: string }) {
           <details key={finding.id} className="rounded-md border px-3 py-2 text-sm">
             <summary className="flex cursor-pointer items-center justify-between gap-2">
               <span className="font-medium">{finding.title}</span>
-              <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase text-muted-foreground">
+              <span className="ft-badge">
                 {finding.severity}
               </span>
             </summary>

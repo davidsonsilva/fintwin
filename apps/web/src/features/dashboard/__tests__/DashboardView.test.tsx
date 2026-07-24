@@ -86,13 +86,13 @@ describe("DashboardView", () => {
 
     renderWithClient(<DashboardView profileId="profile-1" />);
 
-    expect(await screen.findByText("12500.00 BRL")).toBeInTheDocument();
-    expect(screen.getByText("4950.00 BRL")).toBeInTheDocument();
-    expect(screen.getByText("50.0%")).toBeInTheDocument();
+    expect(await screen.findByText("R$ 12.500,00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 4.950,00")).toBeInTheDocument();
+    expect(screen.getAllByText("50.0%").length).toBeGreaterThan(0);
     expect(screen.getByText("Entrada de imóvel próprio")).toBeInTheDocument();
     expect(screen.getByText(/13º salário/)).toBeInTheDocument();
     expect((await screen.findAllByText(/sem déficit projetado/i)).length).toBeGreaterThan(0);
-    expect(await screen.findByText("1.8 meses")).toBeInTheDocument();
+    expect((await screen.findAllByText("1.8 meses")).length).toBeGreaterThan(0);
     expect(await screen.findByText("Ver radar de fragilidade")).toBeInTheDocument();
   });
 

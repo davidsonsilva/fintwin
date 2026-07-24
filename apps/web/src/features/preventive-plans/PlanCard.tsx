@@ -38,7 +38,7 @@ export function PlanCard({ plan }: { plan: PreventivePlanDto }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle className="text-base">{RISK_CODE_LABELS[plan.risk_code] ?? plan.risk_code}</CardTitle>
-        <span className="rounded bg-muted px-2 py-0.5 text-xs uppercase text-muted-foreground">
+        <span className="ft-badge">
           {STATUS_LABELS[plan.status]}
         </span>
       </CardHeader>
