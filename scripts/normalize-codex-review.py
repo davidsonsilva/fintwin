@@ -119,21 +119,38 @@ def _load_baseline(path: Optional[str]) -> dict[str, Any]:
 _TSC_KNOWN_PATTERN = re.compile(r"^(?P<file>.+?)\((?P<line>\d+),\d+\):")
 _LINT_KNOWN_PATTERN = re.compile(r"^(?P<line>\d+):\d+\s+(error|warning)")
 
+# Palavras que uma descrição de finding precisa conter para ser considerada
+# "sobre" o mesmo quality gate da falha conhecida da baseline — não é uma
+# comparação de identidade exata (código TS / regra do lint), porque a
+# prosa livre do Codex raramente cita esses códigos literalmente, mas evita
+# que um finding de outra natureza (funcional, segurança) que caia por
+# coincidência na mesma linha seja mascarado.
+_GATE_KEYWORDS = {
+    "typecheck": ("tsc", "typescript", "type-check", "typecheck", "type check"),
+    "lint": ("eslint", "lint"),
+}
 
-def _extract_known_locations(baseline: dict[str, Any]) -> list[tuple[str, int]]:
-    """Extrai pares (nome-do-arquivo, linha) das falhas conhecidas da baseline.
 
-    Matching por arquivo+linha (não só nome do arquivo) evita que um finding
-    novo numa linha diferente do mesmo arquivo seja mascarado como
-    pré-existente — bug real encontrado pelo próprio Meta Harness ao revisar
-    este script.
+def _extract_known_locations(baseline: dict[str, Any]) -> list[tuple[str, int, str]]:
+    """Extrai trios (nome-do-arquivo, linha, gate) das falhas conhecidas da
+    baseline.
+
+    Exigir arquivo+linha+gate (não só o arquivo) evita dois bugs reais já
+    encontrados pelo próprio Meta Harness ao revisar este script:
+    1. um finding novo numa linha diferente do mesmo arquivo sendo mascarado
+       (resolvido exigindo também a linha, não só o arquivo);
+    2. um finding novo e DIFERENTE (ex: funcional/segurança) que por
+       coincidência cai na MESMA linha de uma falha de lint/typecheck já
+       conhecida sendo mascarado (resolvido exigindo que a descrição do
+       finding mencione o mesmo gate — tsc/typecheck ou lint/eslint — da
+       falha conhecida, não só a localização).
     """
-    locations: list[tuple[str, int]] = []
+    locations: list[tuple[str, int, str]] = []
 
     for entry in baseline.get("typecheck", {}).get("knownFailures", []):
         match = _TSC_KNOWN_PATTERN.match(entry.strip())
         if match:
-            locations.append((Path(match.group("file")).name.lower(), int(match.group("line"))))
+            locations.append((Path(match.group("file")).name.lower(), int(match.group("line")), "typecheck"))
 
     current_file: Optional[str] = None
     for entry in baseline.get("lint", {}).get("knownFailures", []):
@@ -141,7 +158,7 @@ def _extract_known_locations(baseline: dict[str, Any]) -> list[tuple[str, int]]:
         match = _LINT_KNOWN_PATTERN.match(stripped)
         if match:
             if current_file:
-                locations.append((Path(current_file).name.lower(), int(match.group("line"))))
+                locations.append((Path(current_file).name.lower(), int(match.group("line")), "lint"))
             continue
         if stripped and not stripped[0].isdigit() and ("/" in stripped or "\\" in stripped):
             current_file = stripped
@@ -168,8 +185,10 @@ def _mark_pre_existing(findings: list[dict[str, Any]], baseline: dict[str, Any])
             continue
         basename = Path(file_path).name.lower()
         finding_lines = _finding_line_numbers(finding.get("line"))
-        for known_basename, known_line in known_locations:
-            if known_basename == basename and (not finding_lines or known_line in finding_lines):
+        finding_text = f"{finding.get('title', '')} {finding.get('description', '')}".lower()
+        for known_basename, known_line, gate in known_locations:
+            gate_mentioned = any(keyword in finding_text for keyword in _GATE_KEYWORDS[gate])
+            if known_basename == basename and (not finding_lines or known_line in finding_lines) and gate_mentioned:
                 finding["baseline_status"] = "PRE_EXISTING_FAILURE"
                 break
 

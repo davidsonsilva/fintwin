@@ -89,8 +89,8 @@ def test_baseline_matching_requires_same_line_not_just_same_file():
     }
 
     findings = [
-        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "200", "severity": "HIGH"},
-        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "117", "severity": "HIGH"},
+        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "200", "severity": "HIGH", "title": "", "description": "npx tsc --noEmit fails here too"},
+        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "117", "severity": "HIGH", "title": "", "description": "npx tsc --noEmit reports an overload error"},
     ]
     normalize._mark_pre_existing(findings, baseline)
 
@@ -100,7 +100,38 @@ def test_baseline_matching_requires_same_line_not_just_same_file():
     )
     check(
         findings[1]["baseline_status"] == "PRE_EXISTING_FAILURE",
-        "finding na mesma linha (117) da baseline deveria ser pré-existente",
+        "finding na mesma linha (117) E mesma identidade (TS2769) da baseline deveria ser pré-existente",
+    )
+
+
+def test_baseline_matching_does_not_mask_a_different_problem_on_the_same_line():
+    """Regressão: um finding NOVO e DIFERENTE (ex: bug funcional/segurança)
+    que por coincidência cai na mesma linha de uma falha de lint/typecheck
+    conhecida NÃO pode ser mascarado só por causa da localização — a
+    descrição do finding também precisa mencionar o mesmo gate (tsc/lint)
+    (segundo bug real encontrado pelo Meta Harness revisando este script)."""
+    baseline = {
+        "typecheck": {
+            "knownFailures": [
+                "src/features/onboarding/ResourceStepForm.tsx(117,27): error TS2769: No overload matches this call."
+            ]
+        },
+        "lint": {"knownFailures": []},
+    }
+    findings = [
+        {
+            "file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx",
+            "line": "117",
+            "severity": "HIGH",
+            "title": "SQL injection via unsanitized input",
+            "description": "Completely unrelated security bug that happens to be on this line.",
+        }
+    ]
+    normalize._mark_pre_existing(findings, baseline)
+
+    check(
+        findings[0]["baseline_status"] == "NEW_FAILURE",
+        "finding que não menciona tsc/typecheck não deveria ser mascarado, mesmo na mesma linha de uma falha de typecheck conhecida",
     )
 
 
@@ -112,13 +143,25 @@ def test_baseline_matching_handles_lint_file_header_association():
                 "D:\\proj\\src\\features\\onboarding\\resourceConfigs.ts",
                 "31:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
                 "D:\\proj\\src\\other\\File.tsx",
-                "10:5   error  Something else",
+                "10:5   error  Something else  some-other/rule",
             ]
         },
     }
     findings = [
-        {"file": "D:\\proj\\src\\features\\onboarding\\resourceConfigs.ts", "line": "31", "severity": "MEDIUM"},
-        {"file": "D:\\proj\\src\\features\\onboarding\\resourceConfigs.ts", "line": "10", "severity": "MEDIUM"},
+        {
+            "file": "D:\\proj\\src\\features\\onboarding\\resourceConfigs.ts",
+            "line": "31",
+            "severity": "MEDIUM",
+            "title": "",
+            "description": "Reports @typescript-eslint/no-explicit-any usage here.",
+        },
+        {
+            "file": "D:\\proj\\src\\features\\onboarding\\resourceConfigs.ts",
+            "line": "10",
+            "severity": "MEDIUM",
+            "title": "",
+            "description": "Some unrelated new finding.",
+        },
     ]
     normalize._mark_pre_existing(findings, baseline)
 

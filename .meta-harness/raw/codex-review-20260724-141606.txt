@@ -1,0 +1,6 @@
+REJECTED: the baseline classifier can still approve a change containing a new HIGH finding. Executed: required git diff/stat/show/log, `git diff --check`, static contract scans, direct classifier reproduction, and `python scripts/test_normalize_codex_review.py` (all exit 0); `tsc` and lint exited 1 with only baseline-listed PRE_EXISTING_FAILUREs, while pytest, Vitest, build, and Docker migration/manual checks are NOT_VERIFIED due unavailable venv Python, sandbox EPERM, or denied Docker socket. Acceptance: 1-4 NOT_VERIFIED; 5-8 PASS by static inspection; missing coverage is a regression test proving a different finding on the same location is not suppressed.
+
+Review comment:
+
+- [P1] Preserve new findings that share a known failure line — D:\IA Projects\gemeo-financeiro\scripts\normalize-codex-review.py:171-173
+  When a new functional/security finding happens on the same file and line as a baseline lint/typecheck failure, this condition marks it `PRE_EXISTING_FAILURE` without checking the error identity, and `main()` removes it before deriving the verdict. A direct invocation with a new HIGH finding at `ResourceStepForm.tsx:117` produced `PRE_EXISTING_FAILURE` and `APPROVED`; baseline suppression must be limited to actual matching quality-gate failures, not arbitrary review findings.
