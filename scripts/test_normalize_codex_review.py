@@ -89,8 +89,8 @@ def test_baseline_matching_requires_same_line_not_just_same_file():
     }
 
     findings = [
-        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "200", "severity": "HIGH", "title": "", "description": "npx tsc --noEmit fails here too"},
-        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "117", "severity": "HIGH", "title": "", "description": "npx tsc --noEmit reports an overload error"},
+        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "200", "severity": "HIGH", "title": "", "description": "npx tsc --noEmit reports TS2769 here too"},
+        {"file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx", "line": "117", "severity": "HIGH", "title": "", "description": "npx tsc --noEmit reports TS2769: no overload matches"},
     ]
     normalize._mark_pre_existing(findings, baseline)
 
@@ -108,7 +108,7 @@ def test_baseline_matching_does_not_mask_a_different_problem_on_the_same_line():
     """Regressão: um finding NOVO e DIFERENTE (ex: bug funcional/segurança)
     que por coincidência cai na mesma linha de uma falha de lint/typecheck
     conhecida NÃO pode ser mascarado só por causa da localização — a
-    descrição do finding também precisa mencionar o mesmo gate (tsc/lint)
+    descrição do finding também precisa citar o código/regra exato
     (segundo bug real encontrado pelo Meta Harness revisando este script)."""
     baseline = {
         "typecheck": {
@@ -131,7 +131,38 @@ def test_baseline_matching_does_not_mask_a_different_problem_on_the_same_line():
 
     check(
         findings[0]["baseline_status"] == "NEW_FAILURE",
-        "finding que não menciona tsc/typecheck não deveria ser mascarado, mesmo na mesma linha de uma falha de typecheck conhecida",
+        "finding que não cita TS2769 não deveria ser mascarado, mesmo na mesma linha de uma falha de typecheck conhecida",
+    )
+
+
+def test_baseline_matching_does_not_mask_a_different_diagnostic_same_gate_same_line():
+    """Regressão: um diagnóstico NOVO e DIFERENTE do MESMO gate (ex: TS2322)
+    na MESMA linha de um diagnóstico já conhecido (ex: TS2769) não pode ser
+    mascarado — matching por gate genérico (tsc/lint) não é suficiente,
+    precisa ser o código/regra exato (terceiro bug real encontrado pelo
+    Meta Harness revisando este script)."""
+    baseline = {
+        "typecheck": {
+            "knownFailures": [
+                "src/features/onboarding/ResourceStepForm.tsx(117,27): error TS2769: No overload matches this call."
+            ]
+        },
+        "lint": {"knownFailures": []},
+    }
+    findings = [
+        {
+            "file": "D:\\proj\\src\\features\\onboarding\\ResourceStepForm.tsx",
+            "line": "117",
+            "severity": "HIGH",
+            "title": "",
+            "description": "npx tsc --noEmit now also reports TS2322: type mismatch introduced by this diff.",
+        }
+    ]
+    normalize._mark_pre_existing(findings, baseline)
+
+    check(
+        findings[0]["baseline_status"] == "NEW_FAILURE",
+        "TS2322 novo na mesma linha do TS2769 conhecido não deveria ser mascarado — diagnósticos diferentes",
     )
 
 

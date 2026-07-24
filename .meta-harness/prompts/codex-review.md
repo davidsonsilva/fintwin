@@ -88,6 +88,8 @@ INFO: Observação ou evidência positiva.
 
 Para falhas de lint/typecheck/build, marque adicionalmente cada uma como `NEW_FAILURE` (introduzida ou agravada pelo diff atual) ou `PRE_EXISTING_FAILURE` (já existia antes, confirmada pela baseline ou pelo histórico, e o diff não a piora). Isso não substitui a severidade — uma `PRE_EXISTING_FAILURE` ainda pode ser HIGH, só não deve ser atribuída ao diff atual como se fosse nova.
 
+**Obrigatório para qualquer finding sobre erro de typecheck (tsc) ou lint (ESLint)**: cite literalmente na descrição o código do diagnóstico — o código TypeScript exato (ex: `TS2322`, `TS2769`) para erros de `tsc`, ou o nome completo da regra (ex: `@typescript-eslint/no-explicit-any`) para erros de ESLint. Isso é usado por um processo determinístico downstream para decidir se o finding é o mesmo diagnóstico já registrado na baseline ou um diagnóstico novo/diferente — sem o código exato, um finding de typecheck/lint não pode ser classificado corretamente como `PRE_EXISTING_FAILURE`, mesmo que realmente seja.
+
 # RESULTADO
 
 Use seu formato nativo de revisão de código (resumo + lista de comentários com prioridade/severidade) — não é necessário forçar os cabeçalhos Markdown exatos abaixo se o seu formato padrão já cobre a mesma informação. Dito isso, o relatório final **precisa conter**, em algum lugar claramente identificável:

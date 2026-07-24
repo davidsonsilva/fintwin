@@ -1,0 +1,6 @@
+A mudança ainda pode mascarar uma falha nova de typecheck ou lint quando ela ocorre na mesma linha de uma falha conhecida. Os testes do normalizador passaram, mas não cobrem diagnósticos distintos no mesmo gate e localização.
+
+Review comment:
+
+- [P1] Compare diagnostic identities before suppressing findings — D:\IA Projects\gemeo-financeiro\scripts\normalize-codex-review.py:189-192
+  Quando uma alteração introduz um diagnóstico diferente do mesmo gate na mesma linha, esta condição o classifica como `PRE_EXISTING_FAILURE` apenas porque a prosa cita `tsc`/`typecheck` (ou lint), e `main()` o exclui do veredito. Reproduzi uma baseline com `TS2769` e um finding novo `TS2322` em `Form.tsx:117`; o resultado foi `PRE_EXISTING_FAILURE` e `APPROVED`. Compare o código/mensagem do diagnóstico capturado no quality gate, não só o gate, para não aprovar falhas novas.
