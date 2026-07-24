@@ -20,9 +20,21 @@ Validar as alterações não commitadas do repositório contra:
 
 # ESCOPO
 
-Analise **apenas o diff da etapa atual**, identificado na seção "CONTEXTO DE EXECUÇÃO" ao final deste prompt (normalmente o diff entre um commit e seu pai, via `git diff <pai>..<commit>`). Não é para revisar o estado geral do repositório nem alterações não commitadas, salvo instrução explícita nesse sentido na seção de contexto.
+Analise prioritariamente apenas o diff entre BASE_COMMIT e TARGET_COMMIT, identificados na seção "CONTEXTO DE EXECUÇÃO" ao final deste prompt.
 
-Não faça uma revisão genérica de todo o projeto, salvo quando necessário para entender uma possível regressão causada pelas mudanças.
+Não faça uma auditoria geral do repositório. Leia arquivos fora do diff somente quando forem necessários para:
+- compreender contratos (schemas, tipos, interfaces afetadas);
+- confirmar uma regressão específica;
+- validar uma regra de domínio referenciada pelo diff;
+- verificar chamadas/usos afetados pela mudança.
+
+Não reporte problemas preexistentes fora do escopo do diff, **exceto** quando a alteração atual:
+- os agravar (piora um problema que já existia);
+- depender deles (a mudança só funciona por causa do problema preexistente);
+- tornar o build/lint/typecheck impossível de rodar;
+- ou fizer o contrato/relatório da etapa declarar falsamente que os quality gates estão verdes.
+
+Se existir um arquivo de baseline em `.meta-harness/baselines/` referente a esta etapa (indicado na seção de contexto, se houver), **compare contra ele**: falhas de lint/typecheck já listadas na baseline como conhecidas são `PRE_EXISTING_FAILURE` (registre como tal, não como finding novo do diff), a menos que se enquadrem em uma das exceções acima — nesse caso, classifique como `PRE_EXISTING_FAILURE_WORSENED` ou `PRE_EXISTING_FAILURE_AFFECTED` e trate como bloqueante.
 
 # PROCEDIMENTO OBRIGATÓRIO
 
@@ -31,7 +43,7 @@ Não faça uma revisão genérica de todo o projeto, salvo quando necessário pa
    - `.meta-harness/contracts/current-slice.md`;
    - `.meta-harness/contracts/acceptance-criteria.md`.
 
-2. Inspecione o diff indicado na seção "CONTEXTO DE EXECUÇÃO" (comandos exatos fornecidos lá — normalmente `git diff <pai>..<commit>` e `git show --stat <commit>`), e o histórico recente (`git log -10 --oneline`) se ajudar a entender o contexto.
+2. Inspecione o diff usando exatamente os comandos da seção "CONTEXTO DE EXECUÇÃO" (`git diff BASE_COMMIT..TARGET_COMMIT`, `git diff --stat BASE_COMMIT..TARGET_COMMIT`, `git show --name-only TARGET_COMMIT`), e o histórico recente (`git log -10 --oneline`) se ajudar a entender o contexto. Se houver baseline referenciada no contexto, leia-a antes de classificar falhas de lint/typecheck.
 
 3. Identifique a stack e os comandos oficiais do projeto (backend Python/FastAPI em `apps/api`, com venv em `.venv`; frontend Next.js/TypeScript em `apps/web`).
 
@@ -73,6 +85,8 @@ HIGH: Erro funcional importante, regressão ou critério obrigatório não atend
 MEDIUM: Problema relevante de manutenção, UX, testes ou arquitetura.
 LOW: Melhoria não bloqueante.
 INFO: Observação ou evidência positiva.
+
+Para falhas de lint/typecheck/build, marque adicionalmente cada uma como `NEW_FAILURE` (introduzida ou agravada pelo diff atual) ou `PRE_EXISTING_FAILURE` (já existia antes, confirmada pela baseline ou pelo histórico, e o diff não a piora). Isso não substitui a severidade — uma `PRE_EXISTING_FAILURE` ainda pode ser HIGH, só não deve ser atribuída ao diff atual como se fosse nova.
 
 # RESULTADO
 
