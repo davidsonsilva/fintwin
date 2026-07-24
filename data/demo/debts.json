@@ -1,0 +1,10 @@
+[
+  {
+    "description": "Financiamento do carro",
+    "outstanding_balance": { "amount": "32000.00", "currency": "BRL" },
+    "installment_amount": { "amount": "1450.00", "currency": "BRL" },
+    "remaining_installments": 24,
+    "interest_rate_optional": "1.8% a.m.",
+    "due_day": 15
+  }
+]

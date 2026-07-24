@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: fintwin-api
+Version: 0.1.0
+Summary: FinTwin AI — motor financeiro determinístico e API de aplicação
+Requires-Python: <3.13,>=3.12
+Requires-Dist: fastapi>=0.115
+Requires-Dist: pydantic>=2.9
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: alembic>=1.13
+Requires-Dist: uvicorn[standard]>=0.30
+Requires-Dist: psycopg[binary]>=3.2
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"

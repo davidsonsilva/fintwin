@@ -1,0 +1,10 @@
+[
+  {
+    "description": "Salário CLT - emprego principal",
+    "amount": { "amount": "8500.00", "currency": "BRL" },
+    "frequency": "monthly",
+    "start_date": "2024-01-01",
+    "end_date": null,
+    "stability": "stable"
+  }
+]

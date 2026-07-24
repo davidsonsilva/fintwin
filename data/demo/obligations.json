@@ -1,0 +1,35 @@
+[
+  {
+    "description": "Aluguel",
+    "amount": { "amount": "2200.00", "currency": "BRL" },
+    "category": "moradia",
+    "frequency": "monthly",
+    "due_day": 5,
+    "start_date": "2024-01-01",
+    "end_date": null,
+    "essential": true,
+    "debt_related": false
+  },
+  {
+    "description": "Plano de saúde",
+    "amount": { "amount": "950.00", "currency": "BRL" },
+    "category": "saude",
+    "frequency": "monthly",
+    "due_day": 10,
+    "start_date": "2024-01-01",
+    "end_date": null,
+    "essential": true,
+    "debt_related": false
+  },
+  {
+    "description": "Mercado",
+    "amount": { "amount": "1800.00", "currency": "BRL" },
+    "category": "alimentacao",
+    "frequency": "monthly",
+    "due_day": 1,
+    "start_date": "2024-01-01",
+    "end_date": null,
+    "essential": true,
+    "debt_related": false
+  }
+]

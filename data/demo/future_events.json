@@ -1,0 +1,26 @@
+[
+  {
+    "description": "IPTU anual",
+    "event_type": "tax",
+    "amount": { "amount": "2400.00", "currency": "BRL" },
+    "date": "2026-02-10",
+    "recurrence": "yearly",
+    "direction": "expense"
+  },
+  {
+    "description": "IPVA anual",
+    "event_type": "tax",
+    "amount": { "amount": "1350.00", "currency": "BRL" },
+    "date": "2026-01-20",
+    "recurrence": "yearly",
+    "direction": "expense"
+  },
+  {
+    "description": "13º salário",
+    "event_type": "bonus",
+    "amount": { "amount": "8500.00", "currency": "BRL" },
+    "date": "2026-12-20",
+    "recurrence": "yearly",
+    "direction": "income"
+  }
+]

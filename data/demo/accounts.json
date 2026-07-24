@@ -1,0 +1,14 @@
+[
+  {
+    "description": "Conta corrente",
+    "balance": { "amount": "3500.00", "currency": "BRL" },
+    "liquidity_type": "checking_account",
+    "eligible_for_autonomy": false
+  },
+  {
+    "description": "Reserva de emergência",
+    "balance": { "amount": "9000.00", "currency": "BRL" },
+    "liquidity_type": "emergency_fund",
+    "eligible_for_autonomy": true
+  }
+]

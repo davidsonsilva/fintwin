@@ -1,0 +1,10 @@
+[
+  {
+    "description": "Entrada de imóvel próprio",
+    "target_amount": { "amount": "60000.00", "currency": "BRL" },
+    "current_amount": { "amount": "9000.00", "currency": "BRL" },
+    "deadline": "2027-12-31",
+    "priority": 1,
+    "monthly_contribution": { "amount": "800.00", "currency": "BRL" }
+  }
+]
