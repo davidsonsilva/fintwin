@@ -196,6 +196,8 @@ export function DecisionForm({ profileId, onCreated }: { profileId: string; onCr
                   id="expense-reduction-capacity"
                   type="number"
                   step="0.01"
+                  min={0}
+                  max={1}
                   value={scenarioOverride.expense_reduction_capacity ?? ""}
                   onChange={(event) =>
                     setScenarioOverride((prev) => ({ ...prev, expense_reduction_capacity: event.target.value }))

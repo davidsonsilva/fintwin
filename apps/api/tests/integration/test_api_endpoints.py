@@ -252,6 +252,21 @@ def test_simulate_missing_profile_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_simulate_rejects_out_of_range_expense_reduction_capacity(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+
+    response = client.post(
+        f"/api/v1/profiles/{profile['id']}/simulations",
+        json={
+            "decision_type": "CASH_PURCHASE",
+            "parameters": {"amount": "100.00", "description": "x"},
+            "scenario_override": {"expense_reduction_capacity": "2"},
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_simulate_cash_purchase_via_api(client: TestClient) -> None:
     profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
     client.post(f"/api/v1/profiles/{profile['id']}/demo")

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -14,8 +14,8 @@ from src.application.use_cases.simulation_use_cases import (
 )
 from src.domain.decisions.scenario_override import ScenarioOverride
 from src.domain.decisions.validation import InvalidDecisionParametersError
-from src.domain.shared.money import Money
-from src.domain.shared.percentage import Percentage
+from src.domain.shared.money import InvalidMoneyError, Money
+from src.domain.shared.percentage import InvalidPercentageError, Percentage
 from src.infrastructure.persistence.session import get_session
 from src.infrastructure.repositories.account_repository import SqlAlchemyAccountRepository
 from src.infrastructure.repositories.debt_repository import SqlAlchemyDebtRepository
@@ -63,9 +63,14 @@ def create_simulation(
 ) -> SimulationResponse:
     profile = _get_profile_or_404(profile_id, session)
 
-    scenario_override = (
-        _to_scenario_override(payload.scenario_override, profile.currency) if payload.scenario_override is not None else None
-    )
+    try:
+        scenario_override = (
+            _to_scenario_override(payload.scenario_override, profile.currency)
+            if payload.scenario_override is not None
+            else None
+        )
+    except (InvalidPercentageError, InvalidMoneyError, InvalidOperation) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     use_case = SimulateDecisionUseCase(
         account_repo=SqlAlchemyAccountRepository(session),
