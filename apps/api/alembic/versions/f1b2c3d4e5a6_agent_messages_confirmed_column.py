@@ -18,12 +18,24 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_column(table_name: str, column_name: str) -> bool:
+    inspector = sa.inspect(op.get_bind())
+    return any(col["name"] == column_name for col in inspector.get_columns(table_name))
+
+
 def upgrade() -> None:
-    op.add_column(
-        'agent_messages',
-        sa.Column('confirmed', sa.Boolean(), nullable=False, server_default=sa.false()),
-    )
+    # Idempotente de propósito: um banco que tenha rodado a revisão e4a1f7c9d3b2
+    # de uma versão anterior desta branch (quando ela ainda criava a coluna
+    # `confirmed` inline) já tem a coluna: adicioná-la de novo quebraria com
+    # "duplicate column". Checar antes evita depender de qual estado histórico
+    # exato do e4 o banco aplicou (achado do Meta Harness na VS-09).
+    if not _has_column('agent_messages', 'confirmed'):
+        op.add_column(
+            'agent_messages',
+            sa.Column('confirmed', sa.Boolean(), nullable=False, server_default=sa.false()),
+        )
 
 
 def downgrade() -> None:
-    op.drop_column('agent_messages', 'confirmed')
+    if _has_column('agent_messages', 'confirmed'):
+        op.drop_column('agent_messages', 'confirmed')

@@ -1,0 +1,6 @@
+REJECTED: a migração não é atualizável para bancos no estado do BASE_COMMIT, portanto o critério obrigatório de migração falha. `pytest` e Alembic ficaram NOT_VERIFIED porque o venv aponta para um Python 3.12 indisponível; Vitest e build ficaram NOT_VERIFIED por EPERM do sandbox, enquanto `tsc` e lint executaram e reproduziram apenas os diagnósticos PRE_EXISTING_FAILURE da baseline.
+
+Review comment:
+
+- [P1] Make the confirmed migration compatible with prior e4 databases — D:\IA Projects\gemeo-financeiro\apps\api\alembic\versions\f1b2c3d4e5a6_agent_messages_confirmed_column.py:22-24
+  **HIGH** — Em bancos que executaram `e4a1f7c9d3b2` enquanto ele continha a coluna `confirmed` (o estado do `BASE_COMMIT`), o Alembic já registra essa revisão como aplicada e esta nova migração tenta adicionar a mesma coluna, fazendo `alembic upgrade head` falhar com coluna duplicada. Preserve a compatibilidade com esse estado já migrado, em vez de depender da alteração retroativa da revisão `e4`.
