@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ApiError } from "@/lib/api-client";
 
 import { AGENT_COMPONENT_QUERY_KEYS, agentApi } from "./api";
 import { PendingActionCard } from "./PendingActionCard";
@@ -17,6 +18,7 @@ export function AgentPanel({ profileId }: { profileId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [dismissedActionIds, setDismissedActionIds] = useState<Set<string>>(new Set());
   const [input, setInput] = useState("");
+  const [confirmError, setConfirmError] = useState<{ actionId: string; message: string } | null>(null);
 
   const sendMessage = useMutation({
     mutationFn: (message: string) => agentApi.sendMessage(profileId, message, conversationId),
@@ -44,17 +46,29 @@ export function AgentPanel({ profileId }: { profileId: string }) {
     },
   });
 
+  const markActionConfirmed = (actionId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.pendingAction?.action_id === actionId ? { ...m, pendingAction: { ...m.pendingAction, confirmed: true } } : m
+      )
+    );
+    queryClient.invalidateQueries({ queryKey: ["simulations", profileId] });
+  };
+
   const confirmAction = useMutation({
     mutationFn: (actionId: string) => agentApi.confirmAction(profileId, actionId),
     onSuccess: (_result, actionId) => {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.pendingAction?.action_id === actionId
-            ? { ...m, pendingAction: { ...m.pendingAction, confirmed: true } }
-            : m
-        )
-      );
-      queryClient.invalidateQueries({ queryKey: ["simulations", profileId] });
+      setConfirmError(null);
+      markActionConfirmed(actionId);
+    },
+    onError: (error, actionId) => {
+      if (error instanceof ApiError && error.status === 409) {
+        // Já foi confirmada (por esta sessão ou outra) - refletir o estado real em vez de insistir.
+        setConfirmError(null);
+        markActionConfirmed(actionId);
+        return;
+      }
+      setConfirmError({ actionId, message: "Não foi possível confirmar a simulação. Tente novamente." });
     },
   });
 
@@ -91,14 +105,19 @@ export function AgentPanel({ profileId }: { profileId: string }) {
               </ul>
             )}
             {message.pendingAction && !dismissedActionIds.has(message.pendingAction.action_id) && (
-              <PendingActionCard
-                pendingAction={message.pendingAction}
-                isConfirming={confirmAction.isPending}
-                onConfirm={() => confirmAction.mutate(message.pendingAction!.action_id)}
-                onCancel={() =>
-                  setDismissedActionIds((prev) => new Set(prev).add(message.pendingAction!.action_id))
-                }
-              />
+              <>
+                <PendingActionCard
+                  pendingAction={message.pendingAction}
+                  isConfirming={confirmAction.isPending}
+                  onConfirm={() => confirmAction.mutate(message.pendingAction!.action_id)}
+                  onCancel={() =>
+                    setDismissedActionIds((prev) => new Set(prev).add(message.pendingAction!.action_id))
+                  }
+                />
+                {confirmError?.actionId === message.pendingAction.action_id && (
+                  <p className="ft-agent-error">{confirmError.message}</p>
+                )}
+              </>
             )}
           </div>
         ))}

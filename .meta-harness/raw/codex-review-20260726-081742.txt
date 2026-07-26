@@ -1,0 +1,21 @@
+REJECTED: o diff falha em isolamento entre perfis, idempotência concorrente, integridade de respostas numéricas e execução via Docker Compose. Critérios 4 e 10 falham; 1–3 estão NOT_VERIFIED; 5–9 passam por inspeção estática. Executados: `git diff --check` exit 0; `pytest` e `alembic upgrade head` exit 1 por venv apontando para Python 3.12 inexistente; `npx vitest run` exit 1 por EPERM do sandbox; `npx tsc --noEmit`, `npm run lint` e `npm run build` exit 1 somente com falhas de baseline e/ou escrita bloqueada pelo sandbox.
+
+Full review comments:
+
+- [P1] Passe a chave Anthropic ao serviço Docker — D:/IA Projects/gemeo-financeiro/apps/api/src/infrastructure/llm/anthropic_client.py:27-27
+  **HIGH** — No fluxo obrigatório via `docker compose`, o serviço `api` não recebe `ANTHROPIC_API_KEY` (nem `AGENT_MODEL`); portanto esta leitura resulta em chave ausente dentro do container e o client falha ao inicializar ou ao enviar a primeira mensagem. Isso torna o critério de fluxo manual indisponível mesmo quando a chave está definida no ambiente do host; declare o repasse dessas variáveis no serviço `api`.
+
+- [P1] Valide que a conversa pertence ao perfil — D:/IA Projects/gemeo-financeiro/apps/api/src/application/use_cases/agent_use_cases.py:222-225
+  **HIGH** — Quando `conversation_id` é informado, o caso de uso verifica somente se ele existe, sem comparar `conversation.profile_id` com o `profile_id` da rota. Assim, uma requisição para outro perfil com um ID de conversa válido incorpora o histórico alheio no prompt e grava novas mensagens nessa conversa, permitindo vazamento e corrupção de histórico entre perfis; rejeite a conversa quando os perfis não coincidirem e cubra esse caso no endpoint.
+
+- [P1] Vincule a confirmação ao perfil da ação — D:/IA Projects/gemeo-financeiro/apps/api/src/application/use_cases/agent_use_cases.py:329-340
+  **HIGH** — A confirmação busca a mensagem pendente globalmente por `action_id` e nunca confirma que sua conversa pertence ao `profile_id` recebido. Com um ID de ação válido de outro perfil, a rota cria uma simulação no perfil da URL usando uma proposta que aquele perfil nunca recebeu nem confirmou; obtenha/verifique a conversa da mensagem antes de executar e retorne 404 em caso de divergência.
+
+- [P1] Torne a confirmação atômica antes de simular — D:/IA Projects/gemeo-financeiro/apps/api/src/application/use_cases/agent_use_cases.py:342-349
+  **HIGH** — A marcação `confirmed` acontece somente depois de `SimulateDecisionUseCase.execute`. Duas confirmações concorrentes podem ambas ler `confirmed=False`, cada uma persistir uma simulação e só então atualizar a mesma mensagem, violando a idempotência exigida e duplicando registros financeiros; faça uma transição atômica/lock da ação antes do efeito colateral e adicione um teste concorrente.
+
+- [P1] Bloqueie texto numérico sem evidência de tool — D:/IA Projects/gemeo-financeiro/apps/api/src/application/use_cases/agent_use_cases.py:248-250
+  **HIGH** — O texto final retornado pelo LLM é aceito e persistido diretamente, inclusive quando não houve tool call; o prompt de sistema não é uma garantia de integridade. Um modelo que responda, por exemplo, um saldo numérico sem chamar `get_dashboard_summary` terá esse valor exposto com `evidence=[]`, violando o critério de que números sejam rastreáveis; valide/proíba respostas numéricas sem evidência correspondente e teste explicitamente esse comportamento.
+
+- [P2] Exiba erros ao confirmar uma simulação — D:/IA Projects/gemeo-financeiro/apps/web/src/features/agent/AgentPanel.tsx:47-59
+  **MEDIUM** — Se a confirmação falhar (rede, 409 de uma ação já confirmada ou 422 após revalidação), esta mutation não possui `onError` nem há renderização de `confirmAction.isError`. O card apenas volta a habilitar o botão sem informar se a simulação foi persistida, deixando o usuário sem estado confiável para uma ação financeira; apresente a falha e trate o 409 atualizando/recarregando o estado da ação.

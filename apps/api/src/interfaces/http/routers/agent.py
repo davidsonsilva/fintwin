@@ -99,6 +99,7 @@ def confirm_agent_action(
     )
     confirm_use_case = ConfirmPendingActionUseCase(
         agent_message_repo=SqlAlchemyAgentMessageRepository(session),
+        conversation_repo=SqlAlchemyConversationRepository(session),
         simulate_decision_use_case=simulate_use_case,
     )
     try:

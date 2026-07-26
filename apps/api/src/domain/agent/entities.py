@@ -26,6 +26,7 @@ class AgentMessage:
     created_at: datetime
     tool_calls: Sequence[Mapping[str, Any]] = field(default_factory=list)
     pending_action: Optional[Mapping[str, Any]] = None
+    confirmed: bool = False
 
     def __post_init__(self) -> None:
         if not self.content and not self.tool_calls:

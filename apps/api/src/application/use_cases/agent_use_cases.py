@@ -14,6 +14,7 @@ agente não calcula valores por conta própria" também no caminho de escrita).
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Mapping, Optional
@@ -32,6 +33,13 @@ _MANDATORY_LIMITATION = (
     "O FinTwin AI MVP é uma ferramenta educacional e de simulação. Ele não oferece "
     "consultoria financeira, recomendação de investimento ou garantia sobre resultados futuros."
 )
+
+_NO_EVIDENCE_FALLBACK = (
+    "Não tenho essa informação sem consultar uma ferramenta. Pergunte novamente para que "
+    "eu busque o dado correto antes de responder com números."
+)
+
+_HAS_DIGIT = re.compile(r"\d")
 
 _SYSTEM_PROMPT = """Você é o agente conversacional do FinTwin AI, uma plataforma de simulação e prevenção financeira.
 
@@ -221,7 +229,7 @@ class SendAgentMessageUseCase:
         now = datetime.utcnow()
         if conversation_id is not None:
             conversation = self._conversation_repo.get(conversation_id)
-            if conversation is None:
+            if conversation is None or conversation.profile_id != profile_id:
                 raise ValueError(f"Conversa não encontrada: {conversation_id!r}")
         else:
             conversation = Conversation(id=str(uuid4()), profile_id=profile_id, created_at=now, updated_at=now)
@@ -270,7 +278,6 @@ class SendAgentMessageUseCase:
                             "action_id": message_id,
                             "decision_type": result["decision_type"],
                             "parameters": result["parameters"],
-                            "confirmed": False,
                         }
                     elif result["status"] == "missing_fields":
                         pending_questions.extend(
@@ -290,6 +297,9 @@ class SendAgentMessageUseCase:
                         {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result, ensure_ascii=False)}
                     )
             conversation_messages.append({"role": "user", "content": tool_results})
+
+        if final_text and _HAS_DIGIT.search(final_text) and not tool_calls:
+            final_text = _NO_EVIDENCE_FALLBACK
 
         conversation.updated_at = datetime.utcnow()
         self._conversation_repo.update(conversation)
@@ -322,8 +332,9 @@ class SendAgentMessageUseCase:
 
 
 class ConfirmPendingActionUseCase:
-    def __init__(self, agent_message_repo: Any, simulate_decision_use_case: Any) -> None:
+    def __init__(self, agent_message_repo: Any, conversation_repo: Any, simulate_decision_use_case: Any) -> None:
         self._agent_message_repo = agent_message_repo
+        self._conversation_repo = conversation_repo
         self._simulate_decision_use_case = simulate_decision_use_case
 
     def execute(self, profile_id: str, action_id: str, currency: str, horizon_months: int = 12) -> Simulation:
@@ -331,15 +342,23 @@ class ConfirmPendingActionUseCase:
         if agent_message is None or agent_message.pending_action is None:
             raise PendingActionNotFoundError(f"Ação pendente não encontrada: {action_id!r}")
 
-        pending = agent_message.pending_action
-        if pending.get("confirmed"):
+        conversation = self._conversation_repo.get(agent_message.conversation_id)
+        if conversation is None or conversation.profile_id != profile_id:
+            raise PendingActionNotFoundError(f"Ação pendente não encontrada: {action_id!r}")
+
+        # Claim atômico (UPDATE condicional no banco) - se duas confirmações chegarem
+        # ao mesmo tempo, só uma consegue marcar confirmed=True; a outra recebe False
+        # aqui e nunca chega a chamar o motor de simulação (evita duplicar a persistência).
+        claimed = self._agent_message_repo.try_claim(action_id)
+        if not claimed:
             raise PendingActionAlreadyConfirmedError(f"Ação pendente já confirmada: {action_id!r}")
 
+        pending = agent_message.pending_action
         decision_type = pending["decision_type"]
         parameters = pending["parameters"]
         validate_decision_parameters(decision_type, parameters)
 
-        simulation = self._simulate_decision_use_case.execute(
+        return self._simulate_decision_use_case.execute(
             profile_id=profile_id,
             decision_type=decision_type,
             parameters=parameters,
@@ -347,7 +366,3 @@ class ConfirmPendingActionUseCase:
             horizon_months=horizon_months,
             currency=currency,
         )
-
-        agent_message.pending_action = {**pending, "confirmed": True}
-        self._agent_message_repo.update(agent_message)
-        return simulation

@@ -217,6 +217,7 @@ class AgentMessageModel(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tool_calls: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
     pending_action: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     conversation: Mapped[ConversationModel] = relationship(back_populates="messages")

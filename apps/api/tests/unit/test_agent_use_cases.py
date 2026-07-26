@@ -152,7 +152,7 @@ def test_propose_simulation_never_persists_before_confirmation(session: Session)
 
     assert reply.pending_action is not None
     assert reply.pending_action["action_id"] == reply.message_id
-    assert reply.pending_action["confirmed"] is False
+    assert "confirmed" not in reply.pending_action
     assert SqlAlchemySimulationRepository(session).list_by_profile(profile.id) == []
 
 
@@ -191,7 +191,9 @@ def test_confirm_pending_action_persists_and_is_idempotent(session: Session) -> 
         simulation_repo=SqlAlchemySimulationRepository(session),
     )
     confirm_use_case = ConfirmPendingActionUseCase(
-        agent_message_repo=SqlAlchemyAgentMessageRepository(session), simulate_decision_use_case=simulate_use_case
+        agent_message_repo=SqlAlchemyAgentMessageRepository(session),
+        conversation_repo=SqlAlchemyConversationRepository(session),
+        simulate_decision_use_case=simulate_use_case,
     )
 
     simulation = confirm_use_case.execute(profile_id=profile.id, action_id=action_id, currency="BRL")
@@ -204,10 +206,79 @@ def test_confirm_pending_action_persists_and_is_idempotent(session: Session) -> 
 
 def test_confirm_pending_action_raises_for_unknown_action(session: Session) -> None:
     confirm_use_case = ConfirmPendingActionUseCase(
-        agent_message_repo=SqlAlchemyAgentMessageRepository(session), simulate_decision_use_case=None
+        agent_message_repo=SqlAlchemyAgentMessageRepository(session),
+        conversation_repo=SqlAlchemyConversationRepository(session),
+        simulate_decision_use_case=None,
     )
     with pytest.raises(PendingActionNotFoundError):
         confirm_use_case.execute(profile_id="p1", action_id="does-not-exist", currency="BRL")
+
+
+def test_confirm_pending_action_rejects_action_from_different_profile(session: Session) -> None:
+    owner_profile = _make_profile(session)
+    other_profile = _make_profile(session)
+    fake_llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    FakeBlock(
+                        type="tool_use",
+                        name="propose_simulation",
+                        input={
+                            "decision_type": "CASH_PURCHASE",
+                            "parameters": {"amount": "100.00", "description": "Compra teste"},
+                        },
+                        id="t1",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Proposta pronta.")]),
+        ]
+    )
+    reply = _make_send_use_case(session, fake_llm).execute(
+        profile_id=owner_profile.id, currency="BRL", conversation_id=None, message="Comprar item de 100 reais à vista"
+    )
+    action_id = reply.pending_action["action_id"]
+
+    confirm_use_case = ConfirmPendingActionUseCase(
+        agent_message_repo=SqlAlchemyAgentMessageRepository(session),
+        conversation_repo=SqlAlchemyConversationRepository(session),
+        simulate_decision_use_case=None,
+    )
+    with pytest.raises(PendingActionNotFoundError):
+        confirm_use_case.execute(profile_id=other_profile.id, action_id=action_id, currency="BRL")
+    assert SqlAlchemySimulationRepository(session).list_by_profile(other_profile.id) == []
+
+
+def test_send_message_rejects_conversation_from_different_profile(session: Session) -> None:
+    owner_profile = _make_profile(session)
+    other_profile = _make_profile(session)
+    fake_llm = FakeLLM(
+        [FakeResponse(content=[FakeBlock(type="text", text="Olá.")])],
+    )
+    reply = _make_send_use_case(session, fake_llm).execute(
+        profile_id=owner_profile.id, currency="BRL", conversation_id=None, message="Oi"
+    )
+
+    fake_llm_2 = FakeLLM([FakeResponse(content=[FakeBlock(type="text", text="Não deveria ver isso.")])])
+    with pytest.raises(ValueError):
+        _make_send_use_case(session, fake_llm_2).execute(
+            profile_id=other_profile.id, currency="BRL", conversation_id=reply.conversation_id, message="Qual meu saldo?"
+        )
+
+
+def test_final_text_with_digit_and_no_tool_call_is_replaced_with_fallback(session: Session) -> None:
+    profile = _make_profile(session)
+    fake_llm = FakeLLM(
+        [FakeResponse(content=[FakeBlock(type="text", text="Seu saldo é R$1000,00.")])],
+    )
+    use_case = _make_send_use_case(session, fake_llm)
+
+    reply = use_case.execute(profile_id=profile.id, currency="BRL", conversation_id=None, message="Qual meu saldo?")
+
+    assert reply.reply != "Seu saldo é R$1000,00."
+    assert reply.evidence == []
+    assert reply.tool_calls == []
 
 
 def test_tool_outside_allowlist_is_rejected_before_execution(session: Session) -> None:

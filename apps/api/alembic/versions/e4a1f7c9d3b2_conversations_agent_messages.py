@@ -34,6 +34,7 @@ def upgrade() -> None:
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('tool_calls', sa.JSON(), nullable=False),
     sa.Column('pending_action', sa.JSON(), nullable=True),
+    sa.Column('confirmed', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['conversation_id'], ['conversations.id'], ),
     sa.PrimaryKeyConstraint('id')

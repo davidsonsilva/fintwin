@@ -84,7 +84,9 @@ class AgentMessageHistoryItem(BaseModel):
             content=message.content,
             tool_calls=list(message.tool_calls),
             pending_action=(
-                PendingActionSchema(**message.pending_action) if message.pending_action is not None else None
+                PendingActionSchema(**message.pending_action, confirmed=message.confirmed)
+                if message.pending_action is not None
+                else None
             ),
             created_at=message.created_at,
         )

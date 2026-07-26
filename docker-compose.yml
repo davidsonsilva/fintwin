@@ -23,6 +23,8 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://fintwin:fintwin@db:5432/fintwin}
       DEMO_DATA_DIR: /app/data/demo
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-haiku-4-5-20251001}
     volumes:
       - ./data/demo:/app/data/demo:ro
     ports:

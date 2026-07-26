@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from src.domain.agent.entities import AgentMessage
@@ -17,6 +17,7 @@ def _to_model(message: AgentMessage) -> AgentMessageModel:
         content=message.content,
         tool_calls=list(message.tool_calls),
         pending_action=dict(message.pending_action) if message.pending_action is not None else None,
+        confirmed=message.confirmed,
         created_at=message.created_at,
     )
 
@@ -29,6 +30,7 @@ def _to_entity(model: AgentMessageModel) -> AgentMessage:
         content=model.content,
         tool_calls=list(model.tool_calls),
         pending_action=dict(model.pending_action) if model.pending_action is not None else None,
+        confirmed=model.confirmed,
         created_at=model.created_at,
     )
 
@@ -57,3 +59,19 @@ class SqlAlchemyAgentMessageRepository:
     def update(self, message: AgentMessage) -> None:
         self._session.merge(_to_model(message))
         self._session.commit()
+
+    def try_claim(self, message_id: str) -> bool:
+        """Marca `confirmed=True` de forma atômica, só se ainda não estava confirmado.
+
+        Usa um UPDATE condicional (WHERE confirmed=false) em vez de ler-e-escrever,
+        para que duas confirmações concorrentes da mesma ação nunca persistam a
+        simulação duas vezes (achado do Meta Harness na VS-09).
+        """
+        stmt = (
+            update(AgentMessageModel)
+            .where(AgentMessageModel.id == message_id, AgentMessageModel.confirmed.is_(False))
+            .values(confirmed=True)
+        )
+        result = self._session.execute(stmt)
+        self._session.commit()
+        return result.rowcount == 1
