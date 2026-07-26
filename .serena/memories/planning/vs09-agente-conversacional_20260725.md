@@ -1,8 +1,8 @@
 # Plano: VS-09 — Agente Conversacional
 
-## 📅 Criado em: 2026-07-25 | Implementado em: 2026-07-26
+## 📅 Criado em: 2026-07-25 | Implementado em: 2026-07-26 | Verificado manualmente em: 2026-07-26
 
-## 🎯 Status: ✅ IMPLEMENTADO (Meta Harness APPROVED, 0 findings; verificação funcional via testes automatizados; demo real via Docker Compose NÃO executada nesta sessão — Docker não estava disponível no ambiente)
+## 🎯 Status: ✅ CONCLUÍDO E VERIFICADO (Meta Harness APPROVED, 0 findings; testes automatizados 182 backend + 34 frontend; verificação manual real via Docker Compose confirmada pelo usuário)
 
 ---
 
@@ -24,7 +24,7 @@ Ver `.meta-harness/contracts/current-slice.md` (versão final, pós-correções)
 - Persistência: `conversations` + `agent_messages` (migração `e4a1f7c9d3b2`) + coluna `confirmed` (migração separada e idempotente `f1b2c3d4e5a6` — checa existência via inspector antes de adicionar/remover).
 - HTTP: `POST /profiles/{id}/agent/messages`, `POST /profiles/{id}/agent/actions/{action_id}/confirm`, `GET /profiles/{id}/agent/conversations/{id}/messages`.
 - Frontend: `features/agent/` (AgentPanel, PendingActionCard), terceiro trilho no `dashboard/[profileId]/layout.tsx`, teaser "IA FinTwin (em breve)" removido do Sidebar.
-- `docker-compose.yml`: `api` recebe `ANTHROPIC_API_KEY`/`AGENT_MODEL` do host.
+- `docker-compose.yml`: `api` recebe `ANTHROPIC_API_KEY`/`AGENT_MODEL` do host (ou de um `.env` na raiz do projeto, que o `docker compose` lê automaticamente).
 
 ## ✅ Decisões Tomadas (originais, mantidas)
 
@@ -59,10 +59,18 @@ Ver histórico completo na versão anterior desta memória (git blame) — resum
 - **Campos que precisam de garantia atômica (idempotência, exclusão mútua) não devem viver dentro de um blob JSON** — usar uma coluna dedicada permite `UPDATE ... WHERE coluna=valor` condicional, que é a única forma real de atomicidade sem lock explícito.
 - **Guards de segurança devem checar o sinal mais específico disponível** (`evidence` real, não "alguma tool foi chamada") — `propose_simulation` conta como tool_call mas não é evidência de leitura; confundir os dois deixa uma brecha.
 - **Claims atômicos (`try_claim`) não devem commitar isoladamente** quando o efeito colateral real (persistir a simulação) depende do sucesso de passos posteriores na mesma operação — deixar tudo na mesma transação do `Session` por request garante que uma falha no meio é recuperável via rollback implícito do `get_session()`.
+- **Container Docker rodando não significa código atualizado** — se uma sessão implementa mudanças de código enquanto os containers já estavam de pé (de uma sessão anterior), é preciso `docker compose up -d --build` para reconstruir as imagens antes de testar. "Cliquei e não aconteceu nada" foi sintoma disso + da `ANTHROPIC_API_KEY` ainda não estar no ambiente do `docker compose`.
+- **`docker compose` lê um `.env` na raiz do projeto automaticamente** — não é preciso `export` manual no shell se a chave já estiver lá; útil para segredos como `ANTHROPIC_API_KEY` persistirem entre sessões sem precisar redefinir toda vez.
+
+## ✅ Verificação Manual Realizada (2026-07-26, confirmada pelo usuário)
+
+- `docker compose up -d --build` (rebuild após as mudanças da VS-09) + `docker compose exec api python -m alembic upgrade head` (migração aplicada em Postgres real, `e4a1f7c9d3b2` + `f1b2c3d4e5a6`).
+- `ANTHROPIC_API_KEY` confirmada presente no container `api` via `.env` do projeto.
+- Usuário testou via `http://localhost:3000` (perfil demo): pediu resumo do dashboard e autonomia ao agente → resposta usou os valores reais do perfil demo (saldo R$12.500,00, obrigações R$4.950,00 — mesmos valores fixos desde a VS-03/VS-08), confirmando que o agente chama `get_dashboard_summary`/`get_autonomy` de verdade, sem inventar números.
+- Fluxo de propor+confirmar simulação **não foi testado manualmente** (usuário optou por não testar, já coberto por 182 testes automatizados incluindo o caminho de confirmação/idempotência/isolamento entre perfis).
 
 ## 📚 Pendências conhecidas
 
-- **Verificação manual real via Docker Compose (critério de aceite #10) NÃO foi executada nesta sessão** — Docker não estava rodando no ambiente. Antes de considerar a VS-09 definitivamente fechada para produção, rodar: `docker compose up -d --build`, aplicar a migração (`docker compose exec api python -m alembic upgrade head`), carregar perfil demo, mandar uma mensagem ao agente pedindo o saldo, propor uma simulação, confirmar, e verificar em `/simulations`.
 - Comparar cenários via agente, gerar plano preventivo via agente, navegação guiada pelo agente — adiados para iteração futura (decisão original do plano).
 
 ## 📚 Contexto e Referências
@@ -74,4 +82,4 @@ Ver histórico completo na versão anterior desta memória (git blame) — resum
 
 ## 🚦 Próximo Passo
 
-VS-09 pronta para uso, pendente apenas da verificação manual via Docker (ver Pendências). Próxima slice: **VS-10 — Consolidação do MVP** (testes E2E, melhorias de UX, acessibilidade, documentação, segurança, seed, demonstração ponta a ponta, relatório de limitações).
+VS-09 concluída e verificada. Próxima slice: **VS-10 — Consolidação do MVP** (testes E2E, melhorias de UX, acessibilidade, documentação, segurança, seed, demonstração ponta a ponta, relatório de limitações).

@@ -2,17 +2,17 @@
 # FinTwin AI — Project Overview (atualizado 2026-07-26)
 
 ## Status geral
-- **VS-01 a VS-09**: ✅ completas e verificadas (Meta Harness APPROVED em todas).
+- **VS-01 a VS-09**: ✅ completas e verificadas (Meta Harness APPROVED em todas; VS-09 com verificação manual real confirmada).
 - **Próxima slice**: **VS-10 — Consolidação do MVP** (testes E2E, melhorias de UX, acessibilidade, documentação, segurança, seed, demonstração ponta a ponta, relatório de limitações). Ainda não iniciada.
 
-## VS-09 (Agente conversacional) — completo, ver `planning/vs09-agente-conversacional_20260725` para o detalhe completo
+## VS-09 (Agente conversacional) — completo e verificado, ver `planning/vs09-agente-conversacional_20260725` para o detalhe completo
 - Agente via API da Anthropic direta (Claude Haiku 4.5, tool calling nativo, sem LangChain/LangGraph), painel lateral persistente no AppShell (`features/agent/`).
 - Tools allowlisted: `get_dashboard_summary`, `get_autonomy`, `list_fragilities` (leitura real) + `propose_simulation` (nunca persiste — só valida via `validate_decision_parameters` reaproveitado da VS-07).
 - Fluxo de confirmação em 2 chamadas: `POST .../agent/messages` propõe (não persiste) → `POST .../agent/actions/{id}/confirm` confirma e persiste, **sem nunca voltar a chamar o LLM**.
 - Persistência: `conversations` + `agent_messages` (com coluna dedicada `confirmed`, não um campo dentro do JSON — necessário para claim atômico via `UPDATE ... WHERE confirmed=false`).
 - 182 testes de backend (11 novos da VS-09) + 34 de frontend (4 novos: `AgentPanel`) passando.
 - **Passou por 4 rodadas de Meta Harness** (3 REJECTED com achados reais, 1 APPROVED) — ver lições abaixo, são importantes para qualquer slice futura que mexa em confirmação de ações, migrações, ou isolamento entre perfis.
-- **Pendência**: verificação manual real via Docker Compose (critério de aceite #10) não foi executada — Docker não estava disponível no ambiente da sessão de implementação. Rodar antes de considerar a slice fechada para produção (ver memória do plano para o passo a passo).
+- **Verificação manual real confirmada** (2026-07-26): rebuild dos containers + migração aplicada em Postgres real + usuário testou via `http://localhost:3000` — o agente respondeu com os valores reais do perfil demo (saldo R$12.500,00, obrigações R$4.950,00), confirmando que chama `get_dashboard_summary`/`get_autonomy` de verdade, sem inventar números. Fluxo de confirmação de simulação não testado manualmente (usuário optou por não testar; coberto pelos 182 testes automatizados).
 
 ## VS-08 (Planos Preventivos) — Back-end (completo)
 - `src/domain/preventive_plans/` (antes só tinha `PreventivePlan` como placeholder) ganhou:
@@ -54,17 +54,17 @@
 - `npx tsc --noEmit` no front-end já acusa 5 erros pré-existentes (ProjectionChart, FragilityList, ProfileStep×2, ResourceStepForm) que não bloqueiam `npm test`/build — não são regressões novas, mas checar `tsc` ao adicionar componentes com recharts/Select para não somar mais erros.
 - No Windows/Git Bash, testar migrações Alembic contra SQLite: usar path relativo (`sqlite:///arquivo.db`) em vez de path absoluto estilo `/d/...` (que o Python nativo do Windows não resolve corretamente) — achado da VS-09.
 - `.venv` local da API (`apps/api/.venv`) existe e pode ser usado diretamente (`.venv/Scripts/python.exe`) para pytest/scripts sem precisar do Docker — útil quando Docker não está disponível na sessão.
+- **Containers Docker já "Up" não têm o código novo automaticamente** — uma sessão que implementa mudanças enquanto os containers de uma sessão anterior ainda estão rodando precisa de `docker compose up -d --build` explícito antes de testar; senão o sintoma é "cliquei e não aconteceu nada" com a build antiga.
+- **`docker compose` lê um `.env` na raiz do projeto automaticamente** — segredos como `ANTHROPIC_API_KEY` podem viver lá em vez de precisar de `export` manual toda sessão.
 
 ## Pendências conhecidas (adiadas por decisão do usuário)
 - Polish visual de todo o front-end (onboarding + dashboard) com `/ui-material3` — sessão dedicada futura, não bloqueia novas slices.
 - Medir mais 2 execuções do Meta Harness (`gpt-5.6-terra`+`reasoning_effort=high`) antes de fixá-lo como padrão definitivo — ver `planning/meta-harness_20260724`.
-- **Verificação manual real da VS-09 via Docker Compose** (ver seção VS-09 acima) — pendente, ambiente sem Docker rodando na sessão de implementação.
 - Comparar cenários via agente, gerar plano preventivo via agente, navegação guiada pelo agente (capacidades da VS-09 adiadas por decisão do plano).
 
 ## Tasks trackeadas (Task tool)
 IDs #9–#19 (VS-02), #20–#26 (VS-03), #27–#37 (VS-04), #38–#46 (VS-05), #47–#56 (VS-06), #57–#69 (VS-07), #86–#93 (VS-08) — todas `completed`. VS-09 trackeada via tasks internas da sessão (Fase 1-5), não IDs numerados nesta lista.
 
 ## Próxima sessão
-1. **Verificação manual da VS-09 via Docker** (pendência acima), se o usuário quiser fechar definitivamente antes de avançar.
-2. Iniciar VS-10 — Consolidação do MVP: testes E2E, melhorias de UX, acessibilidade, documentação, segurança, seed, demonstração ponta a ponta, relatório de limitações (Spec seção "VS-10"). Seguir o processo padrão (plano → decisões técnicas → critérios de aceite → implementar → testar → demo real → Meta Harness gate → memória → próxima slice).
-3. (Quando o usuário pedir) Polish visual via `/ui-material3` sobre onboarding + dashboard.
+1. Iniciar VS-10 — Consolidação do MVP: testes E2E, melhorias de UX, acessibilidade, documentação, segurança, seed, demonstração ponta a ponta, relatório de limitações (Spec seção "VS-10"). Seguir o processo padrão (plano → decisões técnicas → critérios de aceite → implementar → testar → demo real → Meta Harness gate → memória → próxima slice).
+2. (Quando o usuário pedir) Polish visual via `/ui-material3` sobre onboarding + dashboard.
