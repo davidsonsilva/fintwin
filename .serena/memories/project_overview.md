@@ -1,9 +1,18 @@
 
-# FinTwin AI — Project Overview (atualizado 2026-07-24)
+# FinTwin AI — Project Overview (atualizado 2026-07-26)
 
 ## Status geral
-- **VS-01 a VS-08**: ✅ completas e verificadas.
-- **Próxima slice**: **VS-09 — Agente conversacional** (painel lateral, schemas de intenção, tool calling, explicações fundamentadas, atualização do dashboard, tratamento de dados insuficientes, histórico básico). Ainda não iniciada.
+- **VS-01 a VS-09**: ✅ completas e verificadas (Meta Harness APPROVED em todas).
+- **Próxima slice**: **VS-10 — Consolidação do MVP** (testes E2E, melhorias de UX, acessibilidade, documentação, segurança, seed, demonstração ponta a ponta, relatório de limitações). Ainda não iniciada.
+
+## VS-09 (Agente conversacional) — completo, ver `planning/vs09-agente-conversacional_20260725` para o detalhe completo
+- Agente via API da Anthropic direta (Claude Haiku 4.5, tool calling nativo, sem LangChain/LangGraph), painel lateral persistente no AppShell (`features/agent/`).
+- Tools allowlisted: `get_dashboard_summary`, `get_autonomy`, `list_fragilities` (leitura real) + `propose_simulation` (nunca persiste — só valida via `validate_decision_parameters` reaproveitado da VS-07).
+- Fluxo de confirmação em 2 chamadas: `POST .../agent/messages` propõe (não persiste) → `POST .../agent/actions/{id}/confirm` confirma e persiste, **sem nunca voltar a chamar o LLM**.
+- Persistência: `conversations` + `agent_messages` (com coluna dedicada `confirmed`, não um campo dentro do JSON — necessário para claim atômico via `UPDATE ... WHERE confirmed=false`).
+- 182 testes de backend (11 novos da VS-09) + 34 de frontend (4 novos: `AgentPanel`) passando.
+- **Passou por 4 rodadas de Meta Harness** (3 REJECTED com achados reais, 1 APPROVED) — ver lições abaixo, são importantes para qualquer slice futura que mexa em confirmação de ações, migrações, ou isolamento entre perfis.
+- **Pendência**: verificação manual real via Docker Compose (critério de aceite #10) não foi executada — Docker não estava disponível no ambiente da sessão de implementação. Rodar antes de considerar a slice fechada para produção (ver memória do plano para o passo a passo).
 
 ## VS-08 (Planos Preventivos) — Back-end (completo)
 - `src/domain/preventive_plans/` (antes só tinha `PreventivePlan` como placeholder) ganhou:
@@ -20,22 +29,19 @@
 - `apiClient` ganhou método `patch` (só tinha get/post/put/delete) — necessário para `PATCH /plans/{id}/status`.
 - 37 testes de frontend passando no total (7 novos: PlanCard, PreventivePlanList).
 
-## Meta Harness aplicado pela primeira vez como gate operacional (não piloto) nesta slice
-- Fluxo seguido à risca: `capture-baseline.sh` → implementar → commit checkpoint → `validate-step.sh` → corrigir → revalidar.
-- **1ª rodada: REJECTED** (4 findings). Achados reais:
-  1. HIGH (falso-positivo de processo, não bug de código): os contratos `.meta-harness/contracts/current-slice.md`/`acceptance-criteria.md` ainda descreviam a VS-07 — eu esqueci de regenerá-los para a VS-08 antes de rodar o gate, então o Codex viu "trabalho da VS-08 dentro do contrato da VS-07" e rejeitou por scope creep. **Lição**: regenerar os contratos é parte obrigatória do fluxo por slice, não opcional — adicionar isso explicitamente ao checklist mental antes de rodar `validate-step.sh`.
-  2. HIGH real: `RESERVE_BELOW_THREE_MONTHS` calculava o **gap total** (`shortfall_months × essential_expenses_monthly`) mas rotulava como `expected_monthly_impact`/"por mês" — prometia uma contribuição mensal só do tamanho do déficit total, não dividida por um período de aporte. Corrigido dividindo pelo período de vencimento (`_FUNDING_PERIOD_MONTHS = due_offset_days/30 = 3`).
-  3. MEDIUM real: `GET /plans?status=X` com valor inválido gerava 500 (`PlanStatus(status)` sem try/except) em vez de 422.
-  4. MEDIUM real: downgrade da migração Alembic não removia o enum `planstatus` do Postgres, causando erro de tipo duplicado num upgrade posterior — mesmo padrão de bug pré-existente (não corrigido) na migração `fragility_findings` (enum `severity`), mas só corrigi a migração nova (fora de escopo tocar a antiga).
-- **2ª rodada (após corrigir os 4): APPROVED_WITH_WARNINGS**, 1 finding novo MEDIUM: o arredondamento `ROUND_HALF_UP` do `Money` em 3 parcelas mensais podia somar menos que o gap total quando o valor não dividia exatamente por 3 centavos (ex.: gap R$2000,02 → 3×R$666,67 = R$2000,01, faltando 1 centavo). Corrigido com `ROUND_UP` explícito no cálculo da parcela mensal (garante que 3 parcelas sempre cobrem o total).
-- **3ª rodada (após o fix de arredondamento): APPROVED, 0 findings.** Gate fechado.
-- Reforça a lição já registrada na `planning/meta-harness_20260724`: nunca aceitar a primeira versão de um cálculo financeiro sem considerar casos-limite de arredondamento quando ele é dividido em parcelas.
+## Meta Harness — lições cumulativas (VS-08 + VS-09)
+- Fluxo: `capture-baseline.sh` → implementar → commit checkpoint → `validate-step.sh` → corrigir → revalidar. **Regenerar os contratos (`current-slice.md`/`acceptance-criteria.md`) antes de rodar o gate é obrigatório**, não opcional (esquecer isso gerou uma rejeição falsa de "scope creep" na VS-08).
+- **Nunca editar uma migração Alembic já commitada, mesmo dentro da mesma sessão/PR** — o harness trata cada commit como um possível ponto de deploy real. Sempre criar uma migração nova em cima; se precisar ser resiliente a um estado histórico incerto (ex.: um commit anterior já rejeitado que alterou o schema de um jeito diferente), tornar a migração idempotente (checar via `sa.inspect(...).get_columns(...)` antes de `add_column`/`drop_column`) — achado da VS-09.
+- **Campos que precisam de garantia atômica/idempotência não devem viver dentro de um blob JSON** — usar coluna dedicada permite `UPDATE ... WHERE coluna=valor` condicional (a única atomicidade real sem lock explícito). Achado da VS-09 (`AgentMessage.confirmed`).
+- **Claims atômicos não devem commitar isoladamente** quando o efeito colateral real depende de passos posteriores na mesma operação — deixar tudo na mesma transação do `Session` por request faz uma falha no meio ser recuperável via rollback implícito do `get_session()` em vez de deixar um estado "confirmado" órfão. Achado da VS-09.
+- **Cálculos financeiros divididos em parcelas iguais precisam arredondar para cima (`ROUND_UP`), não `ROUND_HALF_UP`** — achado da VS-08 (`RESERVE_BELOW_THREE_MONTHS`), vale para qualquer parcelamento futuro.
+- `downgrade()` autogerado do Alembic não remove enums do Postgres — adicionar `sa.Enum(name='...').drop(op.get_bind(), checkfirst=True)` manualmente sempre que a tabela nova tiver uma coluna `Enum`.
+- Guards de segurança/validação devem checar o sinal mais específico disponível, não um proxy mais amplo — ex.: `evidence` real (só tools de leitura) é diferente de "alguma tool foi chamada" (`propose_simulation` conta como tool_call mas não é evidência). Achado da VS-09.
 
-## Verificação manual confirmada nesta sessão (VS-08)
+## Verificação manual confirmada (VS-08, sessão 2026-07-24)
 - Migração `cc81d6a213fa` aplicada em Postgres real via `docker compose exec api python -m alembic upgrade head` (após rebuild dos containers `api`/`web` com `docker compose up -d --build`).
-- Fluxo real via curl: detectar fragilidades → gerar 3 planos (`INCOME_CONCENTRATION`, `RESERVE_BELOW_THREE_MONTHS`, `UNPROVISIONED_ANNUAL_EXPENSE`) → aprovar um → mover para `in_progress` → `completed` → rejeitar outro → transição inválida (`rejected→approved`) retornou 422 → regenerar não duplicou o `proposed` ainda ativo, mas recriou propostas para os 2 risk codes que viraram terminais (`completed`/`rejected`) — comportamento exatamente como projetado.
-- `/dashboard/{profileId}` e `/dashboard/{profileId}/plans` respondem 200 sem erros nos logs do container `web`.
-- **Falso alarme de encoding**: `python -m json.tool` no Windows/Git Bash exibe acentos como mojibake (`reforÃ§ar`) por causa do stdout codec do console, não é um bug real — confirmado re-decodificando a mesma resposta com `python -c "...print(...)"`, que mostrou "reforçar"/"segurança"/"Salário" corretos. **Lição**: ao depurar encoding via curl+python no Windows, preferir `python -c "print(...)"` a `python -m json.tool` para não se enganar com um artefato de exibição do console.
+- Fluxo real via curl: detectar fragilidades → gerar 3 planos → aprovar um → mover para `in_progress` → `completed` → rejeitar outro → transição inválida retornou 422 → regenerar não duplicou o `proposed` ainda ativo, mas recriou propostas para os risk codes terminais — comportamento exatamente como projetado.
+- **Falso alarme de encoding**: `python -m json.tool` no Windows/Git Bash exibe acentos como mojibake por causa do stdout codec do console, não é um bug real — preferir `python -c "print(...)"` para não se enganar com um artefato de exibição do console.
 
 ## Armadilhas confirmadas neste projeto (cumulativo)
 - `apps/web/AGENTS.md`: Next.js 16.2.11 tem breaking changes reais vs. treinamento (`params` é `Promise`).
@@ -43,19 +49,22 @@
 - CORS precisa de `CORSMiddleware` explícito no FastAPI.
 - Dockerfile da API precisa copiar `alembic.ini`/`alembic/`; `data/demo/` precisa de volume mount + `DEMO_DATA_DIR`.
 - Pydantic serializa `Decimal` como **string** no JSON — DTOs TypeScript usam `string` para todos os campos monetários/percentuais/meses; valores monetários usam sempre `{amount, currency}` (padrão `MoneyDto`/`_money_dict`), nunca uma string crua de valor sem moeda.
-- Migração Alembic gerada via SQLite temporário (`_autogen_tmp.db`) precisa ser aplicada manualmente no Postgres de dev depois (`docker compose exec api python -m alembic upgrade head`) — repetido em toda slice com tabela nova (VS-06, VS-07, VS-08). **Nova lição da VS-08**: o `downgrade()` autogerado não remove enums do Postgres — adicionar `sa.Enum(name='...').drop(op.get_bind(), checkfirst=True)` manualmente sempre que a tabela nova tiver uma coluna `Enum`.
-- `calculate_autonomy` (VS-05) mede ativos/despesas, é **independente de renda e de serviço de dívida** — decisões/fragilidades que só afetam renda ou dívida (perda de renda, redução salarial, `DEBT_SERVICE_RATIO`, `UNCOVERED_FUTURE_INSTALLMENTS`) não mudam `autonomy_change_months`/`autonomy_delta_months`; o efeito aparece só no fluxo de caixa (déficit projetado). Já são 3 achados independentes (VS-05, VS-07, VS-08) confirmando o mesmo comportamento de design — documentar como `None`/limitação em vez de inventar uma fórmula.
-- **Cálculos financeiros divididos em parcelas iguais precisam arredondar para cima (`ROUND_UP`), não `ROUND_HALF_UP`** — senão a soma das parcelas pode ficar abaixo do total prometido por causa de centavos não representáveis exatamente na divisão. Achado pelo Meta Harness na VS-08 (`RESERVE_BELOW_THREE_MONTHS`); vale para qualquer parcelamento futuro de valor calculado (ex.: planos preventivos com múltiplas ações, custos futuros).
-- Contratos do Meta Harness (`.meta-harness/contracts/*.md`) **precisam ser regenerados a cada nova slice antes de rodar `validate-step.sh`** — esquecer isso gera uma rejeição falsa de "scope creep" contra o contrato da slice anterior.
-- `npx tsc --noEmit` no front-end já acusa alguns erros pré-existentes (recharts `Tooltip formatter` typing, Base UI `Select.onValueChange` em `ProfileStep`/`FragilityList`, zod resolver typing) que não bloqueiam `npm test`/build — não são regressões novas, mas checar `tsc` ao adicionar componentes com recharts/Select para não somar mais erros.
+- Migração Alembic gerada via SQLite temporário (`_autogen_tmp.db`) precisa ser aplicada manualmente no Postgres de dev depois (`docker compose exec api python -m alembic upgrade head`) — repetido em toda slice com tabela nova (VS-06, VS-07, VS-08, VS-09).
+- `calculate_autonomy` (VS-05) mede ativos/despesas, é **independente de renda e de serviço de dívida** — decisões/fragilidades que só afetam renda ou dívida não mudam `autonomy_change_months`; o efeito aparece só no fluxo de caixa. Já são 3 achados independentes (VS-05, VS-07, VS-08) confirmando o mesmo comportamento de design.
+- `npx tsc --noEmit` no front-end já acusa 5 erros pré-existentes (ProjectionChart, FragilityList, ProfileStep×2, ResourceStepForm) que não bloqueiam `npm test`/build — não são regressões novas, mas checar `tsc` ao adicionar componentes com recharts/Select para não somar mais erros.
+- No Windows/Git Bash, testar migrações Alembic contra SQLite: usar path relativo (`sqlite:///arquivo.db`) em vez de path absoluto estilo `/d/...` (que o Python nativo do Windows não resolve corretamente) — achado da VS-09.
+- `.venv` local da API (`apps/api/.venv`) existe e pode ser usado diretamente (`.venv/Scripts/python.exe`) para pytest/scripts sem precisar do Docker — útil quando Docker não está disponível na sessão.
 
 ## Pendências conhecidas (adiadas por decisão do usuário)
 - Polish visual de todo o front-end (onboarding + dashboard) com `/ui-material3` — sessão dedicada futura, não bloqueia novas slices.
 - Medir mais 2 execuções do Meta Harness (`gpt-5.6-terra`+`reasoning_effort=high`) antes de fixá-lo como padrão definitivo — ver `planning/meta-harness_20260724`.
+- **Verificação manual real da VS-09 via Docker Compose** (ver seção VS-09 acima) — pendente, ambiente sem Docker rodando na sessão de implementação.
+- Comparar cenários via agente, gerar plano preventivo via agente, navegação guiada pelo agente (capacidades da VS-09 adiadas por decisão do plano).
 
 ## Tasks trackeadas (Task tool)
-IDs #9–#19 (VS-02), #20–#26 (VS-03), #27–#37 (VS-04), #38–#46 (VS-05), #47–#56 (VS-06), #57–#69 (VS-07), #86–#93 (VS-08) — todas `completed`.
+IDs #9–#19 (VS-02), #20–#26 (VS-03), #27–#37 (VS-04), #38–#46 (VS-05), #47–#56 (VS-06), #57–#69 (VS-07), #86–#93 (VS-08) — todas `completed`. VS-09 trackeada via tasks internas da sessão (Fase 1-5), não IDs numerados nesta lista.
 
 ## Próxima sessão
-1. Iniciar VS-09 — Agente conversacional: ler Spec seção 6.8 (agente visual), seção 18.11 (`POST /profiles/{id}/agent/messages`, retorno com resposta textual + ferramentas acionadas + referências aos cálculos + componentes a atualizar + perguntas pendentes + limitações). Seguir o processo padrão (plano → decisões técnicas → critérios de aceite → implementar → testar → demo real → Meta Harness gate → memória → próxima slice). Usar `capture-baseline.sh`/`validate-step.sh` desde o início, e **regenerar os contratos do harness antes de rodar o gate** (lição da VS-08).
-2. (Quando o usuário pedir) Polish visual via `/ui-material3` sobre onboarding + dashboard.
+1. **Verificação manual da VS-09 via Docker** (pendência acima), se o usuário quiser fechar definitivamente antes de avançar.
+2. Iniciar VS-10 — Consolidação do MVP: testes E2E, melhorias de UX, acessibilidade, documentação, segurança, seed, demonstração ponta a ponta, relatório de limitações (Spec seção "VS-10"). Seguir o processo padrão (plano → decisões técnicas → critérios de aceite → implementar → testar → demo real → Meta Harness gate → memória → próxima slice).
+3. (Quando o usuário pedir) Polish visual via `/ui-material3` sobre onboarding + dashboard.
