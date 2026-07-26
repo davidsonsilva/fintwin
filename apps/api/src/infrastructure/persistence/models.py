@@ -1,9 +1,6 @@
 """Models SQLAlchemy para as entidades manipuladas no onboarding (VS-02), no
-radar de fragilidade (VS-06), no simulador de decisões (VS-07) e nos planos
-preventivos (VS-08).
-
-Tabelas de `conversations` e `agent_messages` (Spec seção 24) serão
-adicionadas quando a Vertical Slice do agente conversacional existir.
+radar de fragilidade (VS-06), no simulador de decisões (VS-07), nos planos
+preventivos (VS-08) e no agente conversacional (VS-09).
 """
 
 from __future__ import annotations
@@ -11,13 +8,14 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.domain.shared.enums import (
     Direction,
     IncomeStability,
     LiquidityType,
+    MessageRole,
     PlanStatus,
     Recurrence,
     Severity,
@@ -46,6 +44,9 @@ class ProfileModel(Base):
     )
     simulations: Mapped[list["SimulationModel"]] = relationship(back_populates="profile", cascade="all, delete-orphan")
     preventive_plans: Mapped[list["PreventivePlanModel"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan"
+    )
+    conversations: Mapped[list["ConversationModel"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan"
     )
 
@@ -191,3 +192,31 @@ class PreventivePlanModel(Base):
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     profile: Mapped[ProfileModel] = relationship(back_populates="preventive_plans")
+
+
+class ConversationModel(Base):
+    __tablename__ = "conversations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(36), ForeignKey("profiles.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    profile: Mapped[ProfileModel] = relationship(back_populates="conversations")
+    messages: Mapped[list["AgentMessageModel"]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan"
+    )
+
+
+class AgentMessageModel(Base):
+    __tablename__ = "agent_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(String(36), ForeignKey("conversations.id"), nullable=False)
+    role: Mapped[MessageRole] = mapped_column(Enum(MessageRole), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    tool_calls: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    pending_action: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    conversation: Mapped[ConversationModel] = relationship(back_populates="messages")

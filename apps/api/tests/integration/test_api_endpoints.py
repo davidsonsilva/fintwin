@@ -456,3 +456,116 @@ def test_reject_status_transition_invalid_returns_422(client: TestClient) -> Non
 def test_update_plan_status_missing_plan_returns_404(client: TestClient) -> None:
     response = client.patch("/api/v1/plans/does-not-exist/status", json={"status": "approved"})
     assert response.status_code == 404
+
+
+def _override_agent_llm(fake_llm) -> None:
+    from src.interfaces.http.main import app
+    from src.interfaces.http.routers.agent import get_llm_client
+
+    app.dependency_overrides[get_llm_client] = lambda: fake_llm
+
+
+def _make_fake_llm_that_proposes_cash_purchase():
+    from dataclasses import dataclass
+    from typing import Optional
+
+    @dataclass
+    class FakeBlock:
+        type: str
+        text: str = ""
+        name: str = ""
+        input: Optional[dict] = None
+        id: str = ""
+
+    @dataclass
+    class FakeResponse:
+        content: list
+
+    class FakeLLM:
+        def __init__(self):
+            self._responses = [
+                FakeResponse(
+                    content=[
+                        FakeBlock(
+                            type="tool_use",
+                            name="propose_simulation",
+                            input={"decision_type": "CASH_PURCHASE", "parameters": {"amount": "50.00", "description": "Lanche"}},
+                            id="t1",
+                        )
+                    ]
+                ),
+                FakeResponse(content=[FakeBlock(type="text", text="Proposta pronta.")]),
+            ]
+
+        def create_message(self, system, messages, tools):
+            return self._responses.pop(0)
+
+    return FakeLLM()
+
+
+def test_agent_message_proposes_simulation_without_persisting(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
+    _override_agent_llm(_make_fake_llm_that_proposes_cash_purchase())
+
+    response = client.post(
+        f"/api/v1/profiles/{profile['id']}/agent/messages",
+        json={"message": "Quero comprar um lanche de 50 reais à vista"},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["version"] == "v1"
+    assert body["data"]["pending_action"]["decision_type"] == "CASH_PURCHASE"
+    assert body["data"]["pending_action"]["confirmed"] is False
+
+    simulations = client.get(f"/api/v1/profiles/{profile['id']}/simulations").json()
+    assert simulations == []
+
+
+def test_agent_confirm_action_persists_simulation_and_is_idempotent(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
+    _override_agent_llm(_make_fake_llm_that_proposes_cash_purchase())
+
+    sent = client.post(
+        f"/api/v1/profiles/{profile['id']}/agent/messages",
+        json={"message": "Quero comprar um lanche de 50 reais à vista"},
+    ).json()
+    action_id = sent["data"]["pending_action"]["action_id"]
+
+    confirmed = client.post(f"/api/v1/profiles/{profile['id']}/agent/actions/{action_id}/confirm")
+    assert confirmed.status_code == 201
+    assert confirmed.json()["type"] == "CASH_PURCHASE"
+
+    simulations = client.get(f"/api/v1/profiles/{profile['id']}/simulations").json()
+    assert len(simulations) == 1
+
+    re_confirmed = client.post(f"/api/v1/profiles/{profile['id']}/agent/actions/{action_id}/confirm")
+    assert re_confirmed.status_code == 409
+
+
+def test_agent_confirm_unknown_action_returns_404(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
+    response = client.post(f"/api/v1/profiles/{profile['id']}/agent/actions/does-not-exist/confirm")
+    assert response.status_code == 404
+
+
+def test_agent_message_history_lists_user_and_assistant_messages(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
+    _override_agent_llm(_make_fake_llm_that_proposes_cash_purchase())
+
+    sent = client.post(
+        f"/api/v1/profiles/{profile['id']}/agent/messages",
+        json={"message": "Quero comprar um lanche de 50 reais à vista"},
+    ).json()
+    conversation_id = sent["data"]["conversation_id"]
+
+    history = client.get(f"/api/v1/profiles/{profile['id']}/agent/conversations/{conversation_id}/messages")
+    assert history.status_code == 200
+    roles = [item["role"] for item in history.json()]
+    assert roles == ["user", "assistant"]
+
+
+def test_agent_message_missing_profile_returns_404(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/profiles/does-not-exist/agent/messages", json={"message": "Olá"}
+    )
+    assert response.status_code == 404

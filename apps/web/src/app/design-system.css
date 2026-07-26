@@ -78,6 +78,7 @@
   /* Layout */
   --ft-sidebar-width: 270px;
   --ft-header-height: 92px;
+  --ft-agent-width: 340px;
 
   /* Motion */
   --ft-transition-fast: 150ms ease;
@@ -114,7 +115,7 @@ body {
 
 .ft-app {
   display: grid;
-  grid-template-columns: var(--ft-sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--ft-sidebar-width) minmax(0, 1fr) var(--ft-agent-width);
   min-height: 100vh;
 }
 
@@ -282,6 +283,125 @@ body {
   color: var(--ft-text-secondary);
   font-size: 14px;
   line-height: 1.6;
+}
+
+/* =========================================================
+   AGENT PANEL
+   ========================================================= */
+
+.ft-agent-panel {
+  position: sticky;
+  top: 0;
+
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+
+  padding: 24px 18px;
+
+  background: var(--ft-bg-sidebar);
+  border-left: 1px solid var(--ft-border);
+}
+
+.ft-agent-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.ft-agent-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.ft-agent-subtitle {
+  margin: 2px 0 16px;
+  color: var(--ft-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ft-agent-messages {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ft-agent-empty {
+  margin: auto 0;
+  color: var(--ft-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.ft-agent-bubble {
+  max-width: 92%;
+  padding: 10px 14px;
+
+  border-radius: var(--ft-radius-md);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.ft-agent-bubble--user {
+  align-self: flex-end;
+  color: var(--ft-text-primary);
+  background: var(--ft-primary-soft);
+  border: 1px solid var(--ft-border-primary);
+}
+
+.ft-agent-bubble--assistant {
+  align-self: flex-start;
+  color: var(--ft-text-primary);
+  background: var(--ft-bg-surface-soft);
+  border: 1px solid var(--ft-border);
+}
+
+.ft-agent-questions {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--ft-text-secondary);
+  font-size: 12px;
+}
+
+.ft-agent-pending-action {
+  align-self: stretch;
+  padding: 14px;
+
+  background: var(--ft-purple-soft);
+  border: 1px dashed rgba(154, 92, 255, 0.48);
+  border-radius: var(--ft-radius-md);
+}
+
+.ft-agent-pending-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #bda9ff;
+}
+
+.ft-agent-pending-params {
+  margin: 0 0 12px;
+  color: var(--ft-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ft-agent-pending-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ft-agent-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 /* =========================================================
@@ -1107,6 +1227,14 @@ body {
 @media (max-width: 1024px) {
   .ft-app {
     grid-template-columns: 1fr;
+  }
+
+  .ft-agent-panel {
+    position: static;
+    height: auto;
+    max-height: 60vh;
+    border-top: 1px solid var(--ft-border);
+    border-left: none;
   }
 
   .ft-sidebar {

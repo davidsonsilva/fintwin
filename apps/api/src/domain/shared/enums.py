@@ -49,3 +49,8 @@ class Direction(str, Enum):
 class IncomeStability(str, Enum):
     STABLE = "stable"
     VARIABLE = "variable"
+
+
+class MessageRole(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"

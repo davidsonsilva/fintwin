@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/shell/Sidebar";
+import { AgentPanel } from "@/features/agent/AgentPanel";
 
 export default async function DashboardLayout({
   children,
@@ -15,6 +16,7 @@ export default async function DashboardLayout({
       <main className="ft-main">
         <div className="ft-content">{children}</div>
       </main>
+      <AgentPanel profileId={profileId} />
     </div>
   );
 }

@@ -1,0 +1,54 @@
+{
+  "slug": "vs-09",
+  "pytest": {
+    "exitCode": 0
+  },
+  "typecheck": {
+    "exitCode": 2,
+    "knownFailures": [
+      "src/features/dashboard/ProjectionChart.tsx(99,21): error TS2322: Type '(value: number, name: string) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.",
+      "src/features/fragility/FragilityList.tsx(40,36): error TS2322: Type 'Dispatch<SetStateAction<string>>' is not assignable to type '(value: string | null, eventDetails: SelectRootChangeEventDetails) => void'.",
+      "src/features/onboarding/ProfileStep.tsx(27,5): error TS2322: Type 'Resolver<{ currency: string; dependents: unknown; monthly_expense_reduction_capacity?: string | undefined; }, any, { currency: string; dependents: number; monthly_expense_reduction_capacity?: string | undefined; }>' is not assignable to type 'Resolver<{ currency: string; dependents: number; monthly_expense_reduction_capacity?: string | undefined; }, any, { currency: string; dependents: number; monthly_expense_reduction_capacity?: string | undefined; }>'.",
+      "src/features/onboarding/ProfileStep.tsx(57,75): error TS2345: Argument of type 'TFieldValues' is not assignable to parameter of type '{ currency: string; dependents: number; monthly_expense_reduction_capacity?: string | undefined; }'.",
+      "src/features/onboarding/ResourceStepForm.tsx(117,27): error TS2769: No overload matches this call."
+    ]
+  },
+  "lint": {
+    "exitCode": 1,
+    "knownFailures": [
+      "> web@0.1.0 lint",
+      "> eslint",
+      "D:\\IA Projects\\gemeo-financeiro\\apps\\web\\src\\features\\dashboard\\__tests__\\DashboardView.test.tsx",
+      "2:26  warning  'waitFor' is defined but never used  @typescript-eslint/no-unused-vars",
+      "D:\\IA Projects\\gemeo-financeiro\\apps\\web\\src\\features\\onboarding\\ResourceStepForm.tsx",
+      "31:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "31:98   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "31:113  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "97:30   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "157:48   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "162:23   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "D:\\IA Projects\\gemeo-financeiro\\apps\\web\\src\\features\\onboarding\\resourceConfigs.ts",
+      "37:52   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "56:70   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "56:102  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "59:51   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "82:69   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "82:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "85:55   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "114:69   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "114:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "117:49   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "141:65   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "141:109  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "144:49   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "168:58   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "168:96   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "171:50   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "194:69   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any",
+      "194:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any"
+    ]
+  },
+  "vitest": {
+    "exitCode": 0
+  }
+}

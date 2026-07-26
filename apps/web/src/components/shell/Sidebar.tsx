@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, MessageCircleHeart, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
+import { LayoutDashboard, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -51,17 +51,6 @@ export function Sidebar({ profileId }: { profileId: string }) {
           );
         })}
       </nav>
-
-      <div className="ft-sidebar-panel ft-sidebar-panel--ai">
-        <p className="ft-sidebar-panel-title">
-          <MessageCircleHeart size={18} style={{ display: "inline", marginRight: 8, verticalAlign: "text-bottom" }} />
-          IA FinTwin <span className="ft-badge">BETA</span>
-        </p>
-        <p className="ft-sidebar-panel-text">Pergunte algo sobre suas finanças para o seu gêmeo.</p>
-        <button className="ft-button ft-button--ghost-purple ft-button--full" disabled>
-          Conversar com IA (em breve)
-        </button>
-      </div>
     </aside>
   );
 }

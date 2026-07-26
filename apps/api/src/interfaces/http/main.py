@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.interfaces.http.routers import (
     account,
+    agent,
     dashboard,
     debt,
     demo,
@@ -54,3 +55,4 @@ app.include_router(simulation.profiles_router)
 app.include_router(simulation.simulations_router)
 app.include_router(preventive_plan.profiles_router)
 app.include_router(preventive_plan.plans_router)
+app.include_router(agent.router)
