@@ -341,6 +341,32 @@ def test_final_text_with_digit_and_no_tool_call_is_replaced_with_fallback(sessio
     assert reply.tool_calls == []
 
 
+def test_final_text_with_non_monetary_number_is_not_blocked(session: Session) -> None:
+    """Explicações conceituais com contagens/percentuais (não valores em R$) não devem
+    ser confundidas com números financeiros inventados - só bloqueamos padrão de dinheiro."""
+    profile = _make_profile(session)
+    fake_llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    FakeBlock(
+                        type="text",
+                        text=(
+                            "Para simular perda de renda preciso saber qual fonte de renda e por quantos "
+                            "meses (por exemplo, 3 meses) - qual desses dados você pode me passar?"
+                        ),
+                    )
+                ]
+            )
+        ],
+    )
+    use_case = _make_send_use_case(session, fake_llm)
+
+    reply = use_case.execute(profile_id=profile.id, currency="BRL", conversation_id=None, message="Explore cenários de perda de renda")
+
+    assert "3 meses" in reply.reply
+
+
 def test_final_text_with_digit_is_blocked_even_when_propose_simulation_was_called(session: Session) -> None:
     """propose_simulation não gera `evidence` (só tools de leitura geram) - um número
     inventado no texto final deve ser bloqueado mesmo com uma tool_call registrada."""

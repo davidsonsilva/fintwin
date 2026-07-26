@@ -39,7 +39,7 @@ _NO_EVIDENCE_FALLBACK = (
     "eu busque o dado correto antes de responder com números."
 )
 
-_HAS_DIGIT = re.compile(r"\d")
+_LOOKS_LIKE_MONEY = re.compile(r"r\$\s?\d|\breais\b|\d+[.,]\d{2}\b", re.IGNORECASE)
 
 _SYSTEM_PROMPT = """Você é o agente conversacional do FinTwin AI, uma plataforma de simulação e prevenção financeira.
 
@@ -298,7 +298,7 @@ class SendAgentMessageUseCase:
                     )
             conversation_messages.append({"role": "user", "content": tool_results})
 
-        if final_text and _HAS_DIGIT.search(final_text) and not evidence:
+        if final_text and _LOOKS_LIKE_MONEY.search(final_text) and not evidence:
             final_text = _NO_EVIDENCE_FALLBACK
 
         conversation.updated_at = datetime.utcnow()
