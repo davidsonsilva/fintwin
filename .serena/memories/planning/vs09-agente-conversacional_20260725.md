@@ -2,7 +2,7 @@
 
 ## 📅 Criado em: 2026-07-25 | Implementado em: 2026-07-26 | Verificado manualmente em: 2026-07-26
 
-## 🎯 Status: ✅ CONCLUÍDO E VERIFICADO (Meta Harness APPROVED, 0 findings; testes automatizados 182 backend + 34 frontend; verificação manual real via Docker Compose confirmada pelo usuário)
+## 🎯 Status: ✅ CONCLUÍDO E VERIFICADO (Meta Harness APPROVED, 0 findings; testes automatizados 185 backend + 34 frontend; verificação manual real via Docker Compose confirmada pelo usuário, incluindo 1 fix pós-aprovação)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Entregue o subconjunto essencial da VS-09: agente conversacional via API da Anthropic (Claude Haiku 4.5, tool calling nativo, sem LangChain/LangGraph), painel lateral persistente no AppShell. Capacidades: explicar indicadores/fragilidades (tools de leitura reais), criar simulação estruturada com confirmação explícita (fluxo de 2 chamadas: propor sem persistir → confirmar sem LLM), pedir dados ausentes, histórico básico de conversa.
 
-Passou por **3 rodadas de correção via Meta Harness** (Codex `gpt-5.6-terra`) antes de fechar `APPROVED, 0 findings` — ver seção de achados abaixo, todos genuínos e corrigidos.
+Passou por **3 rodadas de correção via Meta Harness** (Codex `gpt-5.6-terra`) antes de fechar `APPROVED, 0 findings`, e mais **1 correção pós-aprovação** encontrada na verificação manual real (guard anti-número-sem-evidência bloqueava respostas legítimas) — ver seções abaixo.
 
 ---
 
@@ -53,12 +53,16 @@ Ver histórico completo na versão anterior desta memória (git blame) — resum
 
 ### Rodada 4 — **APPROVED, 0 findings**
 
+### Pós-aprovação (achado na verificação manual, 2026-07-26) — corrigido
+**O guard anti-número-sem-evidência (rodada 1/2) era bom demais em bloquear**: usava "tem QUALQUER dígito" como gatilho, então perguntas legítimas de esclarecimento com contagens/percentuais ("por quantos meses? por exemplo, 3 meses", "qual percentual, 50%?") caíam no fallback genérico — quebrando exatamente a capacidade "pedir dados ausentes" que é requisito explícito da slice. Corrigido: o guard agora só aciona em **padrões de valor monetário** (`R$\d`, `\breais\b`, número com 2 casas decimais tipo `1000,00`), preservando a garantia original (nunca expor um valor financeiro fabricado) sem bloquear explicações conceituais. Commit `f6ef006`.
+
 ## 🎓 Lições gerais para próximas slices
 
 - **Nunca editar uma migração já commitada, mesmo dentro da mesma sessão/PR** — o Meta Harness (e a prática correta) trata cada commit como um possível ponto de deploy real. Sempre criar uma migração nova em cima, e se a mudança precisar ser resiliente a estados históricos incertos, tornar a migração idempotente (checar existência via `sa.inspect` antes de `add_column`/`drop_column`).
 - **Campos que precisam de garantia atômica (idempotência, exclusão mútua) não devem viver dentro de um blob JSON** — usar uma coluna dedicada permite `UPDATE ... WHERE coluna=valor` condicional, que é a única forma real de atomicidade sem lock explícito.
 - **Guards de segurança devem checar o sinal mais específico disponível** (`evidence` real, não "alguma tool foi chamada") — `propose_simulation` conta como tool_call mas não é evidência de leitura; confundir os dois deixa uma brecha.
 - **Claims atômicos (`try_claim`) não devem commitar isoladamente** quando o efeito colateral real (persistir a simulação) depende do sucesso de passos posteriores na mesma operação — deixar tudo na mesma transação do `Session` por request garante que uma falha no meio é recuperável via rollback implícito do `get_session()`.
+- **Guards de "não invente números" precisam mirar o padrão específico do risco (valor monetário), não um proxy genérico demais (qualquer dígito)** — um proxy largo demais quebra funcionalidade legítima (pedir dados ausentes com exemplos numéricos). Válido tanto para este guard quanto para futuros filtros de conteúdo: sempre testar manualmente com perguntas exploratórias/conceituais, não só com perguntas que pedem um valor direto do dashboard.
 - **Container Docker rodando não significa código atualizado** — se uma sessão implementa mudanças de código enquanto os containers já estavam de pé (de uma sessão anterior), é preciso `docker compose up -d --build` para reconstruir as imagens antes de testar. "Cliquei e não aconteceu nada" foi sintoma disso + da `ANTHROPIC_API_KEY` ainda não estar no ambiente do `docker compose`.
 - **`docker compose` lê um `.env` na raiz do projeto automaticamente** — não é preciso `export` manual no shell se a chave já estiver lá; útil para segredos como `ANTHROPIC_API_KEY` persistirem entre sessões sem precisar redefinir toda vez.
 
@@ -66,19 +70,21 @@ Ver histórico completo na versão anterior desta memória (git blame) — resum
 
 - `docker compose up -d --build` (rebuild após as mudanças da VS-09) + `docker compose exec api python -m alembic upgrade head` (migração aplicada em Postgres real, `e4a1f7c9d3b2` + `f1b2c3d4e5a6`).
 - `ANTHROPIC_API_KEY` confirmada presente no container `api` via `.env` do projeto.
-- Usuário testou via `http://localhost:3000` (perfil demo): pediu resumo do dashboard e autonomia ao agente → resposta usou os valores reais do perfil demo (saldo R$12.500,00, obrigações R$4.950,00 — mesmos valores fixos desde a VS-03/VS-08), confirmando que o agente chama `get_dashboard_summary`/`get_autonomy` de verdade, sem inventar números.
-- Fluxo de propor+confirmar simulação **não foi testado manualmente** (usuário optou por não testar, já coberto por 182 testes automatizados incluindo o caminho de confirmação/idempotência/isolamento entre perfis).
+- Teste 1: pediu resumo do dashboard e autonomia ao agente → resposta usou os valores reais do perfil demo (saldo R$12.500,00, obrigações R$4.950,00 — mesmos valores fixos desde a VS-03/VS-08), confirmando que o agente chama `get_dashboard_summary`/`get_autonomy` de verdade, sem inventar números.
+- Teste 2 (encontrou o bug pós-aprovação): pediu para "explorar cenários de perda de renda" e "simular provisão de IPTU/IPVA" → ambas caíram no fallback genérico de "não tenho essa informação". Diagnosticado e corrigido (ver seção acima). Reteste confirmou: agora o agente pergunta os dados faltantes normalmente (percentual, valor anual) sem cair no fallback.
+- Fluxo de propor+confirmar simulação **não foi testado manualmente** (usuário optou por não testar, já coberto por testes automatizados incluindo o caminho de confirmação/idempotência/isolamento entre perfis).
 
 ## 📚 Pendências conhecidas
 
 - Comparar cenários via agente, gerar plano preventivo via agente, navegação guiada pelo agente — adiados para iteração futura (decisão original do plano).
+- Tools de leitura atuais (`get_dashboard_summary`, `get_autonomy`, `list_fragilities`) não cobrem listagem de fontes de renda/obrigações — por isso "perda de renda" e "nova despesa recorrente (IPTU/IPVA)" exigem que o USUÁRIO informe os valores, o agente não consegue buscá-los sozinho. Se isso incomodar na prática, considerar uma tool `list_income_sources`/`list_obligations` numa iteração futura.
 
 ## 📚 Contexto e Referências
 
 - Spec: seções 6.8, 7, 18.11, 19, 24, 25, 26, 27.2, 31 (`docs/Spec.md`)
 - Contratos finais do Meta Harness: `.meta-harness/contracts/current-slice.md`, `acceptance-criteria.md`
 - Relatórios das 4 rodadas: `.meta-harness/reports/codex-review-20260726-{081742,083710,094231,094741}.md`
-- Commits (ordem): `c73c92c` (implementação inicial) → `e49cd5c` (fix rodada 1) → `b2d01bd` (fix rodada 2) → `6047cd4` (fix rodada 3) → `22525ab` (docs: aprovação final)
+- Commits (ordem): `c73c92c` (implementação inicial) → `e49cd5c` (fix rodada 1) → `b2d01bd` (fix rodada 2) → `6047cd4` (fix rodada 3) → `22525ab` (docs: aprovação final) → `f6ef006` (fix pós-aprovação: guard de dinheiro)
 
 ## 🚦 Próximo Passo
 
