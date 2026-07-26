@@ -298,7 +298,7 @@ class SendAgentMessageUseCase:
                     )
             conversation_messages.append({"role": "user", "content": tool_results})
 
-        if final_text and _HAS_DIGIT.search(final_text) and not tool_calls:
+        if final_text and _HAS_DIGIT.search(final_text) and not evidence:
             final_text = _NO_EVIDENCE_FALLBACK
 
         conversation.updated_at = datetime.utcnow()

@@ -84,7 +84,10 @@ class AgentMessageHistoryItem(BaseModel):
             content=message.content,
             tool_calls=list(message.tool_calls),
             pending_action=(
-                PendingActionSchema(**message.pending_action, confirmed=message.confirmed)
+                PendingActionSchema(
+                    **{k: v for k, v in message.pending_action.items() if k != "confirmed"},
+                    confirmed=message.confirmed,
+                )
                 if message.pending_action is not None
                 else None
             ),

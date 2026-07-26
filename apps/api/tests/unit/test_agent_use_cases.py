@@ -204,6 +204,66 @@ def test_confirm_pending_action_persists_and_is_idempotent(session: Session) -> 
         confirm_use_case.execute(profile_id=profile.id, action_id=action_id, currency="BRL")
 
 
+def test_confirm_pending_action_is_recoverable_if_simulation_fails_after_claim(session: Session) -> None:
+    profile = _make_profile(session)
+    fake_llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    FakeBlock(
+                        type="tool_use",
+                        name="propose_simulation",
+                        input={
+                            "decision_type": "CASH_PURCHASE",
+                            "parameters": {"amount": "100.00", "description": "Compra teste"},
+                        },
+                        id="t1",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Proposta pronta.")]),
+        ]
+    )
+    reply = _make_send_use_case(session, fake_llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="Comprar item de 100 reais à vista"
+    )
+    action_id = reply.pending_action["action_id"]
+
+    class _FailingSimulateUseCase:
+        def execute(self, **kwargs: Any) -> None:
+            raise RuntimeError("falha simulada depois do claim")
+
+    failing_confirm_use_case = ConfirmPendingActionUseCase(
+        agent_message_repo=SqlAlchemyAgentMessageRepository(session),
+        conversation_repo=SqlAlchemyConversationRepository(session),
+        simulate_decision_use_case=_FailingSimulateUseCase(),
+    )
+    with pytest.raises(RuntimeError):
+        failing_confirm_use_case.execute(profile_id=profile.id, action_id=action_id, currency="BRL")
+
+    # Nada foi commitado (claim + simulação são a mesma transação) - simula o
+    # rollback implícito que get_session() faz ao fechar a sessão em caso de erro.
+    session.rollback()
+
+    real_simulate_use_case = SimulateDecisionUseCase(
+        account_repo=SqlAlchemyAccountRepository(session),
+        income_repo=SqlAlchemyIncomeSourceRepository(session),
+        obligation_repo=SqlAlchemyObligationRepository(session),
+        debt_repo=SqlAlchemyDebtRepository(session),
+        goal_repo=SqlAlchemyGoalRepository(session),
+        event_repo=SqlAlchemyEventRepository(session),
+        simulation_repo=SqlAlchemySimulationRepository(session),
+    )
+    retry_confirm_use_case = ConfirmPendingActionUseCase(
+        agent_message_repo=SqlAlchemyAgentMessageRepository(session),
+        conversation_repo=SqlAlchemyConversationRepository(session),
+        simulate_decision_use_case=real_simulate_use_case,
+    )
+    simulation = retry_confirm_use_case.execute(profile_id=profile.id, action_id=action_id, currency="BRL")
+    assert simulation.type == "CASH_PURCHASE"
+    assert len(SqlAlchemySimulationRepository(session).list_by_profile(profile.id)) == 1
+
+
 def test_confirm_pending_action_raises_for_unknown_action(session: Session) -> None:
     confirm_use_case = ConfirmPendingActionUseCase(
         agent_message_repo=SqlAlchemyAgentMessageRepository(session),
@@ -279,6 +339,37 @@ def test_final_text_with_digit_and_no_tool_call_is_replaced_with_fallback(sessio
     assert reply.reply != "Seu saldo é R$1000,00."
     assert reply.evidence == []
     assert reply.tool_calls == []
+
+
+def test_final_text_with_digit_is_blocked_even_when_propose_simulation_was_called(session: Session) -> None:
+    """propose_simulation não gera `evidence` (só tools de leitura geram) - um número
+    inventado no texto final deve ser bloqueado mesmo com uma tool_call registrada."""
+    profile = _make_profile(session)
+    fake_llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    FakeBlock(
+                        type="tool_use",
+                        name="propose_simulation",
+                        input={
+                            "decision_type": "CASH_PURCHASE",
+                            "parameters": {"amount": "100.00", "description": "Compra teste"},
+                        },
+                        id="t1",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Depois dessa compra seu saldo ficará em 900 reais.")]),
+        ]
+    )
+    use_case = _make_send_use_case(session, fake_llm)
+
+    reply = use_case.execute(profile_id=profile.id, currency="BRL", conversation_id=None, message="Comprar item de 100 reais à vista")
+
+    assert reply.tool_calls != []
+    assert reply.evidence == []
+    assert "900" not in reply.reply
 
 
 def test_tool_outside_allowlist_is_rejected_before_execution(session: Session) -> None:

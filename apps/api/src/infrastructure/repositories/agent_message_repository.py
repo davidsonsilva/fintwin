@@ -66,6 +66,14 @@ class SqlAlchemyAgentMessageRepository:
         Usa um UPDATE condicional (WHERE confirmed=false) em vez de ler-e-escrever,
         para que duas confirmações concorrentes da mesma ação nunca persistam a
         simulação duas vezes (achado do Meta Harness na VS-09).
+
+        Deliberadamente NÃO comita aqui: o caller (`ConfirmPendingActionUseCase`)
+        persiste a simulação na mesma sessão logo em seguida, e é esse commit
+        posterior que também efetiva este claim. Se qualquer passo entre o claim
+        e a persistência da simulação falhar, a sessão é fechada sem commit
+        (`get_session`) e o claim é descartado — a ação volta a ficar disponível
+        para uma nova tentativa, em vez de ficar presa como "confirmada" sem
+        nenhuma simulação correspondente (achado do Meta Harness na VS-09).
         """
         stmt = (
             update(AgentMessageModel)
@@ -73,5 +81,4 @@ class SqlAlchemyAgentMessageRepository:
             .values(confirmed=True)
         )
         result = self._session.execute(stmt)
-        self._session.commit()
         return result.rowcount == 1
