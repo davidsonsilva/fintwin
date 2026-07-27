@@ -28,11 +28,21 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { Button } from "@/design-system/components/Button";
 
 import { useSidebarContext } from "./SidebarContext";
+
+const subscribeNoop = () => () => {};
+
+function useHasMounted() {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
+}
 
 interface NavItem {
   href: string;
@@ -72,13 +82,19 @@ export function Sidebar({ profileId, onOpenAgent }: { profileId: string; onOpenA
   // da página atual em navegações client-side com Turbopack, fazendo o pathname
   // usado no SSR divergir do pathname real no primeiro paint. Só calculamos o
   // item ativo após montar no cliente para evitar o hydration mismatch.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHasMounted();
 
   useEffect(() => {
     closeMobileSidebar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  const firstNavLinkRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (isMobileOpen) {
+      firstNavLinkRef.current?.focus();
+    }
+  }, [isMobileOpen]);
 
   return (
     <>
@@ -97,13 +113,18 @@ export function Sidebar({ profileId, onOpenAgent }: { profileId: string; onOpenA
         </div>
 
         <nav className="ft-nav">
-          {navItems.map((item) => {
+          {navItems.map((item, index) => {
             const isActive =
               mounted &&
               (item.href === `/dashboard/${profileId}` ? pathname === item.href : pathname?.startsWith(item.href));
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href} className={`ft-nav-item${isActive ? " is-active" : ""}`}>
+              <Link
+                key={item.href}
+                href={item.href}
+                ref={index === 0 ? firstNavLinkRef : undefined}
+                className={`ft-nav-item${isActive ? " is-active" : ""}`}
+              >
                 <span className="ft-nav-icon">
                   <Icon size={20} />
                 </span>

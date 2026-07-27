@@ -1,0 +1,12 @@
+REJECTED: the patch violates the mandatory VS-10 scope boundary and introduces a new ESLint failure. Executed: required git diff/stat/show and `git diff --check` (exit 0); `npx tsc --noEmit` and `npm run build` failed only on baseline TypeScript diagnostics TS2322, TS2345, and TS2769; `npm run lint` failed with the new `react-hooks/set-state-in-effect` plus baseline `@typescript-eslint/no-explicit-any`; pytest, Vitest, and Playwright are NOT_VERIFIED because the sandbox lacks the venv base Python, cannot resolve Vitest's setup path, and blocks Playwright's transform-cache write. Acceptance status: 1 NOT_VERIFIED, 2 NOT_VERIFIED, 3 NOT_VERIFIED, 4 PASS, 5 PASS, 6 NOT_VERIFIED, 7 PASS, 8 FAIL, 9 PASS, 10 NOT_VERIFIED; no automated coverage was added for the new drawer or routes.
+
+Full review comments:
+
+- [P1] Remove non-VS-10 product work from this patch — D:\IA Projects\gemeo-financeiro\apps\web\src\features\onboarding\ResourceConfigPage.tsx:25-32
+  **HIGH —** The VS-10 contract limits frontend changes to accessibility labels and test infrastructure, but this patch adds resource/profile/review routes, a new dashboard shell/sidebar, agent-panel behavior, a design-system migration, and 1,463 frontend lines. This fails acceptance criterion 8 and broadens a consolidation slice into a product redesign; split these changes into a separately approved slice or revert them from this target.
+
+- [P2] Eliminate the new lint failure in the sidebar — D:\IA Projects\gemeo-financeiro\apps\web\src\components\shell\Sidebar.tsx:75-76
+  **MEDIUM — NEW_FAILURE:** `npm run lint` now fails on `react-hooks/set-state-in-effect` because this mount effect synchronously calls `setMounted`. This diagnostic is absent from the VS-10 baseline, so the patch adds a failing quality gate; derive the hydration-safe state without a synchronous mount effect or use a supported hydration strategy.
+
+- [P2] Keep the mobile drawer out of keyboard navigation while closed — D:\IA Projects\gemeo-financeiro\apps\web\src\components\shell\Sidebar.tsx:84-86
+  **MEDIUM —** At widths up to 1024px the sidebar is only translated off-screen by CSS, while this `<aside>` and all of its links remain focusable before the main content; opening it also leaves focus on the menu trigger instead of moving it into the drawer. Keyboard users therefore tab through invisible navigation and cannot reliably reach the visible drawer items. Apply `inert`/appropriate hidden semantics while closed and move focus to the drawer when it opens.

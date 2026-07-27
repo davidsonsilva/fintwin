@@ -1,37 +1,56 @@
-# Slice atual: VS-10 — Consolidação do MVP
+# Slice atual: Design System — Redesign visual do AppShell (pós-VS-10)
 
-> Gerado a partir do plano aprovado em `planning/vs10-consolidacao-mvp_20260726` (Serena, sessão de 2026-07-26/27).
+> Trabalho interativo de polimento visual pedido diretamente pelo usuário (sem planning/*
+> formal prévio), consolidado retroativamente neste contrato para permitir revisão do Meta
+> Harness. Fonte de verdade visual: `imagens/proposta-de-layout.png`, `imagens/toolbar.json`,
+> `imagens/FinTwin AI — Design System.md`.
 
 ## Contexto
 
-VS-01–09 entregaram todo o domínio funcional do MVP (persistência, onboarding, dashboard, projeção, autonomia, radar de fragilidade, simulador de decisões, planos preventivos, agente conversacional). A VS-10 (Spec seção "VS-10", critérios de aceitação seção 31) é a slice de fechamento: **não adiciona domínio novo**, consolida o produto existente em um entregável demonstrável — testes E2E, acessibilidade, segurança, documentação, demonstração ponta a ponta, relatório de limitações.
+Após a VS-10 (MVP consolidado), o usuário pediu alinhamento visual do painel interno
+(Onboarding, Tela Inicial, Dashboard, Sidebar, Topbar) ao design system `--ft-*` de
+referência, e o início da migração desse CSS autoral para tokens TypeScript + variantes
+CVA (`class-variance-authority`), preservando o Tailwind gerado e o CSS de terceiros
+intocados.
 
-Escopo deliberadamente limitado: 1 fluxo E2E crítico (não cobertura por slice individual), hardening pontual de segurança (sem autenticação de usuário — fora dos critérios de aceite), auditoria de acessibilidade automatizada (axe-core), README único na raiz.
-
-Nenhuma mudança foi necessária no domínio financeiro, casos de uso de negócio existentes ou contratos HTTP já entregues em slices anteriores.
+Não é uma Vertical Slice do domínio financeiro — não adiciona nem altera regra de negócio,
+caso de uso, contrato HTTP ou schema de banco. É puramente front-end (`apps/web/`).
 
 ## Escopo entregue
 
-### Testes end-to-end (`apps/web/e2e/`)
-- `critical-flow.spec.ts` — Playwright cobrindo: onboarding via seed de demonstração → dashboard → simular decisão (CASH_PURCHASE) → comparação antes/depois → detectar fragilidades → gerar e aprovar plano preventivo. Roda contra a stack Docker Compose real (não mocka backend, não passa pelo agente conversacional — evita depender de uma chamada real e não-determinística à API da Anthropic num teste automatizado).
-- `playwright.config.ts` — timeouts generosos (`timeout: 60_000`, `expect.timeout: 15_000`) porque o container web roda `next dev` (compilação sob demanda na primeira navegação a cada rota, não é flakiness).
-- `apps/web/vitest.config.ts` — `exclude: ["e2e/**"]` para o vitest não tentar rodar os specs do Playwright.
-- Novos scripts em `apps/web/package.json`: `test:e2e`.
+### Sidebar / navegação
+- Logo/ícone com fundo tratado (transparente), nova seção de navegação por recurso
+  (Perfil/Contas/Rendas/Obrigações/Dívidas/Metas/Eventos/Revisão) com páginas dedicadas em
+  `/dashboard/[profileId]/{profile,resources/[resource],review}` — reaproveitando os
+  formulários já existentes de `features/onboarding/`, sem duplicar lógica de negócio.
+- Item "Onboarding guiado" separado, linkando para `/onboarding` (fluxo de criação de
+  perfil do zero), desacoplado da navegação de dados de um perfil existente.
+- Card "IA FinTwin" com toggle do `AgentPanel` (antes sempre aberto, ocupando 340px fixos).
+- Drawer mobile funcional (`SidebarContext`, overlay, `visibility`+`inert` de foco).
 
-### Acessibilidade (`@axe-core/playwright`, integrado ao E2E acima)
-- Varredura em 4 pontos do fluxo crítico (dashboard, detalhe de simulação, radar de fragilidade, planos preventivos), falhando o teste se houver violação `critical`/`serious`.
-- 3 violações reais encontradas e corrigidas: `SelectTrigger` (Base UI) sem nome acessível em `ProjectionChart.tsx` (filtros de cenário/horizonte), `FragilityList.tsx` (filtro de severidade), `PlanCard.tsx` (seletor de acompanhamento) — todos ganharam `aria-label` direto no trigger.
+### Topbar (`PageHeader`, novo componente compartilhado)
+- Substitui headers duplicados em 8 páginas por um único componente.
+- Hambúrguer funcional; sino/engrenagem/avatar/"Sincronizar dados" são decorativos
+  (`disabled`) — não há backend de notificações, configurações ou sincronização.
+- Layout posicionado via coordenadas absolutas extraídas de `imagens/toolbar.json`.
 
-### Segurança (`apps/api/src/interfaces/http/`)
-- `rate_limit.py` — `RateLimiter` em memória (janela fixa, 20 requisições/60s por IP), aplicado via `Depends` só no endpoint que chama a API paga da Anthropic (`POST /agent/messages`). Não é distribuído (não sobrevive a múltiplos workers/réplicas) — suficiente para mitigar abuso trivial num MVP de instância única, documentado como limitação conhecida.
-- Auditoria confirmou sem necessidade de mudança: CORS já restrito a `http://localhost:3000`; nenhuma chamada de log/print expõe `ANTHROPIC_API_KEY`; FastAPI roda sem `--reload`/debug (sem vazamento de stack trace em erros 500).
-
-### Documentação
-- `README.md` (raiz) reescrito por completo — havia um README obsoleto da época da VS-01 (falava em "scaffold mínimo", sem dashboard/agente). Novo conteúdo: arquitetura, pré-requisitos, setup Docker Compose (Windows/PowerShell), como rodar cada suíte de testes (pytest/vitest/playwright), roteiro de demonstração ponta a ponta manual e reproduzível, seção "Limitações conhecidas".
+### Design system
+- `design-system.css`: hierarquia tipográfica normalizada (pesos fora de escala 650/750/800
+  removidos), espaçamento de seção corrigido, botão primário/nav/badge alinhados ao doc de
+  referência.
+- `design-system/tokens/*.ts`: espelham os valores `--ft-*` de `design-system.css` como
+  objetos TypeScript tipados (`as const`), sem duplicar a fonte de verdade (globals.css
+  registra os mesmos tokens no `@theme` do Tailwind).
+- `design-system/components/{Button,Card}`: variantes CVA equivalentes a `.ft-button`/
+  `.ft-card`. Primeiro consumidor real: `Sidebar.tsx` (botão "Conversar com IA").
 
 ## Fora de escopo (não implementado nesta slice)
 
-- Autenticação/autorização de usuário — nenhum critério de aceite da seção 31 exige; `profile_id` continua livre nas rotas (limitação documentada no README).
-- Cobertura E2E por Vertical Slice individual — só o fluxo crítico único, por decisão de custo/benefício.
-- Qualquer mudança de domínio financeiro, motor de decisões, agente conversacional ou contratos HTTP já entregues.
-- Correção da dívida técnica pré-existente de `tsc`/`lint` (erros em `ProjectionChart.tsx`, `ProfileStep.tsx`, `ResourceStepForm.tsx`, `resourceConfigs.ts`) — já documentada em `project_overview` desde a VS-07/VS-08, não é regressão desta slice.
+- Migração completa de todos os usos de `.ft-*` para os novos componentes CVA — só Sidebar
+  foi migrado; o restante (PageHeader, DashboardView, cards do dashboard, onboarding,
+  AgentPanel) continua usando as classes CSS `.ft-*` existentes.
+- Qualquer mudança de domínio financeiro, regra de negócio, endpoint HTTP ou schema.
+- Sistema de autenticação/conta de usuário, notificações, configurações ou sincronização de
+  dados reais (os controles do header existem só visualmente).
+- Cobertura de teste automatizado para as novas rotas/drawer (nenhum teste novo foi
+  adicionado para `resources/[resource]`, `profile`, `review`, ou o toggle do drawer mobile).

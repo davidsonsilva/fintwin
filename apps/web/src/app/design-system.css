@@ -1454,12 +1454,14 @@ body {
     left: 0;
 
     width: var(--ft-sidebar-width);
+    visibility: hidden;
 
     transform: translateX(-102%);
     transition: transform var(--ft-transition-base);
   }
 
   .ft-sidebar.is-open {
+    visibility: visible;
     transform: translateX(0);
   }
 
