@@ -1,0 +1,1 @@
+APPROVED_WITH_WARNINGS: não encontrei defeitos no diff por inspeção estática. Typecheck, lint e build reproduzem somente os diagnósticos preexistentes da baseline; pytest, Vitest e Playwright ficaram NOT_VERIFIED por limitações do sandbox/runtime (venv Python inválido e bloqueio de escrita em cache/Temp/Docker).
