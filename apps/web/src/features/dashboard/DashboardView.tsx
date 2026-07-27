@@ -17,7 +17,9 @@ import { RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { Card as FtCard, cardVariants } from "@/design-system/components/Card";
 import { ApiError } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 import { fragilityApi } from "@/features/fragility/api";
 
@@ -96,7 +98,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
       {data && (
         <>
           <section className="ft-grid ft-grid--metrics">
-            <article className="ft-card ft-metric-card">
+            <FtCard as="article" className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--primary">
                 <Wallet size={22} />
               </div>
@@ -104,9 +106,9 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <p className="ft-metric-label">Saldo líquido disponível</p>
                 <p className="ft-metric-value">{formatMoney(data.net_balance.amount, data.net_balance.currency)}</p>
               </div>
-            </article>
+            </FtCard>
 
-            <article className="ft-card ft-metric-card">
+            <FtCard as="article" className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--warning">
                 <CalendarClock size={22} />
               </div>
@@ -116,9 +118,9 @@ export function DashboardView({ profileId }: { profileId: string }) {
                   {formatMoney(data.monthly_obligations_total.amount, data.monthly_obligations_total.currency)}
                 </p>
               </div>
-            </article>
+            </FtCard>
 
-            <article className="ft-card ft-metric-card">
+            <FtCard as="article" className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--purple">
                 <TrendingDown size={22} />
               </div>
@@ -131,9 +133,9 @@ export function DashboardView({ profileId }: { profileId: string }) {
                   {data.income_commitment_pct === null ? "Sem renda cadastrada" : "Da renda mensal"}
                 </p>
               </div>
-            </article>
+            </FtCard>
 
-            <article className="ft-card ft-metric-card">
+            <FtCard as="article" className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--info">
                 <ShieldCheck size={22} />
               </div>
@@ -142,11 +144,11 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <p className="ft-metric-value">{data.main_goal ? formatPercent(data.main_goal.progress_pct) : "—"}</p>
                 <p className="ft-metric-helper">{data.main_goal?.description ?? "Nenhuma meta cadastrada"}</p>
               </div>
-            </article>
+            </FtCard>
           </section>
 
           <section className="ft-grid ft-grid--indicators">
-            <div className="ft-card ft-status-card">
+            <FtCard className="ft-status-card">
               <div className="ft-status-icon ft-metric-icon--primary">
                 <ShieldCheck size={18} />
               </div>
@@ -156,9 +158,9 @@ export function DashboardView({ profileId }: { profileId: string }) {
                   {autonomyQuery.isLoading ? "Calculando..." : formatMonths(autonomyQuery.data?.basic_autonomy_months ?? null)}
                 </p>
               </div>
-            </div>
+            </FtCard>
 
-            <div className="ft-card ft-status-card">
+            <FtCard className="ft-status-card">
               <div className="ft-status-icon ft-metric-icon--info">
                 <CalendarClock size={18} />
               </div>
@@ -171,9 +173,12 @@ export function DashboardView({ profileId }: { profileId: string }) {
                       "Sem déficit projetado (12 meses, cenário provável)")}
                 </p>
               </div>
-            </div>
+            </FtCard>
 
-            <Link href={`/dashboard/${profileId}/fragilities`} className="ft-card ft-status-card">
+            <Link
+              href={`/dashboard/${profileId}/fragilities`}
+              className={cn(cardVariants({ interactive: true }), "ft-status-card")}
+            >
               <div className="ft-status-icon ft-metric-icon--warning">
                 <TrendingDown size={18} />
               </div>
@@ -195,7 +200,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
             </div>
           </section>
 
-          <div className="ft-card">
+          <FtCard>
             <div className="ft-card-header">
               <div>
                 <h3 className="ft-card-title">Comprometimento da renda</h3>
@@ -219,9 +224,9 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 {commitmentPct.toFixed(1)}%
               </p>
             </div>
-          </div>
+          </FtCard>
 
-          <div className="ft-card">
+          <FtCard>
             <div className="ft-card-header">
               <h3 className="ft-card-title">Próximos eventos financeiros</h3>
             </div>
@@ -240,7 +245,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 </div>
               ))}
             </div>
-          </div>
+          </FtCard>
 
           <div className="ft-ai-insight">
             <div className="ft-ai-avatar">🤖</div>

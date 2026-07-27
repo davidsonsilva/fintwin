@@ -6,14 +6,17 @@
  * by the Free Software Foundation, version 3 of the License.
  */
 
-import type { HTMLAttributes } from "react";
+import type { ElementType, HTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { cardVariants, type CardVariantProps } from "./cardVariants";
 
-type CardProps = HTMLAttributes<HTMLDivElement> & CardVariantProps;
+type CardProps = HTMLAttributes<HTMLElement> &
+  CardVariantProps & {
+    as?: ElementType;
+  };
 
-export function Card({ className, size, interactive, disabled, ...props }: CardProps) {
-  return <div className={cn(cardVariants({ size, interactive, disabled }), className)} {...props} />;
+export function Card({ className, size, interactive, disabled, as: Component = "div", ...props }: CardProps) {
+  return <Component className={cn(cardVariants({ size, interactive, disabled }), className)} {...props} />;
 }

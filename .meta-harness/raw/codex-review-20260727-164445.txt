@@ -1,0 +1,5 @@
+{
+  "findings": [],
+  "overall_correctness": "patch is correct",
+  "overall_explanation": "APPROVED_WITH_WARNINGS: no actionable defects were found in the target diff; it removes the new lint issue, hides the closed mobile drawer from tab navigation, and moves focus to its first link when opened. Executed: mandatory git diff/stat/show, git log, git diff --check (all exit 0); npx tsc --noEmit (exit 1, only baseline TS2322/TS2345/TS2769); npm run lint (exit 1, only baseline @typescript-eslint/no-explicit-any); pytest (NOT_VERIFIED, venv Python missing), npx vitest run (NOT_VERIFIED, sandbox EPERM creating Temp transform cache), npm run build (NOT_VERIFIED, sandbox EPERM writing .next/trace-build). Acceptance: C1 PASS, C2 NOT_VERIFIED, C3 PASS, C4 NOT_VERIFIED, C5 PASS, C6 PASS, C7 PASS, C8 PASS; residual risk is limited to unexecuted runtime/Vitest validation, and the recommended next action is rerunning pytest, Vitest, and build in a writable environment with the configured Python 3.12 venv."
+}

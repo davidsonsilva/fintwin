@@ -11,6 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/design-system/components/Card";
 
 const HIGHLIGHTS = [
   {
@@ -57,13 +58,13 @@ export default function Home() {
 
       <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-3">
         {HIGHLIGHTS.map(({ icon: Icon, variant, title, description }) => (
-          <div key={title} className="ft-card ft-card--compact flex flex-col items-center gap-3 text-center">
+          <Card key={title} size="compact" className="flex flex-col items-center gap-3 text-center">
             <div className={`ft-metric-icon ft-metric-icon--${variant}`}>
               <Icon size={22} />
             </div>
             <p className="ft-card-title">{title}</p>
             <p className="ft-card-subtitle">{description}</p>
-          </div>
+          </Card>
         ))}
       </div>
     </div>

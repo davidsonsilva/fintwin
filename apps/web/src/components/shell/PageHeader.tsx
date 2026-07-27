@@ -10,6 +10,9 @@
 
 import { Bell, ChevronDown, Menu, RefreshCw, Settings, UserCircle } from "lucide-react";
 
+import { Button } from "@/design-system/components/Button";
+import { IconButton } from "@/design-system/components/IconButton";
+
 import { useSidebarContext } from "./SidebarContext";
 
 export function PageHeader({
@@ -26,9 +29,9 @@ export function PageHeader({
   return (
     <header className="ft-header">
       <div className="ft-header-left">
-        <button type="button" className="ft-menu-button" onClick={toggleMobileSidebar} aria-label="Abrir menu">
+        <IconButton onClick={toggleMobileSidebar} aria-label="Abrir menu">
           <Menu size={20} />
-        </button>
+        </IconButton>
         <div>
           <h2 className="ft-page-title">{title}</h2>
           {description && <p className="ft-page-description">{description}</p>}
@@ -38,24 +41,24 @@ export function PageHeader({
       <div className="ft-header-actions">
         <div className="ft-header-actions-top">
           {children}
-          <button type="button" className="ft-icon-button" disabled aria-label="Notificações">
+          <IconButton disabled aria-label="Notificações">
             <Bell size={17} />
-            <span className="ft-notification-dot" />
-          </button>
-          <button type="button" className="ft-icon-button" disabled aria-label="Configurações">
+            <span className="absolute top-2 right-2 size-[7px] rounded-full border border-[color:var(--ft-bg-page)] bg-[color:var(--ft-primary)]" />
+          </IconButton>
+          <IconButton disabled aria-label="Configurações">
             <Settings size={18} />
-          </button>
-          <div className="ft-header-profile">
-            <button type="button" className="ft-header-avatar" disabled aria-label="Conta">
+          </IconButton>
+          <div className="flex items-center gap-[11px]">
+            <IconButton variant="avatar" disabled aria-label="Conta">
               <UserCircle size={24} />
-            </button>
-            <ChevronDown size={13} className="ft-header-chevron" />
+            </IconButton>
+            <ChevronDown size={13} className="text-[#d0d6de]" />
           </div>
         </div>
-        <button type="button" className="ft-header-sync" disabled>
+        <Button variant="outline" size="sm" disabled>
           <RefreshCw size={13} />
           Sincronizar dados
-        </button>
+        </Button>
       </div>
     </header>
   );

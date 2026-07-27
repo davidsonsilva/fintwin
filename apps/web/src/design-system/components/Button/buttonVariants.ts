@@ -10,10 +10,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 export const buttonVariants = cva(
   [
-    "inline-flex min-h-10 flex-shrink-0 items-center justify-center gap-2 px-4",
+    "inline-flex flex-shrink-0 items-center justify-center gap-2",
     "whitespace-nowrap rounded-[11px] border border-transparent",
-    "text-[length:var(--ft-font-size-body-md)] font-semibold",
-    "transition-[transform,background,border-color,box-shadow] duration-150",
+    "font-semibold transition-[transform,background,border-color,box-shadow] duration-150",
     "cursor-pointer hover:-translate-y-px active:translate-y-0",
     "disabled:cursor-not-allowed disabled:opacity-55",
   ],
@@ -34,6 +33,14 @@ export const buttonVariants = cva(
         "ghost-purple": [
           "text-[#bda9ff] bg-[rgba(94,71,170,0.1)] border-[rgba(130,108,255,0.38)]",
         ],
+        outline: [
+          "text-[#b7c0ca] bg-[rgba(10,24,38,0.9)] border-[color:var(--ft-border)]",
+          "hover:bg-[rgba(10,24,38,1)] hover:border-[color:var(--ft-border-hover)]",
+        ],
+      },
+      size: {
+        md: "min-h-10 px-4 text-[length:var(--ft-font-size-body-md)]",
+        sm: "h-7 px-2.5 text-[11px] font-normal rounded-[9px] gap-[7px]",
       },
       fullWidth: {
         true: "w-full",
@@ -42,6 +49,7 @@ export const buttonVariants = cva(
     },
     defaultVariants: {
       variant: "primary",
+      size: "md",
       fullWidth: false,
     },
   }
