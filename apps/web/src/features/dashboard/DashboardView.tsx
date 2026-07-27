@@ -16,6 +16,7 @@ import { RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/shell/PageHeader";
 import { ApiError } from "@/lib/api-client";
 
 import { fragilityApi } from "@/features/fragility/api";
@@ -67,15 +68,8 @@ export function DashboardView({ profileId }: { profileId: string }) {
   const gaugeData = [{ name: "comprometimento", value: commitmentPct, fill: "var(--ft-primary)" }];
 
   return (
-    <div className="ft-section flex flex-col gap-6 py-8">
-      <header className="ft-header">
-        <div className="ft-header-left">
-          <div>
-            <h2 className="ft-page-title">Olá! 👋</h2>
-            <p className="ft-page-description">Aqui está o panorama da sua vida financeira.</p>
-          </div>
-        </div>
-      </header>
+    <div className="ft-section flex flex-col gap-6 pb-8">
+      <PageHeader title="Olá! 👋" description="Aqui está o panorama da sua vida financeira." />
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando resumo financeiro...</p>}
 
@@ -104,7 +98,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
           <section className="ft-grid ft-grid--metrics">
             <article className="ft-card ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--primary">
-                <Wallet size={20} />
+                <Wallet size={22} />
               </div>
               <div className="ft-metric-content">
                 <p className="ft-metric-label">Saldo líquido disponível</p>
@@ -114,7 +108,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
             <article className="ft-card ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--warning">
-                <CalendarClock size={20} />
+                <CalendarClock size={22} />
               </div>
               <div className="ft-metric-content">
                 <p className="ft-metric-label">Obrigações mensais</p>
@@ -126,7 +120,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
             <article className="ft-card ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--purple">
-                <TrendingDown size={20} />
+                <TrendingDown size={22} />
               </div>
               <div className="ft-metric-content">
                 <p className="ft-metric-label">Comprometimento da renda</p>
@@ -141,7 +135,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
             <article className="ft-card ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--info">
-                <ShieldCheck size={20} />
+                <ShieldCheck size={22} />
               </div>
               <div className="ft-metric-content">
                 <p className="ft-metric-label">Progresso da meta principal</p>

@@ -6,6 +6,7 @@
  * by the Free Software Foundation, version 3 of the License.
  */
 
+import { PageHeader } from "@/components/shell/PageHeader";
 import { PreventivePlanList } from "@/features/preventive-plans/PreventivePlanList";
 
 export default async function PlansPage({
@@ -16,15 +17,11 @@ export default async function PlansPage({
   const { profileId } = await params;
 
   return (
-    <div className="ft-section flex flex-col gap-6 py-8">
-      <header className="ft-header">
-        <div className="ft-header-left">
-          <div>
-            <h2 className="ft-page-title">Planos preventivos</h2>
-            <p className="ft-page-description">Ações propostas por regras a partir das fragilidades detectadas.</p>
-          </div>
-        </div>
-      </header>
+    <div className="ft-section flex flex-col gap-6 pb-8">
+      <PageHeader
+        title="Planos preventivos"
+        description="Ações propostas por regras a partir das fragilidades detectadas."
+      />
       <PreventivePlanList profileId={profileId} />
     </div>
   );

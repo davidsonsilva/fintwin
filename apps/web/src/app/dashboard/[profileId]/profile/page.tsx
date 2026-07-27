@@ -7,9 +7,9 @@
  */
 
 import { PageHeader } from "@/components/shell/PageHeader";
-import { FragilityList } from "@/features/fragility/FragilityList";
+import { ProfileSummary } from "@/features/onboarding/ProfileSummary";
 
-export default async function FragilitiesPage({
+export default async function ProfilePage({
   params,
 }: {
   params: Promise<{ profileId: string }>;
@@ -18,8 +18,8 @@ export default async function FragilitiesPage({
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
-      <PageHeader title="Radar de fragilidade" description="Riscos financeiros detectados por regras verificáveis." />
-      <FragilityList profileId={profileId} />
+      <PageHeader title="Perfil" description="Dados básicos do seu perfil financeiro." />
+      <ProfileSummary profileId={profileId} />
     </div>
   );
 }

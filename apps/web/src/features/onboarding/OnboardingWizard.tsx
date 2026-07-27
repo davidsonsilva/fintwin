@@ -10,6 +10,19 @@
 
 
 import { useState } from "react";
+import Link from "next/link";
+import {
+  Banknote,
+  Calculator,
+  Calendar,
+  ClipboardCheck,
+  ClipboardList,
+  Target,
+  UserCircle,
+  Wallet,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 import { ProfileStep } from "./ProfileStep";
 import { ResourceStepForm } from "./ResourceStepForm";
@@ -34,6 +47,9 @@ const resourceSteps = [
 
 const STEP_LABELS = ["Perfil", ...resourceSteps.map((step) => step.title), "Revisão"];
 
+// Ícones por etapa, extraídos de imagens/desing.md.json (sidebar.navigation).
+const STEP_ICONS = [UserCircle, Wallet, Banknote, ClipboardList, Calculator, Target, Calendar, ClipboardCheck];
+
 export function OnboardingWizard() {
   const [stepIndex, setStepIndex] = useState(0);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -41,13 +57,36 @@ export function OnboardingWizard() {
   const goToReview = () => setStepIndex(STEP_LABELS.length - 1);
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-12">
-      <ol className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        {STEP_LABELS.map((label, index) => (
-          <li key={label} className={index === stepIndex ? "font-semibold text-foreground" : undefined}>
-            {index + 1}. {label}
-          </li>
-        ))}
+    <div className="ft-onboarding flex flex-col gap-6">
+      {profileId && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/dashboard/${profileId}`}>Ir para o dashboard</Link>}
+          />
+        </div>
+      )}
+
+      <ol className="ft-stepper">
+        {STEP_LABELS.map((label, index) => {
+          const Icon = STEP_ICONS[index];
+          return (
+            <li
+              key={label}
+              className={`ft-step${index < stepIndex ? " is-complete" : index === stepIndex ? " is-active" : ""}`}
+            >
+              <span className="ft-step-icon">
+                <Icon size={18} />
+              </span>
+              <span className="ft-step-indicator" />
+              <span className="ft-step-label">
+                {index + 1}. {label}
+              </span>
+            </li>
+          );
+        })}
       </ol>
 
       {stepIndex === 0 && (

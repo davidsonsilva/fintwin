@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,12 +41,12 @@ function Field({ field, register, watch, setValue }: { field: FieldConfig; regis
   if (field.type === "money") {
     return (
       <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <Label htmlFor={`${field.name}.amount`}>{field.label}</Label>
+        <div className="ft-field">
+          <Label className="ft-label" htmlFor={`${field.name}.amount`}>{field.label}</Label>
           <Input id={`${field.name}.amount`} placeholder="0.00" {...register(`${field.name}.amount`)} />
         </div>
-        <div className="space-y-1">
-          <Label htmlFor={`${field.name}.currency`}>Moeda</Label>
+        <div className="ft-field">
+          <Label className="ft-label" htmlFor={`${field.name}.currency`}>Moeda</Label>
           <Input id={`${field.name}.currency`} maxLength={3} {...register(`${field.name}.currency`)} />
         </div>
       </div>
@@ -56,8 +56,8 @@ function Field({ field, register, watch, setValue }: { field: FieldConfig; regis
   if (field.type === "select") {
     const value = watch(field.name);
     return (
-      <div className="space-y-1">
-        <Label htmlFor={field.name}>{field.label}</Label>
+      <div className="ft-field">
+        <Label className="ft-label" htmlFor={field.name}>{field.label}</Label>
         <Select value={value ?? ""} onValueChange={(next) => setValue(field.name, next)}>
           <SelectTrigger id={field.name} className="w-full">
             <SelectValue placeholder="Selecione" />
@@ -77,16 +77,16 @@ function Field({ field, register, watch, setValue }: { field: FieldConfig; regis
   if (field.type === "checkbox") {
     const value = watch(field.name);
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2 self-end pb-2.5">
         <Checkbox id={field.name} checked={!!value} onCheckedChange={(checked) => setValue(field.name, !!checked)} />
-        <Label htmlFor={field.name}>{field.label}</Label>
+        <Label className="ft-label" htmlFor={field.name}>{field.label}</Label>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1">
-      <Label htmlFor={field.name}>{field.label}</Label>
+    <div className="ft-field">
+      <Label className="ft-label" htmlFor={field.name}>{field.label}</Label>
       <Input
         id={field.name}
         type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
@@ -104,8 +104,8 @@ export function ResourceStepForm({
 }: {
   profileId: string;
   config: ResourceStepConfig<any>;
-  onNext: () => void;
-  onBack: () => void;
+  onNext?: () => void;
+  onBack?: () => void;
 }) {
   const queryClient = useQueryClient();
   const queryKey = [config.key, profileId];
@@ -136,19 +136,18 @@ export function ResourceStepForm({
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{config.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <Card className="ft-form-card">
+      <CardContent className="space-y-6 p-0">
+        <h2 className="ft-form-title">{config.title}</h2>
+
         <form
           onSubmit={handleSubmit((values) => mutation.mutate(values))}
-          className="grid gap-4 sm:grid-cols-2"
+          className="ft-form-grid"
         >
           {config.fields.map((field) => (
             <Field key={field.name} field={field} register={register} watch={watch} setValue={setValue} />
           ))}
-          <div className="sm:col-span-2">
+          <div className="ft-field--full">
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? "Adicionando..." : "Adicionar"}
             </Button>
@@ -169,20 +168,28 @@ export function ResourceStepForm({
           {!isLoading &&
             !isError &&
             (items as any[])?.map((item) => (
-              <div key={item.id} className="rounded-md border px-3 py-2 text-sm">
+              <div key={item.id} className="ft-review-item text-sm">
                 {config.renderSummary(item)}
               </div>
             ))}
         </div>
 
-        <div className="flex justify-between pt-4">
-          <Button type="button" variant="outline" onClick={onBack}>
-            Voltar
-          </Button>
-          <Button type="button" onClick={onNext}>
-            Próximo
-          </Button>
-        </div>
+        {(onBack || onNext) && (
+          <div className="ft-form-actions">
+            {onBack ? (
+              <Button type="button" variant="outline" onClick={onBack}>
+                Voltar
+              </Button>
+            ) : (
+              <span />
+            )}
+            {onNext && (
+              <Button type="button" onClick={onNext}>
+                Próximo
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

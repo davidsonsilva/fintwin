@@ -6,6 +6,8 @@
  * by the Free Software Foundation, version 3 of the License.
  */
 
+import { PageHeader } from "@/components/shell/PageHeader";
+
 import { SimulationsPageClient } from "./SimulationsPageClient";
 
 export default async function SimulationsPage({
@@ -16,15 +18,11 @@ export default async function SimulationsPage({
   const { profileId } = await params;
 
   return (
-    <div className="ft-section flex flex-col gap-6 py-8">
-      <header className="ft-header">
-        <div className="ft-header-left">
-          <div>
-            <h2 className="ft-page-title">Simulador de decisões</h2>
-            <p className="ft-page-description">Compare o cenário atual com uma decisão financeira hipotética.</p>
-          </div>
-        </div>
-      </header>
+    <div className="ft-section flex flex-col gap-6 pb-8">
+      <PageHeader
+        title="Simulador de decisões"
+        description="Compare o cenário atual com uma decisão financeira hipotética."
+      />
       <SimulationsPageClient profileId={profileId} />
     </div>
   );

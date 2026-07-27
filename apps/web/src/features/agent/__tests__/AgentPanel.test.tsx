@@ -47,14 +47,14 @@ function makeReply(overrides: Partial<AgentMessageResponseDto["data"]> = {}): Ag
 
 describe("AgentPanel", () => {
   it("shows an empty state before any message is sent", () => {
-    renderWithClient(<AgentPanel profileId="profile-1" />);
+    renderWithClient(<AgentPanel profileId="profile-1" onClose={() => {}} />);
     expect(screen.getByText(/ainda não há mensagens/i)).toBeInTheDocument();
   });
 
   it("sends a message and renders the user and assistant bubbles", async () => {
     const user = userEvent.setup();
     vi.mocked(agentApi.sendMessage).mockResolvedValue(makeReply());
-    renderWithClient(<AgentPanel profileId="profile-1" />);
+    renderWithClient(<AgentPanel profileId="profile-1" onClose={() => {}} />);
 
     await user.type(screen.getByPlaceholderText("Pergunte algo..."), "Qual meu saldo?");
     await user.click(screen.getByRole("button", { name: "Enviar" }));
@@ -69,7 +69,7 @@ describe("AgentPanel", () => {
     vi.mocked(agentApi.sendMessage).mockResolvedValue(
       makeReply({ reply: "Preciso de mais dados.", pending_questions: ["Preciso do campo 'amount'."] })
     );
-    renderWithClient(<AgentPanel profileId="profile-1" />);
+    renderWithClient(<AgentPanel profileId="profile-1" onClose={() => {}} />);
 
     await user.type(screen.getByPlaceholderText("Pergunte algo..."), "Quero comprar algo");
     await user.click(screen.getByRole("button", { name: "Enviar" }));
@@ -91,7 +91,7 @@ describe("AgentPanel", () => {
       })
     );
     vi.mocked(agentApi.confirmAction).mockResolvedValue({});
-    renderWithClient(<AgentPanel profileId="profile-1" />);
+    renderWithClient(<AgentPanel profileId="profile-1" onClose={() => {}} />);
 
     await user.type(screen.getByPlaceholderText("Pergunte algo..."), "Comprar item de 100 reais");
     await user.click(screen.getByRole("button", { name: "Enviar" }));

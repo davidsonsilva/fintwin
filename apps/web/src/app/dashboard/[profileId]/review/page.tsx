@@ -7,9 +7,9 @@
  */
 
 import { PageHeader } from "@/components/shell/PageHeader";
-import { FragilityList } from "@/features/fragility/FragilityList";
+import { ReviewStep } from "@/features/onboarding/ReviewStep";
 
-export default async function FragilitiesPage({
+export default async function ReviewPage({
   params,
 }: {
   params: Promise<{ profileId: string }>;
@@ -18,8 +18,8 @@ export default async function FragilitiesPage({
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
-      <PageHeader title="Radar de fragilidade" description="Riscos financeiros detectados por regras verificáveis." />
-      <FragilityList profileId={profileId} />
+      <PageHeader title="Revisão" description="Panorama do que está cadastrado no seu perfil." />
+      <ReviewStep profileId={profileId} />
     </div>
   );
 }

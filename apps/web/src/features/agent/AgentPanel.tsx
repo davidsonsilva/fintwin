@@ -9,7 +9,7 @@
  */
 
 
-import { Sparkles } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -21,7 +21,7 @@ import { AGENT_COMPONENT_QUERY_KEYS, agentApi } from "./api";
 import { PendingActionCard } from "./PendingActionCard";
 import type { ChatMessage } from "./types";
 
-export function AgentPanel({ profileId }: { profileId: string }) {
+export function AgentPanel({ profileId, onClose }: { profileId: string; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -93,6 +93,9 @@ export function AgentPanel({ profileId }: { profileId: string }) {
       <div className="ft-agent-header">
         <Sparkles size={18} />
         <h2 className="ft-agent-title">Assistente FinTwin</h2>
+        <button type="button" className="ft-agent-close" onClick={onClose} aria-label="Fechar assistente">
+          <X size={16} />
+        </button>
       </div>
       <p className="ft-agent-subtitle">
         Pergunte sobre seus indicadores, fragilidades ou proponha uma simulação. Nenhum número é calculado

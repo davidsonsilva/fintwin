@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { SidebarProvider } from "@/components/shell/SidebarContext";
 import { fragilityApi } from "@/features/fragility/api";
 import { ApiError } from "@/lib/api-client";
 
@@ -53,7 +54,11 @@ const AUTONOMY_FIXTURE = {
 
 function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SidebarProvider>{ui}</SidebarProvider>
+    </QueryClientProvider>
+  );
 }
 
 describe("DashboardView", () => {

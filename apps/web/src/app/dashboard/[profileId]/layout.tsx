@@ -6,8 +6,7 @@
  * by the Free Software Foundation, version 3 of the License.
  */
 
-import { Sidebar } from "@/components/shell/Sidebar";
-import { AgentPanel } from "@/features/agent/AgentPanel";
+import { DashboardShell } from "@/components/shell/DashboardShell";
 
 export default async function DashboardLayout({
   children,
@@ -18,13 +17,5 @@ export default async function DashboardLayout({
 }) {
   const { profileId } = await params;
 
-  return (
-    <div className="ft-app">
-      <Sidebar profileId={profileId} />
-      <main className="ft-main">
-        <div className="ft-content">{children}</div>
-      </main>
-      <AgentPanel profileId={profileId} />
-    </div>
-  );
+  return <DashboardShell profileId={profileId}>{children}</DashboardShell>;
 }

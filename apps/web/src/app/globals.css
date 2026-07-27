@@ -3,12 +3,54 @@
 @import "shadcn/tailwind.css";
 @import "./design-system.css";
 
+/* Expõe os tokens --ft-* (definidos em design-system.css) como utilitários
+   Tailwind (bg-ft-surface, rounded-ft-lg, text-ft-text-primary, etc.).
+   Ver design-system/tokens/*.ts para a versão TypeScript dos mesmos valores. */
+@theme {
+  --color-ft-page: var(--ft-bg-page);
+  --color-ft-sidebar: var(--ft-bg-sidebar);
+  --color-ft-surface: var(--ft-bg-surface);
+  --color-ft-surface-soft: var(--ft-bg-surface-soft);
+  --color-ft-surface-hover: var(--ft-bg-surface-hover);
+
+  --color-ft-primary: var(--ft-primary);
+  --color-ft-primary-strong: var(--ft-primary-strong);
+  --color-ft-secondary: var(--ft-secondary);
+  --color-ft-purple: var(--ft-purple);
+
+  --color-ft-success: var(--ft-success);
+  --color-ft-warning: var(--ft-warning);
+  --color-ft-danger: var(--ft-danger);
+  --color-ft-info: var(--ft-info);
+
+  --color-ft-text-primary: var(--ft-text-primary);
+  --color-ft-text-secondary: var(--ft-text-secondary);
+  --color-ft-text-muted: var(--ft-text-muted);
+  --color-ft-text-disabled: var(--ft-text-disabled);
+
+  --color-ft-border: var(--ft-border);
+  --color-ft-border-hover: var(--ft-border-hover);
+  --color-ft-divider: var(--ft-divider);
+
+  --radius-ft-xs: var(--ft-radius-xs);
+  --radius-ft-sm: var(--ft-radius-sm);
+  --radius-ft-md: var(--ft-radius-md);
+  --radius-ft-lg: var(--ft-radius-lg);
+  --radius-ft-xl: var(--ft-radius-xl);
+  --radius-ft-2xl: var(--ft-radius-2xl);
+
+  --shadow-ft-sm: var(--ft-shadow-sm);
+  --shadow-ft-md: var(--ft-shadow-md);
+  --shadow-ft-primary: var(--ft-shadow-primary);
+  --shadow-ft-purple: var(--ft-shadow-purple);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-inter);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

@@ -14,7 +14,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -57,27 +57,28 @@ export function ProfileStep({
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Perfil financeiro</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <Card className="ft-form-card">
+      <CardContent className="space-y-6 p-0">
+        <div>
+          <h2 className="ft-form-title">Perfil financeiro</h2>
+          <p className="ft-form-description">Alguns dados básicos para calibrar sua projeção e autonomia.</p>
+        </div>
         <form
           onSubmit={handleSubmit((values) => createProfileMutation.mutate(values))}
-          className="grid gap-4 sm:grid-cols-2"
+          className="ft-form-grid"
         >
-          <div className="space-y-1">
-            <Label htmlFor="currency">Moeda</Label>
+          <div className="ft-field">
+            <Label className="ft-label" htmlFor="currency">Moeda</Label>
             <Input id="currency" maxLength={3} {...register("currency")} />
             {errors.currency && <p className="text-sm text-red-500">{errors.currency.message}</p>}
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="dependents">Dependentes</Label>
+          <div className="ft-field">
+            <Label className="ft-label" htmlFor="dependents">Dependentes</Label>
             <Input id="dependents" type="number" {...register("dependents")} />
             {errors.dependents && <p className="text-sm text-red-500">{errors.dependents.message}</p>}
           </div>
-          <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor="monthly_expense_reduction_capacity">
+          <div className="ft-field ft-field--full">
+            <Label className="ft-label" htmlFor="monthly_expense_reduction_capacity">
               Capacidade de redução de despesas (fração 0–1, opcional)
             </Label>
             <Input
@@ -89,10 +90,7 @@ export function ProfileStep({
               <p className="text-sm text-red-500">{errors.monthly_expense_reduction_capacity.message}</p>
             )}
           </div>
-          <div className="sm:col-span-2 flex flex-wrap gap-3">
-            <Button type="submit" disabled={createProfileMutation.isPending}>
-              {createProfileMutation.isPending ? "Criando..." : "Iniciar onboarding"}
-            </Button>
+          <div className="ft-field--full ft-form-actions">
             <Button
               type="button"
               variant="outline"
@@ -100,6 +98,9 @@ export function ProfileStep({
               disabled={demoMutation.isPending}
             >
               {demoMutation.isPending ? "Carregando demonstração..." : "Carregar dados de demonstração"}
+            </Button>
+            <Button type="submit" disabled={createProfileMutation.isPending}>
+              {createProfileMutation.isPending ? "Criando..." : "Iniciar onboarding"}
             </Button>
           </div>
         </form>
