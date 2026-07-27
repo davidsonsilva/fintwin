@@ -1,14 +1,14 @@
-# Critérios de aceitação: VS-09 — Agente conversacional
+# Critérios de aceitação: VS-10 — Consolidação do MVP
 
-> Extraído da seção "Critérios de Aceite" do plano aprovado em `planning/vs09-agente-conversacional_20260725`.
+> Extraído da seção "Critérios de Aceite" do plano aprovado em `planning/vs10-consolidacao-mvp_20260726`.
 
-1. **Testes automatizados**: `pytest` cobre `agent_use_cases.py` (tools de leitura, `propose_simulation` nunca persiste, `ConfirmPendingActionUseCase` persiste e é idempotente, allowlist rejeita tool desconhecida) e os endpoints HTTP do agente — suíte completa sem regressões (179 testes, 168 preexistentes + 11 novos).
-2. **Migração aplicada**: `alembic upgrade head` cria as tabelas `conversations` e `agent_messages`; `downgrade()` remove o enum `messagerole` do Postgres (`drop(checkfirst=True)`, lição da VS-08).
-3. **Testes de frontend**: `npx vitest run` cobre `AgentPanel` com API mockada (envio de mensagem, pergunta por dado ausente, proposta pendente e confirmação) — requisito explícito da Spec seção 27.2.
-4. **Nenhum número inventado**: toda resposta do agente com valor numérico vem de uma tool call real (`evidence` rastreável); a tool `propose_simulation` nunca persiste nada; a confirmação (`ConfirmPendingActionUseCase`) nunca volta a chamar o LLM.
-5. **Allowlist de ferramentas**: qualquer tool fora de `{get_dashboard_summary, get_autonomy, list_fragilities, propose_simulation}` é rejeitada antes de qualquer execução (Spec seção 25).
-6. **Separação sistema/usuário**: `system` prompt e mensagem do usuário são sempre parâmetros separados na chamada à API da Anthropic, nunca concatenados.
-7. **Pureza de domínio**: `src/domain/agent/` sem imports de framework (`fastapi`, `sqlalchemy`, `anthropic`, `next`).
-8. **Sem scope creep**: nenhuma capacidade de "comparar cenários", "gerar plano preventivo via agente" ou "navegar o usuário" implementada nesta slice (adiadas por decisão registrada no plano); nenhuma mudança no motor de decisões da VS-07.
-9. **Endpoints da Spec seção 18.11 + 1 adição documentada**: `POST /profiles/{profile_id}/agent/messages` (contrato seção 19 completo), `POST /profiles/{profile_id}/agent/actions/{action_id}/confirm`, e `GET /profiles/{profile_id}/agent/conversations/{conversation_id}/messages` (adição mínima para histórico básico, documentada em `current-slice.md`).
-10. **Fluxo manual real**: via `docker compose`, com o perfil de demonstração, enviar uma mensagem ao agente pedindo o saldo (tool de leitura), propor uma simulação estruturada, confirmar e verificar que a simulação foi persistida em `/simulations`.
+1. **E2E real contra a stack**: `apps/web/e2e/critical-flow.spec.ts` (Playwright) roda contra Docker Compose real (não mocka backend) e cobre onboarding→dashboard→simulação→comparação→detecção de fragilidades→geração e aprovação de plano preventivo — sem passar pelo agente conversacional (evita não-determinismo de chamada real à Anthropic).
+2. **Acessibilidade**: `@axe-core/playwright` integrado ao E2E, sem violações `critical`/`serious` em nenhum dos 4 pontos varridos (dashboard, simulação, fragilidades, planos); violações encontradas foram corrigidas no código, não silenciadas/excluídas do scan.
+3. **Segurança — sem regressão, com hardening pontual**: CORS permanece restrito a `http://localhost:3000`; nenhuma chamada de log/print expõe `ANTHROPIC_API_KEY` em nenhum ponto do código; endpoint `POST /agent/messages` (único que chama a API paga da Anthropic) ganhou rate limit (`RateLimiter`, 20 req/60s por IP) sem quebrar nenhum teste de integração existente do agente.
+4. **Sem autenticação de usuário adicionada**: nenhuma mudança de escopo para login/autorização — não é critério de aceite da seção 31; limitação documentada explicitamente no README.
+5. **README.md na raiz**: existe, cobre setup Docker/Windows (PowerShell), como rodar cada suíte de testes (pytest, vitest, playwright), roteiro de demonstração ponta a ponta reprodutível manualmente (distinto do teste automatizado), e uma seção "Limitações conhecidas" não vazia.
+6. **Nenhuma regressão de domínio/aplicação/interface**: os 185 testes de backend pré-existentes + os 34 de frontend continuam passando; únicos testes novos são os 4 do `RateLimiter` (`tests/unit/test_rate_limit.py`) e o spec E2E — nenhuma mudança em regra de negócio, caso de uso ou contrato HTTP já entregue em slice anterior.
+7. **Pureza de domínio preservada**: nenhuma mudança nesta slice toca `src/domain/`; toda alteração de back-end está em `interfaces/http/` (rate limit) — sem regra financeira nova nem alterada.
+8. **Sem scope creep**: nenhuma feature de produto nova (nem no domínio, nem no agente); mudanças de front-end limitadas a acessibilidade (`aria-label`) e infraestrutura de teste (Playwright/vitest config).
+9. **Migração de banco**: nenhuma migração Alembic nova nesta slice (sem mudança de schema).
+10. **Fluxo manual real**: seguir o roteiro do README (onboarding via demo → dashboard → simulação → fragilidades → planos → agente) via `docker compose`, confirmando que cada etapa funciona como documentado.

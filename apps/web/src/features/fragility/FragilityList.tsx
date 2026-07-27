@@ -38,7 +38,7 @@ export function FragilityList({ profileId }: { profileId: string }) {
         <CardTitle>Radar de fragilidade</CardTitle>
         <div className="flex gap-2">
           <Select value={severity} onValueChange={setSeverity}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48" aria-label="Filtrar por severidade">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

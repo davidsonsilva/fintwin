@@ -58,7 +58,7 @@ export function ProjectionChart({ profileId }: { profileId: string }) {
         <CardTitle>Projeção de fluxo de caixa</CardTitle>
         <div className="flex gap-2">
           <Select value={scenario} onValueChange={(value) => setScenario(value as "probable" | "adverse")}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-44" aria-label="Cenário da projeção">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -70,7 +70,7 @@ export function ProjectionChart({ profileId }: { profileId: string }) {
             </SelectContent>
           </Select>
           <Select value={String(months)} onValueChange={(value) => setMonths(Number(value) as 3 | 6 | 12)}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-32" aria-label="Horizonte da projeção">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

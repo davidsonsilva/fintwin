@@ -25,6 +25,7 @@ from src.infrastructure.repositories.income_repository import SqlAlchemyIncomeSo
 from src.infrastructure.repositories.obligation_repository import SqlAlchemyObligationRepository
 from src.infrastructure.repositories.profile_repository import SqlAlchemyProfileRepository
 from src.infrastructure.repositories.simulation_repository import SqlAlchemySimulationRepository
+from src.interfaces.http.rate_limit import agent_message_rate_limiter
 from src.interfaces.http.schemas.agent import AgentMessageHistoryItem, AgentMessageRequest, AgentMessageResponse
 from src.interfaces.http.schemas.simulation import SimulationResponse
 
@@ -60,7 +61,12 @@ def _build_send_message_use_case(session: Session, llm_client) -> SendAgentMessa
     )
 
 
-@router.post("/{profile_id}/agent/messages", response_model=AgentMessageResponse, status_code=201)
+@router.post(
+    "/{profile_id}/agent/messages",
+    response_model=AgentMessageResponse,
+    status_code=201,
+    dependencies=[Depends(agent_message_rate_limiter)],
+)
 def send_agent_message(
     profile_id: str,
     payload: AgentMessageRequest,

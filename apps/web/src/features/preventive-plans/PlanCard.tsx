@@ -80,7 +80,7 @@ export function PlanCard({ plan }: { plan: PreventivePlanDto }) {
 
         {trackingOptions && (
           <Select onValueChange={(value) => value && updateStatus(value as PlanStatus)}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48" aria-label="Atualizar acompanhamento">
               <SelectValue placeholder="Atualizar acompanhamento" />
             </SelectTrigger>
             <SelectContent>
