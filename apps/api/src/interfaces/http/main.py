@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Ponto de entrada HTTP da API — health check, onboarding (VS-02) e dashboard (VS-03)."""
 
 from fastapi import FastAPI

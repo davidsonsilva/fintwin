@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Resumo financeiro do dashboard (VS-03): apenas dados calculáveis a partir do
 que já está persistido — sem projeção (VS-04), autonomia (VS-05) ou
 fragilidades (VS-06), que dependem de motores ainda não implementados.

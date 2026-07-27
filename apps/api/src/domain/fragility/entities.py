@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Entidade FragilityFinding (Spec seções 11 e 15.1) — toda fragilidade requer evidência."""
 
 from __future__ import annotations

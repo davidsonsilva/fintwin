@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Rate limit básico em memória para endpoints sensíveis (Spec VS-10, seção 31).
 
 Implementação simples de janela fixa por IP do cliente — suficiente para um

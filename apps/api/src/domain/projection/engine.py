@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Motor de projeção de fluxo de caixa (Spec seção 8), puro e determinístico.
 
 Sem imports de framework — reutilizado pela VS-05 (autonomia ajustada),

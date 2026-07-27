@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Casos de uso do agente conversacional (Spec seções 6.8, 7, 18.11 e 25).
 
 Fluxo obrigatório (seção 7): mensagem do usuário -> interpretador de intenção

@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Normalização de valores recorrentes para equivalente mensal (Spec seção 8/9).
 
 Reaproveitado pelo resumo do dashboard (VS-03) e pelo motor de projeção (VS-04).

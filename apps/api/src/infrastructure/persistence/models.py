@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Models SQLAlchemy para as entidades manipuladas no onboarding (VS-02), no
 radar de fragilidade (VS-06), no simulador de decisões (VS-07), nos planos
 preventivos (VS-08) e no agente conversacional (VS-09).

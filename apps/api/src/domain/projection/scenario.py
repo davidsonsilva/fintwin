@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Parâmetros de cenário para o motor de projeção (Spec seção 10.1/10.2/10.3).
 
 O cenário personalizado (seção 10.4) é a VS-07.

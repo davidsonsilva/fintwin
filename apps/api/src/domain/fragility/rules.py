@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Registro estático de metadados das regras do Radar de Fragilidade (Spec seção 11).
 
 `title`/`description`/`formula`/`threshold` são fixos por `code` — não são

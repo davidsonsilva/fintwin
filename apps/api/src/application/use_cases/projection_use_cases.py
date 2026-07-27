@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Caso de uso de projeção de fluxo de caixa (Spec seção 18.6): carrega as
 entidades já persistidas e delega o cálculo ao motor de domínio puro.
 """

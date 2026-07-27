@@ -1,3 +1,9 @@
+# Copyright (C) 2026 Davidson Silva
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 """Registro estático dos 9 tipos de decisão do simulador (Spec seção 12.1).
 
 Segue o mesmo padrão do registro `RULES` da fragilidade (VS-06): metadados
