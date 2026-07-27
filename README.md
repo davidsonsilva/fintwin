@@ -173,3 +173,10 @@ rodar" acima.
 - **Migrações do banco não rodam automaticamente ao subir os containers** —
   é necessário `docker compose exec api python -m alembic upgrade head`
   manualmente após cada `docker compose up`.
+
+## Licença
+
+Este projeto está licenciado sob a GNU Affero General Public License
+v3.0 (`AGPL-3.0-only`).
+
+Para uso comercial sob termos diferentes, entre em contato com o autor.
