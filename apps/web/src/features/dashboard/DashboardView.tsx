@@ -257,7 +257,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 financeira com base nos seus dados reais.
               </p>
             </div>
-            <FtButton disabled className="max-[1024px]:col-[1/-1]">
+            <FtButton disabled className="[@media(max-width:1024px)]:col-[1/-1]">
               Em breve
             </FtButton>
           </div>
