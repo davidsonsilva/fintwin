@@ -98,7 +98,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
       {data && (
         <>
           <section className="ft-grid ft-grid--metrics">
-            <FtCard as="article" className="ft-metric-card">
+            <FtCard as="article" interactive className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--primary">
                 <Wallet size={22} />
               </div>
@@ -108,7 +108,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               </div>
             </FtCard>
 
-            <FtCard as="article" className="ft-metric-card">
+            <FtCard as="article" interactive className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--warning">
                 <CalendarClock size={22} />
               </div>
@@ -120,7 +120,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               </div>
             </FtCard>
 
-            <FtCard as="article" className="ft-metric-card">
+            <FtCard as="article" interactive className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--purple">
                 <TrendingDown size={22} />
               </div>
@@ -135,7 +135,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               </div>
             </FtCard>
 
-            <FtCard as="article" className="ft-metric-card">
+            <FtCard as="article" interactive className="ft-metric-card">
               <div className="ft-metric-icon ft-metric-icon--info">
                 <ShieldCheck size={22} />
               </div>
@@ -148,7 +148,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
           </section>
 
           <section className="ft-grid ft-grid--indicators">
-            <FtCard className="ft-status-card">
+            <FtCard interactive className="ft-status-card">
               <div className="ft-status-icon ft-metric-icon--primary">
                 <ShieldCheck size={18} />
               </div>
@@ -160,7 +160,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               </div>
             </FtCard>
 
-            <FtCard className="ft-status-card">
+            <FtCard interactive className="ft-status-card">
               <div className="ft-status-icon ft-metric-icon--info">
                 <CalendarClock size={18} />
               </div>
@@ -200,7 +200,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
             </div>
           </section>
 
-          <FtCard>
+          <FtCard interactive>
             <div className="ft-card-header">
               <div>
                 <h3 className="ft-card-title">Comprometimento da renda</h3>
@@ -226,7 +226,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
             </div>
           </FtCard>
 
-          <FtCard>
+          <FtCard interactive>
             <div className="ft-card-header">
               <h3 className="ft-card-title">Próximos eventos financeiros</h3>
             </div>

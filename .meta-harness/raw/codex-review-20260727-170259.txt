@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "title": "[P2] Preserve hover feedback for migrated cards",
+      "body": "MEDIUM: Cards converted here use the `Card` default of `interactive: false`, while the removed `.ft-card` applied the hover lift, border, and shadow to every card. Consequently the three home highlights and the dashboard metric/status/chart cards lose those visual states (not only the documented `::before` glow); pass `interactive` for these conversions or make the default match the prior class.",
+      "confidence_score": 0.94,
+      "priority": 2,
+      "code_location": {
+        "absolute_file_path": "D:\\IA Projects\\gemeo-financeiro\\apps\\web\\src\\app\\page.tsx",
+        "line_range": {
+          "start": 61,
+          "end": 61
+        }
+      }
+    },
+    {
+      "title": "[P2] Keep this migration within the declared slice scope",
+      "body": "MEDIUM: The current-slice contract explicitly declares migration of `PageHeader`, `DashboardView`, and the home cards out of scope, with Sidebar as the only CVA consumer; this diff migrates all of those areas and removes their shared CSS. Move this work to the next approved slice or update and approve the contract before merging, so its unverified runtime and visual changes are covered by the applicable acceptance criteria.",
+      "confidence_score": 0.98,
+      "priority": 2,
+      "code_location": {
+        "absolute_file_path": "D:\\IA Projects\\gemeo-financeiro\\apps\\web\\src\\components\\shell\\PageHeader.tsx",
+        "line_range": {
+          "start": 13,
+          "end": 14
+        }
+      }
+    }
+  ],
+  "overall_correctness": "patch is incorrect",
+  "overall_explanation": "REJECTED: the diff introduces a visible card-hover regression and exceeds the approved slice scope, although no financial-domain, API, schema, or database files changed. Evidence executed: required `git diff`, `git diff --stat`, `git show --name-only`, and `git log -10` (exit 0); `git diff --check` (exit 0); `npx tsc --noEmit` (exit 1, only baseline TS2322, TS2345, and TS2769 diagnostics); `npm run lint` (exit 1, only baseline @typescript-eslint/no-explicit-any diagnostics); `npx vitest run` (NOT_VERIFIED, exit 1 due sandbox EPERM creating its Temp transform directory); `apps/api/.venv/Scripts/python.exe -m pytest` (NOT_VERIFIED, exit 103 because its configured Python 3.12 executable is absent); and `npm run build` (NOT_VERIFIED, exit 1 due sandbox EPERM opening `.next/trace`). Acceptance criteria: C1 PASS, C2 NOT_VERIFIED, C3 PASS, C4 NOT_VERIFIED, C5 PASS, C6 PASS, C7 PASS by manual token/CSS comparison, C8 PASS by class comparison; missing coverage is a visual regression test for migrated Card states, residual risk is unexecuted frontend/runtime validation, positives are preserved baseline quality-gate status and disabled decorative controls, and the next action is to resolve the findings then rerun Vitest, pytest, and build in a writable configured environment."
+}
