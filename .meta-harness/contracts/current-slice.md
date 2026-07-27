@@ -50,17 +50,23 @@ caso de uso, contrato HTTP ou schema de banco. É puramente front-end (`apps/web
   usos migrados passam `interactive` para preservar o hover (levantar + sombra + borda) que
   `.ft-card` aplicava incondicionalmente — só o brilho diagonal (`::before`) não foi
   recriado (simplificação conhecida e aceita).
-- `.ft-button`, `.ft-menu-button`, `.ft-icon-button`, `.ft-notification-dot`,
-  `.ft-header-avatar`, `.ft-header-chevron`, `.ft-header-sync`, `.ft-header-profile`,
-  `.ft-card`, `.ft-card--compact`, `.ft-card--disabled` removidos de `design-system.css`
-  (órfãos após a migração; `.ft-button:disabled` mantido — ainda usado no card de IA insight
-  do dashboard, que não foi migrado nesta rodada).
+- Botão "Em breve" (card de IA insight do dashboard) migrado para `FtButton`; regras
+  responsivas `.ft-ai-insight .ft-button`/`.ft-form-actions .ft-button` (a segunda já estava
+  órfã antes desta rodada — nunca combinava com o `Button` do shadcn usado em
+  `.ft-form-actions`) removidas; o comportamento de `grid-column:1/-1` em telas ≤1024px foi
+  preservado via classe Tailwind (`max-[1024px]:col-[1/-1]`) direto no componente.
+- `.ft-button` (base + todas as variantes + `:disabled`) removido inteiramente de
+  `design-system.css` — nenhum componente usa mais a classe crua; `Sidebar`, `PageHeader` e
+  `DashboardView` são os únicos consumidores, todos via `design-system/components/Button`.
+- **Decisão de escopo registrada**: `AgentPanel`/`PendingActionCard` e o Onboarding
+  (`OnboardingWizard`, `ProfileStep`, `ResourceStepForm`, `ReviewStep`, `ProfileSummary`)
+  foram revisados e **não precisam de migração** — já usam `Button`/`Card`/`Input` do shadcn
+  para tudo que é botão/card real; as classes `.ft-*` que restam neles (painel do agente,
+  bolhas de chat, stepper, formulário) são layout de uso único (um consumidor cada), que o
+  próprio guia de migração (`imagens/transformar o css em objetos.md`) recomenda manter como
+  CSS puro em vez de virar componente/variante artificial.
 
 ## Fora de escopo (não implementado nesta slice)
-
-- `AgentPanel`, `OnboardingWizard`/formulários de recurso e o card de IA insight do
-  dashboard (botão "Em breve") continuam usando classes CSS `.ft-*` existentes — não
-  migrados para CVA nesta rodada.
 - Qualquer mudança de domínio financeiro, regra de negócio, endpoint HTTP ou schema.
 - Sistema de autenticação/conta de usuário, notificações, configurações ou sincronização de
   dados reais (os controles do header existem só visualmente).

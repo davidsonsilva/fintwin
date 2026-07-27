@@ -17,6 +17,7 @@ import { RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { Button as FtButton } from "@/design-system/components/Button";
 import { Card as FtCard, cardVariants } from "@/design-system/components/Card";
 import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -256,9 +257,9 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 financeira com base nos seus dados reais.
               </p>
             </div>
-            <button className="ft-button ft-button--primary" disabled>
+            <FtButton disabled className="max-[1024px]:col-[1/-1]">
               Em breve
-            </button>
+            </FtButton>
           </div>
         </>
       )}
