@@ -2,6 +2,8 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.application.use_cases.account_use_cases import CreateAccountUseCase
@@ -225,3 +227,34 @@ def test_snapshot_add_tolerates_concurrent_duplicate_insert(session: Session) ->
         if snapshot.period == period
     ]
     assert len(matching) == 1
+
+
+def test_snapshot_add_reraises_integrity_error_unrelated_to_the_expected_race(session: Session) -> None:
+    profile_id = _create_profile(session)
+    snapshot_repo = SqlAlchemyBalanceSnapshotRepository(session)
+    duplicate_id = str(uuid4())
+
+    snapshot_repo.add(
+        BalanceSnapshot(
+            id=duplicate_id,
+            profile_id=profile_id,
+            period="2026-01",
+            net_balance=Money(Decimal("1000.00"), "BRL"),
+            created_at=datetime.utcnow(),
+        )
+    )
+
+    # Mesmo `id` de linha, mas profile_id/period diferentes: colide com a primary key,
+    # não com a constraint uq_balance_snapshots_profile_period. Como não existe um
+    # snapshot para este profile_id/period após o rollback, add() deve repropagar o
+    # IntegrityError em vez de tratá-lo como a corrida idempotente esperada.
+    with pytest.raises(IntegrityError):
+        snapshot_repo.add(
+            BalanceSnapshot(
+                id=duplicate_id,
+                profile_id=profile_id,
+                period="2026-02",
+                net_balance=Money(Decimal("2000.00"), "BRL"),
+                created_at=datetime.utcnow(),
+            )
+        )
