@@ -13,6 +13,7 @@ from src.application.use_cases.crud_use_cases import DeleteUseCase, GetUseCase, 
 from src.application.use_cases.expense_breakdown_use_cases import GetExpenseBreakdownByCategoryUseCase
 from src.application.use_cases.obligation_use_cases import CreateObligationUseCase
 from src.application.use_cases.profile_use_cases import GetProfileUseCase
+from src.domain.shared.money import CurrencyMismatchError
 from src.infrastructure.persistence.session import get_session
 from src.infrastructure.repositories.obligation_repository import SqlAlchemyObligationRepository
 from src.infrastructure.repositories.profile_repository import SqlAlchemyProfileRepository
@@ -60,7 +61,10 @@ def get_obligations_by_category(
         raise HTTPException(status_code=404, detail="Perfil não encontrado.")
 
     obligation_repo = SqlAlchemyObligationRepository(session)
-    breakdown = GetExpenseBreakdownByCategoryUseCase(obligation_repo).execute(profile_id, profile.currency)
+    try:
+        breakdown = GetExpenseBreakdownByCategoryUseCase(obligation_repo).execute(profile_id, profile.currency)
+    except CurrencyMismatchError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return [CategoryBreakdownResponse.from_domain(item) for item in breakdown]
 
 

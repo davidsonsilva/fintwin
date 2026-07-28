@@ -48,10 +48,14 @@ class SqlAlchemyBalanceSnapshotRepository:
         try:
             self._session.commit()
         except IntegrityError:
-            # Corrida entre requisições concorrentes para o mesmo profile_id/period:
-            # a constraint de unicidade já garantiu que só um snapshot existe, então
-            # a perdedora só precisa desfazer a própria tentativa em vez de propagar 500.
             self._session.rollback()
+            # Só engolimos o erro se for de fato a corrida esperada (outra requisição já
+            # gravou o snapshot deste profile_id/period antes de nós). Qualquer outra causa
+            # de IntegrityError (ex.: FK para um perfil excluído) é propagada normalmente —
+            # checar a mensagem do driver seria específico de banco (sqlite vs. postgres),
+            # então revalidamos consultando o estado real em vez disso.
+            if self.get_by_profile_and_period(snapshot.profile_id, snapshot.period) is None:
+                raise
 
     def get_by_profile_and_period(self, profile_id: str, period: str) -> Optional[BalanceSnapshot]:
         stmt = select(BalanceSnapshotModel).where(

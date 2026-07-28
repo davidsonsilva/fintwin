@@ -128,6 +128,27 @@ def test_obligations_by_category_missing_profile_returns_404(client: TestClient)
     assert response.status_code == 404
 
 
+def test_obligations_by_category_rejects_mismatched_currency_via_http(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
+    client.post(
+        f"/api/v1/profiles/{profile['id']}/obligations",
+        json={
+            "description": "Assinatura internacional",
+            "amount": {"amount": "100.00", "currency": "USD"},
+            "category": "assinaturas",
+            "frequency": "monthly",
+            "due_day": 15,
+            "start_date": "2024-01-01",
+            "essential": False,
+            "debt_related": False,
+        },
+    )
+
+    response = client.get(f"/api/v1/profiles/{profile['id']}/obligations/by-category")
+
+    assert response.status_code == 409
+
+
 def test_dashboard_summary_empty_profile_has_no_goal_or_commitment(client: TestClient) -> None:
     profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
 
