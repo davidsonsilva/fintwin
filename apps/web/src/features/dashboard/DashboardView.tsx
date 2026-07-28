@@ -9,7 +9,8 @@
  */
 
 
-import { CalendarClock, ShieldCheck, TrendingDown, Wallet } from "lucide-react";
+import { ArrowRight, Calendar, CalendarClock, ShieldCheck, Sparkles, TrendingDown, Wallet } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
@@ -17,7 +18,8 @@ import { RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { Button as FtButton } from "@/design-system/components/Button";
+import { useSidebarContext } from "@/components/shell/SidebarContext";
+import { Button as FtButton, buttonVariants } from "@/design-system/components/Button";
 import { Card as FtCard, cardVariants } from "@/design-system/components/Card";
 import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -28,8 +30,14 @@ import { dashboardApi } from "./api";
 import { AutonomyPanel } from "./AutonomyPanel";
 import { ProjectionChart } from "./ProjectionChart";
 
+const MONTH_ABBREVIATIONS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
 function formatMoney(amount: string, currency: string) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(amount));
+}
+
+function formatMoneyPlain(amount: string, currency: string) {
+  return `${Number(amount).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
 function formatPercent(fraction: string) {
@@ -40,7 +48,17 @@ function formatMonths(months: string | null) {
   return months !== null ? `${Number(months).toFixed(1)} meses` : "Não aplicável";
 }
 
+function formatEventMonth(date: string) {
+  return MONTH_ABBREVIATIONS[Number(date.slice(5, 7)) - 1];
+}
+
+function describeEventDirection(direction: string) {
+  return direction === "income" ? "Recebimento previsto" : "Pagamento previsto";
+}
+
 export function DashboardView({ profileId }: { profileId: string }) {
+  const { openAgent } = useSidebarContext();
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard-summary", profileId],
     queryFn: () => dashboardApi.getSummary(profileId),
@@ -229,7 +247,12 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
           <FtCard interactive>
             <div className="ft-card-header">
-              <h3 className="ft-card-title">Próximos eventos financeiros</h3>
+              <div className="flex items-center gap-3">
+                <div className="ft-status-icon ft-metric-icon--purple">
+                  <Calendar size={18} />
+                </div>
+                <h3 className="ft-card-title">Próximos eventos financeiros</h3>
+              </div>
             </div>
             <div className="ft-event-list">
               {data.upcoming_events.length === 0 && (
@@ -237,28 +260,41 @@ export function DashboardView({ profileId }: { profileId: string }) {
               )}
               {data.upcoming_events.map((event) => (
                 <div key={event.id} className="ft-event-item">
-                  <div className="ft-event-date">{event.date.slice(8, 10)}</div>
+                  <div className="ft-event-date">
+                    {event.date.slice(8, 10)}
+                    <small>{formatEventMonth(event.date)}</small>
+                  </div>
                   <div>
                     <p className="ft-event-title">{event.description}</p>
-                    <p className="ft-event-description">{event.date}</p>
+                    <p className="ft-event-description">{describeEventDirection(event.direction)}</p>
                   </div>
-                  <span className="ft-event-amount">{formatMoney(event.amount.amount, event.amount.currency)}</span>
+                  <span className="ft-event-amount">{formatMoneyPlain(event.amount.amount, event.amount.currency)}</span>
                 </div>
               ))}
             </div>
+            <Link
+              href={`/dashboard/${profileId}/resources/events`}
+              className={cn(buttonVariants({ variant: "ghost-purple", fullWidth: true }), "mt-3 justify-between")}
+            >
+              Ver todos os eventos
+              <ArrowRight size={16} />
+            </Link>
           </FtCard>
 
           <div className="ft-ai-insight">
-            <div className="ft-ai-avatar">🤖</div>
+            <div className="ft-ai-avatar">
+              <Image src="/agent-icon.png" alt="" width={76} height={76} className="rounded-full object-cover" />
+            </div>
             <div>
               <p className="ft-ai-title">Insight do seu Gêmeo Financeiro</p>
               <p className="ft-ai-text">
-                O agente conversacional do FinTwin AI chega em breve para responder perguntas sobre a sua vida
-                financeira com base nos seus dados reais.
+                Converse com o Gêmeo Financeiro para receber recomendações personalizadas com base nos dados reais
+                do seu perfil.
               </p>
             </div>
-            <FtButton disabled className="[@media(max-width:1024px)]:col-[1/-1]">
-              Em breve
+            <FtButton onClick={openAgent} className="[@media(max-width:1024px)]:col-[1/-1]">
+              <Sparkles size={16} />
+              Ver recomendações
             </FtButton>
           </div>
         </>

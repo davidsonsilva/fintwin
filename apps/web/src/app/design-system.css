@@ -878,14 +878,6 @@ body {
 
   place-items: center;
 
-  background:
-    radial-gradient(
-      circle,
-      rgba(34, 230, 177, 0.34),
-      rgba(34, 230, 177, 0.04)
-    );
-
-  border: 1px solid rgba(34, 230, 177, 0.48);
   border-radius: 50%;
 }
 

@@ -72,11 +72,11 @@ function buildProfileNavItems(profileId: string): NavItem[] {
   ];
 }
 
-export function Sidebar({ profileId, onOpenAgent }: { profileId: string; onOpenAgent: () => void }) {
+export function Sidebar({ profileId }: { profileId: string }) {
   const pathname = usePathname();
   const navItems = buildNavItems(profileId);
   const profileNavItems = buildProfileNavItems(profileId);
-  const { isMobileOpen, closeMobileSidebar } = useSidebarContext();
+  const { isMobileOpen, closeMobileSidebar, openAgent } = useSidebarContext();
 
   // O shell do dashboard (layout) pode ser servido por um cache de rota diferente
   // da página atual em navegações client-side com Turbopack, fazendo o pathname
@@ -164,11 +164,11 @@ export function Sidebar({ profileId, onOpenAgent }: { profileId: string; onOpenA
 
         <div className="ft-sidebar-panel ft-sidebar-panel--ai">
           <div className="ft-sidebar-panel-header">
-            <Image src="/agent-icon.png" alt="" width={28} height={28} />
+            <Image src="/agent-icon.png" alt="" width={28} height={28} className="rounded-full" />
             <h3 className="ft-sidebar-panel-title ft-sidebar-panel-title--ai">IA FinTwin</h3>
           </div>
           <p className="ft-sidebar-panel-text">Pergunte algo sobre suas finanças para o seu gêmeo.</p>
-          <Button variant="ghost-purple" fullWidth onClick={onOpenAgent} className="px-3 text-[13px]">
+          <Button variant="ghost-purple" fullWidth onClick={openAgent} className="px-3 text-[13px]">
             <MessageCircleMore size={16} />
             Conversar com IA
           </Button>

@@ -14,12 +14,16 @@ interface SidebarContextValue {
   isMobileOpen: boolean;
   toggleMobileSidebar: () => void;
   closeMobileSidebar: () => void;
+  isAgentOpen: boolean;
+  openAgent: () => void;
+  closeAgent: () => void;
 }
 
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
 
   return (
     <SidebarContext.Provider
@@ -27,6 +31,9 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
         isMobileOpen,
         toggleMobileSidebar: () => setIsMobileOpen((current) => !current),
         closeMobileSidebar: () => setIsMobileOpen(false),
+        isAgentOpen,
+        openAgent: () => setIsAgentOpen(true),
+        closeAgent: () => setIsAgentOpen(false),
       }}
     >
       {children}
