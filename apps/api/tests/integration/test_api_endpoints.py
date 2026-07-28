@@ -161,6 +161,14 @@ def test_balance_history_missing_profile_returns_404(client: TestClient) -> None
     assert response.status_code == 404
 
 
+def test_balance_history_rejects_out_of_bounds_months(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+
+    response = client.get(f"/api/v1/profiles/{profile['id']}/balance-history?months=-1")
+
+    assert response.status_code == 422
+
+
 def test_projection_missing_profile_returns_404(client: TestClient) -> None:
     response = client.post("/api/v1/profiles/does-not-exist/projections", json={"months": 12, "scenario": "probable"})
     assert response.status_code == 404

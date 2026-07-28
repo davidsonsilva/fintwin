@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from src.application.use_cases.goal_use_cases import CreateGoalUseCase
 from src.application.use_cases.income_use_cases import CreateIncomeSourceUseCase
 from src.application.use_cases.obligation_use_cases import CreateObligationUseCase
 from src.application.use_cases.profile_use_cases import CreateProfileUseCase
+from src.domain.balance_history.entities import BalanceSnapshot
 from src.domain.shared.enums import Direction, IncomeStability, LiquidityType, Recurrence
 from src.domain.shared.money import Money
 from src.infrastructure.repositories.account_repository import SqlAlchemyAccountRepository
@@ -187,3 +189,39 @@ def test_summary_captures_balance_snapshot_idempotently(session: Session) -> Non
     matching = [snapshot for snapshot in snapshots if snapshot.period == period]
     assert len(matching) == 1
     assert matching[0].net_balance == Money(Decimal("1500.00"), "BRL")
+
+
+def test_snapshot_add_tolerates_concurrent_duplicate_insert(session: Session) -> None:
+    profile_id = _create_profile(session)
+    snapshot_repo = SqlAlchemyBalanceSnapshotRepository(session)
+    period = date.today().strftime("%Y-%m")
+
+    snapshot_repo.add(
+        BalanceSnapshot(
+            id=str(uuid4()),
+            profile_id=profile_id,
+            period=period,
+            net_balance=Money(Decimal("1000.00"), "BRL"),
+            created_at=datetime.utcnow(),
+        )
+    )
+
+    # Simula a requisição perdedora de uma corrida: já existe um snapshot para o
+    # mesmo profile_id/period, mas a constraint de unicidade (não um erro 500) deve
+    # tratar a segunda tentativa como um no-op idempotente.
+    snapshot_repo.add(
+        BalanceSnapshot(
+            id=str(uuid4()),
+            profile_id=profile_id,
+            period=period,
+            net_balance=Money(Decimal("1000.00"), "BRL"),
+            created_at=datetime.utcnow(),
+        )
+    )
+
+    matching = [
+        snapshot
+        for snapshot in snapshot_repo.list_by_profile_ordered(profile_id, 12)
+        if snapshot.period == period
+    ]
+    assert len(matching) == 1

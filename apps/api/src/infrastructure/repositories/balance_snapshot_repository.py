@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.domain.balance_history.entities import BalanceSnapshot
@@ -44,7 +45,13 @@ class SqlAlchemyBalanceSnapshotRepository:
 
     def add(self, snapshot: BalanceSnapshot) -> None:
         self._session.add(_to_model(snapshot))
-        self._session.commit()
+        try:
+            self._session.commit()
+        except IntegrityError:
+            # Corrida entre requisições concorrentes para o mesmo profile_id/period:
+            # a constraint de unicidade já garantiu que só um snapshot existe, então
+            # a perdedora só precisa desfazer a própria tentativa em vez de propagar 500.
+            self._session.rollback()
 
     def get_by_profile_and_period(self, profile_id: str, period: str) -> Optional[BalanceSnapshot]:
         stmt = select(BalanceSnapshotModel).where(

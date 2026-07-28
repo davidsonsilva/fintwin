@@ -32,21 +32,24 @@ class GetExpenseBreakdownByCategoryUseCase:
     def execute(self, profile_id: str, currency: str) -> list[CategoryBreakdown]:
         obligations: list[FinancialObligation] = self._obligation_repo.list_by_profile(profile_id)
 
-        totals: dict[str, Decimal] = {}
+        totals: dict[str, Money] = {}
         for obligation in obligations:
             monthly = monthly_equivalent(obligation.amount, obligation.frequency)
             if monthly is None:
                 continue
-            totals[obligation.category] = totals.get(obligation.category, Decimal("0")) + monthly.amount
+            # Money.add() rejeita moedas diferentes (CurrencyMismatchError), então uma
+            # obrigação em moeda distinta da do perfil estoura em vez de inflar o total.
+            existing = totals.get(obligation.category, Money(Decimal("0"), currency))
+            totals[obligation.category] = existing.add(monthly)
 
-        grand_total = sum(totals.values(), Decimal("0"))
+        grand_total = sum((money.amount for money in totals.values()), Decimal("0"))
 
         breakdown = [
             CategoryBreakdown(
                 category=category,
-                amount=Money(amount, currency),
-                percentage=Percentage(amount / grand_total if grand_total > 0 else Decimal("0")),
+                amount=money,
+                percentage=Percentage(money.amount / grand_total if grand_total > 0 else Decimal("0")),
             )
-            for category, amount in totals.items()
+            for category, money in totals.items()
         ]
         return sorted(breakdown, key=lambda item: item.amount.amount, reverse=True)

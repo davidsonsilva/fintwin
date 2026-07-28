@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from src.application.use_cases.autonomy_use_cases import GetAutonomyUseCase
@@ -56,7 +56,9 @@ def get_dashboard_summary(profile_id: str, session: Session = Depends(get_sessio
 
 @router.get("/{profile_id}/balance-history", response_model=list[BalanceSnapshotResponse])
 def get_balance_history(
-    profile_id: str, months: int = 6, session: Session = Depends(get_session)
+    profile_id: str,
+    months: int = Query(default=6, ge=1, le=60),
+    session: Session = Depends(get_session),
 ) -> list[BalanceSnapshotResponse]:
     _get_profile_or_404(profile_id, session)
 
