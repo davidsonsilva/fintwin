@@ -12,10 +12,12 @@ fragilidades (VS-06), que dependem de motores ainda não implementados.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
+from uuid import uuid4
 
+from src.domain.balance_history.entities import BalanceSnapshot
 from src.domain.cashflow.entities import FinancialEvent
 from src.domain.decisions.entities import FinancialGoal
 from src.domain.obligations.entities import FinancialObligation, IncomeSource
@@ -55,12 +57,14 @@ class GetDashboardSummaryUseCase:
         obligation_repo: Any,
         goal_repo: Any,
         event_repo: Any,
+        balance_snapshot_repo: Any = None,
     ) -> None:
         self._account_repo = account_repo
         self._income_repo = income_repo
         self._obligation_repo = obligation_repo
         self._goal_repo = goal_repo
         self._event_repo = event_repo
+        self._balance_snapshot_repo = balance_snapshot_repo
 
     def execute(self, profile_id: str, currency: str) -> DashboardSummary:
         accounts = self._account_repo.list_by_profile(profile_id)
@@ -70,6 +74,9 @@ class GetDashboardSummaryUseCase:
         events: list[FinancialEvent] = self._event_repo.list_by_profile(profile_id)
 
         net_balance = _sum_money(currency, [account.balance for account in accounts])
+
+        if self._balance_snapshot_repo is not None:
+            self._capture_snapshot_if_absent(profile_id, net_balance)
 
         monthly_obligations = [
             monthly
@@ -107,3 +114,26 @@ class GetDashboardSummaryUseCase:
             main_goal=main_goal,
             upcoming_events=upcoming_events,
         )
+
+    def _capture_snapshot_if_absent(self, profile_id: str, net_balance: Money) -> None:
+        period = date.today().strftime("%Y-%m")
+        existing = self._balance_snapshot_repo.get_by_profile_and_period(profile_id, period)
+        if existing is not None:
+            return
+        self._balance_snapshot_repo.add(
+            BalanceSnapshot(
+                id=str(uuid4()),
+                profile_id=profile_id,
+                period=period,
+                net_balance=net_balance,
+                created_at=datetime.utcnow(),
+            )
+        )
+
+
+class GetBalanceHistoryUseCase:
+    def __init__(self, balance_snapshot_repo: Any) -> None:
+        self._balance_snapshot_repo = balance_snapshot_repo
+
+    def execute(self, profile_id: str, months: int) -> list[BalanceSnapshot]:
+        return self._balance_snapshot_repo.list_by_profile_ordered(profile_id, months)

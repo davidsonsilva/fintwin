@@ -13,6 +13,7 @@ from src.application.use_cases.profile_use_cases import CreateProfileUseCase
 from src.domain.shared.enums import Direction, IncomeStability, LiquidityType, Recurrence
 from src.domain.shared.money import Money
 from src.infrastructure.repositories.account_repository import SqlAlchemyAccountRepository
+from src.infrastructure.repositories.balance_snapshot_repository import SqlAlchemyBalanceSnapshotRepository
 from src.infrastructure.repositories.debt_repository import SqlAlchemyDebtRepository
 from src.infrastructure.repositories.event_repository import SqlAlchemyEventRepository
 from src.infrastructure.repositories.goal_repository import SqlAlchemyGoalRepository
@@ -157,3 +158,32 @@ def test_summary_filters_past_events_and_limits_to_five(session: Session) -> Non
 
     assert len(summary.upcoming_events) == 5
     assert all(event.date >= today for event in summary.upcoming_events)
+
+
+def test_summary_captures_balance_snapshot_idempotently(session: Session) -> None:
+    profile_id = _create_profile(session)
+    CreateAccountUseCase(SqlAlchemyAccountRepository(session)).execute(
+        profile_id=profile_id,
+        description="Conta",
+        balance=Money(Decimal("1500.00"), "BRL"),
+        liquidity_type=LiquidityType.CHECKING_ACCOUNT,
+        eligible_for_autonomy=False,
+    )
+    snapshot_repo = SqlAlchemyBalanceSnapshotRepository(session)
+    use_case = GetDashboardSummaryUseCase(
+        account_repo=SqlAlchemyAccountRepository(session),
+        income_repo=SqlAlchemyIncomeSourceRepository(session),
+        obligation_repo=SqlAlchemyObligationRepository(session),
+        goal_repo=SqlAlchemyGoalRepository(session),
+        event_repo=SqlAlchemyEventRepository(session),
+        balance_snapshot_repo=snapshot_repo,
+    )
+
+    use_case.execute(profile_id, "BRL")
+    use_case.execute(profile_id, "BRL")
+
+    period = date.today().strftime("%Y-%m")
+    snapshots = snapshot_repo.list_by_profile_ordered(profile_id, 12)
+    matching = [snapshot for snapshot in snapshots if snapshot.period == period]
+    assert len(matching) == 1
+    assert matching[0].net_balance == Money(Decimal("1500.00"), "BRL")

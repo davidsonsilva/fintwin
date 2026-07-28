@@ -59,6 +59,17 @@ export interface ProjectionResponseDto {
   assumptions: string[];
 }
 
+export interface CategoryBreakdownDto {
+  category: string;
+  amount: MoneyDto;
+  percentage: string;
+}
+
+export interface BalanceSnapshotDto {
+  period: string;
+  net_balance: MoneyDto;
+}
+
 export interface AutonomyResponseDto {
   eligible_assets: MoneyDto;
   essential_expenses_monthly: MoneyDto;

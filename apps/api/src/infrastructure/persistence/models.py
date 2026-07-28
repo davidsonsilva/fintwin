@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.domain.shared.enums import (
@@ -45,6 +45,9 @@ class ProfileModel(Base):
     debts: Mapped[list["DebtModel"]] = relationship(back_populates="profile", cascade="all, delete-orphan")
     goals: Mapped[list["GoalModel"]] = relationship(back_populates="profile", cascade="all, delete-orphan")
     events: Mapped[list["EventModel"]] = relationship(back_populates="profile", cascade="all, delete-orphan")
+    balance_snapshots: Mapped[list["BalanceSnapshotModel"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan"
+    )
     fragility_findings: Mapped[list["FragilityFindingModel"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan"
     )
@@ -155,6 +158,20 @@ class EventModel(Base):
     direction: Mapped[Direction] = mapped_column(Enum(Direction), nullable=False)
 
     profile: Mapped[ProfileModel] = relationship(back_populates="events")
+
+
+class BalanceSnapshotModel(Base):
+    __tablename__ = "balance_snapshots"
+    __table_args__ = (UniqueConstraint("profile_id", "period", name="uq_balance_snapshots_profile_period"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(36), ForeignKey("profiles.id"), nullable=False)
+    period: Mapped[str] = mapped_column(String(7), nullable=False)
+    net_balance_amount: Mapped[str] = mapped_column(Numeric(14, 2), nullable=False)
+    net_balance_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    profile: Mapped[ProfileModel] = relationship(back_populates="balance_snapshots")
 
 
 class FragilityFindingModel(Base):

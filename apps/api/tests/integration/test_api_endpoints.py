@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 
@@ -108,6 +110,24 @@ def test_dashboard_summary_after_loading_demo_profile(client: TestClient) -> Non
     assert len(summary["upcoming_events"]) <= 5
 
 
+def test_obligations_by_category_after_loading_demo_profile(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+
+    response = client.get(f"/api/v1/profiles/{profile['id']}/obligations/by-category")
+    assert response.status_code == 200
+    breakdown = response.json()
+
+    assert len(breakdown) > 0
+    total_pct = sum(Decimal(item["percentage"]) for item in breakdown)
+    assert abs(total_pct - Decimal("1")) < Decimal("0.0001")
+
+
+def test_obligations_by_category_missing_profile_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/profiles/does-not-exist/obligations/by-category")
+    assert response.status_code == 404
+
+
 def test_dashboard_summary_empty_profile_has_no_goal_or_commitment(client: TestClient) -> None:
     profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 0}).json()
 
@@ -119,6 +139,26 @@ def test_dashboard_summary_empty_profile_has_no_goal_or_commitment(client: TestC
     assert summary["income_commitment_pct"] is None
     assert summary["main_goal"] is None
     assert summary["upcoming_events"] == []
+
+
+def test_balance_history_after_loading_demo_profile(client: TestClient) -> None:
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+
+    client.get(f"/api/v1/profiles/{profile['id']}/dashboard")
+    response = client.get(f"/api/v1/profiles/{profile['id']}/balance-history")
+
+    assert response.status_code == 200
+    history = response.json()
+    assert len(history) == 6
+    assert history[-1]["net_balance"]["amount"] == "12500.00"
+    periods = [item["period"] for item in history]
+    assert periods == sorted(periods)
+
+
+def test_balance_history_missing_profile_returns_404(client: TestClient) -> None:
+    response = client.get("/api/v1/profiles/does-not-exist/balance-history")
+    assert response.status_code == 404
 
 
 def test_projection_missing_profile_returns_404(client: TestClient) -> None:

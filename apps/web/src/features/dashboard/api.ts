@@ -10,6 +10,8 @@ import { apiClient } from "@/lib/api-client";
 
 import type {
   AutonomyResponseDto,
+  BalanceSnapshotDto,
+  CategoryBreakdownDto,
   DashboardSummaryDto,
   ProjectionRequestDto,
   ProjectionResponseDto,
@@ -21,4 +23,8 @@ export const dashboardApi = {
     apiClient.post<ProjectionResponseDto>(`/api/v1/profiles/${profileId}/projections`, request),
   getAutonomy: (profileId: string) =>
     apiClient.post<AutonomyResponseDto>(`/api/v1/profiles/${profileId}/autonomy`),
+  getExpenseBreakdown: (profileId: string) =>
+    apiClient.get<CategoryBreakdownDto[]>(`/api/v1/profiles/${profileId}/obligations/by-category`),
+  getBalanceHistory: (profileId: string, months = 6) =>
+    apiClient.get<BalanceSnapshotDto[]>(`/api/v1/profiles/${profileId}/balance-history?months=${months}`),
 };

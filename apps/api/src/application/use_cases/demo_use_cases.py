@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
+from src.domain.balance_history.entities import BalanceSnapshot
 from src.domain.shared.enums import Direction, IncomeStability, LiquidityType, Recurrence
 from src.domain.shared.money import Money
 
@@ -53,6 +55,7 @@ class LoadDemoProfileUseCase:
         debt_use_case: Any,
         goal_use_case: Any,
         event_use_case: Any,
+        balance_snapshot_repo: Any = None,
     ) -> None:
         self._account_use_case = account_use_case
         self._income_use_case = income_use_case
@@ -60,6 +63,7 @@ class LoadDemoProfileUseCase:
         self._debt_use_case = debt_use_case
         self._goal_use_case = goal_use_case
         self._event_use_case = event_use_case
+        self._balance_snapshot_repo = balance_snapshot_repo
 
     def execute(self, profile_id: str) -> None:
         for item in _load("accounts.json"):
@@ -128,3 +132,17 @@ class LoadDemoProfileUseCase:
                 recurrence=Recurrence(item["recurrence"]) if item["recurrence"] else None,
                 direction=Direction(item["direction"]),
             )
+
+        if self._balance_snapshot_repo is not None:
+            for item in _load("balance_snapshots.json"):
+                if self._balance_snapshot_repo.get_by_profile_and_period(profile_id, item["period"]) is not None:
+                    continue
+                self._balance_snapshot_repo.add(
+                    BalanceSnapshot(
+                        id=str(uuid4()),
+                        profile_id=profile_id,
+                        period=item["period"],
+                        net_balance=_money(item["net_balance"]),
+                        created_at=datetime.utcnow(),
+                    )
+                )

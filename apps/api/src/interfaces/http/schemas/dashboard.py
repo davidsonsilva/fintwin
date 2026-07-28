@@ -13,6 +13,8 @@ from typing import Optional
 from pydantic import BaseModel
 
 from src.application.use_cases.dashboard_use_cases import DashboardSummary
+from src.application.use_cases.expense_breakdown_use_cases import CategoryBreakdown
+from src.domain.balance_history.entities import BalanceSnapshot
 from src.domain.cashflow.entities import FinancialEvent
 from src.interfaces.http.schemas.common import MoneySchema
 
@@ -67,3 +69,26 @@ class DashboardSummaryResponse(BaseModel):
             ),
             upcoming_events=[UpcomingEventResponse.from_domain(event) for event in summary.upcoming_events],
         )
+
+
+class CategoryBreakdownResponse(BaseModel):
+    category: str
+    amount: MoneySchema
+    percentage: Decimal
+
+    @classmethod
+    def from_domain(cls, breakdown: CategoryBreakdown) -> "CategoryBreakdownResponse":
+        return cls(
+            category=breakdown.category,
+            amount=MoneySchema.from_domain(breakdown.amount),
+            percentage=breakdown.percentage.as_fraction(),
+        )
+
+
+class BalanceSnapshotResponse(BaseModel):
+    period: str
+    net_balance: MoneySchema
+
+    @classmethod
+    def from_domain(cls, snapshot: BalanceSnapshot) -> "BalanceSnapshotResponse":
+        return cls(period=snapshot.period, net_balance=MoneySchema.from_domain(snapshot.net_balance))

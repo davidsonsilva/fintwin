@@ -19,6 +19,7 @@ from src.application.use_cases.obligation_use_cases import CreateObligationUseCa
 from src.application.use_cases.profile_use_cases import GetProfileUseCase
 from src.infrastructure.persistence.session import get_session
 from src.infrastructure.repositories.account_repository import SqlAlchemyAccountRepository
+from src.infrastructure.repositories.balance_snapshot_repository import SqlAlchemyBalanceSnapshotRepository
 from src.infrastructure.repositories.debt_repository import SqlAlchemyDebtRepository
 from src.infrastructure.repositories.event_repository import SqlAlchemyEventRepository
 from src.infrastructure.repositories.goal_repository import SqlAlchemyGoalRepository
@@ -42,5 +43,6 @@ def load_demo_profile(profile_id: str, session: Session = Depends(get_session)) 
         debt_use_case=CreateDebtUseCase(SqlAlchemyDebtRepository(session)),
         goal_use_case=CreateGoalUseCase(SqlAlchemyGoalRepository(session)),
         event_use_case=CreateEventUseCase(SqlAlchemyEventRepository(session)),
+        balance_snapshot_repo=SqlAlchemyBalanceSnapshotRepository(session),
     )
     use_case.execute(profile_id)

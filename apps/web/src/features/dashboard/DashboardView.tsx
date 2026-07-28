@@ -13,7 +13,6 @@ import { ArrowRight, Calendar, CalendarClock, ShieldCheck, Sparkles, TrendingDow
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +27,9 @@ import { fragilityApi } from "@/features/fragility/api";
 
 import { dashboardApi } from "./api";
 import { AutonomyPanel } from "./AutonomyPanel";
+import { BalanceHistoryChart } from "./BalanceHistoryChart";
+import { ExpenseBreakdownChart } from "./ExpenseBreakdownChart";
+import { IncomeCommitmentCard } from "./IncomeCommitmentCard";
 import { ProjectionChart } from "./ProjectionChart";
 
 const MONTH_ABBREVIATIONS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -84,9 +86,6 @@ export function DashboardView({ profileId }: { profileId: string }) {
   });
 
   const isNotFound = error instanceof ApiError && error.status === 404;
-
-  const commitmentPct = data?.income_commitment_pct ? Number(data.income_commitment_pct) * 100 : 0;
-  const gaugeData = [{ name: "comprometimento", value: commitmentPct, fill: "var(--ft-primary)" }];
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
@@ -212,38 +211,18 @@ export function DashboardView({ profileId }: { profileId: string }) {
           </section>
 
           <section className="ft-grid ft-grid--analytics">
+            <ExpenseBreakdownChart profileId={profileId} />
+            <BalanceHistoryChart profileId={profileId} />
+            <IncomeCommitmentCard profileId={profileId} incomeCommitmentPct={data.income_commitment_pct} />
+          </section>
+
+          <section className="ft-grid ft-grid--analytics">
             <ProjectionChart profileId={profileId} />
 
             <div className="ft-col-span-2">
               <AutonomyPanel profileId={profileId} />
             </div>
           </section>
-
-          <FtCard interactive>
-            <div className="ft-card-header">
-              <div>
-                <h3 className="ft-card-title">Comprometimento da renda</h3>
-                <p className="ft-card-subtitle">Percentual da renda mensal comprometido com obrigações</p>
-              </div>
-            </div>
-            <div className="ft-chart-container" style={{ minHeight: 180 }}>
-              <ResponsiveContainer width="100%" height={180}>
-                <RadialBarChart
-                  data={gaugeData}
-                  innerRadius="70%"
-                  outerRadius="100%"
-                  startAngle={180}
-                  endAngle={0}
-                  barSize={16}
-                >
-                  <RadialBar background dataKey="value" cornerRadius={8} />
-                </RadialBarChart>
-              </ResponsiveContainer>
-              <p className="ft-metric-value" style={{ textAlign: "center", marginTop: -60 }}>
-                {commitmentPct.toFixed(1)}%
-              </p>
-            </div>
-          </FtCard>
 
           <FtCard interactive>
             <div className="ft-card-header">

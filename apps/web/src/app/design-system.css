@@ -750,6 +750,30 @@ body {
   font-weight: var(--ft-font-weight-semibold);
 }
 
+.ft-badge--success {
+  color: var(--ft-success);
+  background: var(--ft-success-soft);
+  border-color: rgba(49, 230, 174, 0.24);
+}
+
+.ft-badge--warning {
+  color: var(--ft-warning);
+  background: var(--ft-warning-soft);
+  border-color: rgba(255, 184, 21, 0.24);
+}
+
+.ft-badge--purple {
+  color: var(--ft-purple);
+  background: var(--ft-purple-soft);
+  border-color: rgba(167, 106, 247, 0.24);
+}
+
+.ft-badge--danger {
+  color: var(--ft-danger);
+  background: var(--ft-danger-soft);
+  border-color: rgba(242, 76, 95, 0.24);
+}
+
 /* =========================================================
    FINANCIAL EVENTS
    ========================================================= */

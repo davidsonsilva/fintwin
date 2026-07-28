@@ -1,74 +1,64 @@
-# Slice atual: Design System — Redesign visual do AppShell (pós-VS-10)
+# Slice atual: Dashboard — Linha de 3 gráficos (distribuição, evolução do saldo, comprometimento)
 
-> Trabalho interativo de polimento visual pedido diretamente pelo usuário (sem planning/*
-> formal prévio), consolidado retroativamente neste contrato para permitir revisão do Meta
-> Harness. Fonte de verdade visual: `imagens/proposta-de-layout.png`, `imagens/toolbar.json`,
-> `imagens/FinTwin AI — Design System.md`.
+> Plano formal aprovado previamente: `planning/dashboard-3-graficos-linha_20260727` (Serena).
+> Fonte de verdade visual: `imagens/proposta-de-layout.png`.
 
 ## Contexto
 
-Após a VS-10 (MVP consolidado), o usuário pediu alinhamento visual do painel interno
-(Onboarding, Tela Inicial, Dashboard, Sidebar, Topbar) ao design system `--ft-*` de
-referência, e o início da migração desse CSS autoral para tokens TypeScript + variantes
-CVA (`class-variance-authority`), preservando o Tailwind gerado e o CSS de terceiros
-intocados.
-
-Não é uma Vertical Slice do domínio financeiro — não adiciona nem altera regra de negócio,
-caso de uso, contrato HTTP ou schema de banco. É puramente front-end (`apps/web/`).
+Substitui a seção de analytics do dashboard por uma nova linha de 3 colunas — Distribuição das
+despesas (donut), Evolução do saldo líquido (linha) e Comprometimento da renda (gauge
+redesenhado) — mantendo `ProjectionChart` e `AutonomyPanel` (reposicionados abaixo da nova
+linha, não removidos). Ao contrário da slice anterior (puramente front-end), esta inclui
+mudanças reais de domínio/backend: uma nova entidade (`BalanceSnapshot`), uma migração Alembic,
+um caso de uso de captura idempotente de snapshot e dois endpoints HTTP novos.
 
 ## Escopo entregue
 
-### Sidebar / navegação
-- Logo/ícone com fundo tratado (transparente), nova seção de navegação por recurso
-  (Perfil/Contas/Rendas/Obrigações/Dívidas/Metas/Eventos/Revisão) com páginas dedicadas em
-  `/dashboard/[profileId]/{profile,resources/[resource],review}` — reaproveitando os
-  formulários já existentes de `features/onboarding/`, sem duplicar lógica de negócio.
-- Item "Onboarding guiado" separado, linkando para `/onboarding` (fluxo de criação de
-  perfil do zero), desacoplado da navegação de dados de um perfil existente.
-- Card "IA FinTwin" com toggle do `AgentPanel` (antes sempre aberto, ocupando 340px fixos).
-- Drawer mobile funcional (`SidebarContext`, overlay, `visibility`+`inert` de foco).
+### Backend
+- **Agregação de despesas por categoria**: novo endpoint que retorna obrigações mensais
+  agrupadas por categoria com percentual sobre o total (`CategoryBreakdownDto`), consumido pelo
+  donut do frontend.
+- **Entidade `BalanceSnapshot`**: nova tabela `balance_snapshots` (migração Alembic
+  `59331c899349_balance_snapshots.py`, aplicada sobre `f1b2c3d4e5a6`), repositório
+  `SqlAlchemyBalanceSnapshotRepository`, captura idempotente de snapshot mensal do saldo líquido
+  ao carregar o dashboard (`LoadDemoProfileUseCase`/fluxo de summary), e endpoint de histórico
+  (`/balance-history?months=N`) que retorna os últimos N snapshots ordenados por período.
+- **Seed demo**: `data/demo/balance_snapshots.json` com 6 meses sintéticos (2026-01 a 2026-06,
+  saldo líquido evoluindo de 8200.00 a 12100.00 BRL), carregado de forma idempotente por
+  `LoadDemoProfileUseCase`.
+- **Testes novos**: `test_summary_captures_balance_snapshot_idempotently` (unit),
+  `test_balance_history_after_loading_demo_profile` e
+  `test_balance_history_missing_profile_returns_404` (integration). Suite completa: 196 testes
+  passando.
+- Verificação end-to-end via Docker (fora do pytest): perfil demo carregado, `/dashboard` →
+  saldo líquido 12500.00, `/obligations/by-category` → 3 categorias somando 100%,
+  `/balance-history` → 6 entradas fev–jul terminando em 12500.00; idempotência confirmada
+  chamando `/dashboard` duas vezes e comparando o histórico resultante (sem duplicação).
 
-### Topbar (`PageHeader`, novo componente compartilhado)
-- Substitui headers duplicados em 8 páginas por um único componente.
-- Hambúrguer funcional; sino/engrenagem/avatar/"Sincronizar dados" são decorativos
-  (`disabled`) — não há backend de notificações, configurações ou sincronização.
-- Layout posicionado via coordenadas absolutas extraídas de `imagens/toolbar.json`.
+### Frontend (`apps/web/src/features/dashboard/`)
+- `ExpenseBreakdownChart.tsx` (novo): donut (`recharts` `PieChart`/`Pie`/`Cell`) consumindo
+  `getExpenseBreakdown`, com legenda via `.ft-chart-legend`/`.ft-legend-item`/`.ft-legend-dot`
+  já existentes, estados de loading/erro/vazio, link "Ver obrigações".
+- `BalanceHistoryChart.tsx` (novo): linha (`LineChart`/`Line`) consumindo
+  `getBalanceHistory(profileId, 6)`, tooltip formatado em BRL, estados de loading/erro/vazio.
+- `IncomeCommitmentCard.tsx` (novo): gauge (`RadialBarChart`) com 4 níveis de risco
+  (`riskTierFor`: Saudável ≤40% / Atenção ≤60% / Elevado ≤75% / Crítico >75%) mapeados para
+  badges de cor (`.ft-badge--success/warning/purple/danger`, adicionados a `design-system.css`
+  reaproveitando os tokens `--ft-success/warning/purple/danger` existentes), substitui o gauge
+  inline antigo do `DashboardView`.
+- `types.ts`/`api.ts`: `CategoryBreakdownDto`, `BalanceSnapshotDto`,
+  `dashboardApi.getExpenseBreakdown`/`getBalanceHistory`.
+- `DashboardView.tsx`: nova seção `ft-grid ft-grid--analytics` com os 3 componentes acima;
+  seção seguinte (mesma classe de grid, reaproveitada) mantém `ProjectionChart` +
+  `AutonomyPanel` sem alteração de conteúdo, apenas reposicionados abaixo da nova linha.
 
-### Design system
-- `design-system.css`: hierarquia tipográfica normalizada (pesos fora de escala 650/750/800
-  removidos), espaçamento de seção corrigido, botão primário/nav/badge alinhados ao doc de
-  referência.
-- `design-system/tokens/*.ts`: espelham os valores `--ft-*` de `design-system.css` como
-  objetos TypeScript tipados (`as const`), sem duplicar a fonte de verdade (globals.css
-  registra os mesmos tokens no `@theme` do Tailwind).
-- `design-system/components/{Button,Card,IconButton}`: variantes CVA equivalentes a
-  `.ft-button`/`.ft-card`/`.ft-icon-button`/`.ft-header-avatar`. Consumidores migrados:
-  `Sidebar.tsx` (botão "Conversar com IA"), `PageHeader.tsx` (hambúrguer, sino, engrenagem,
-  avatar, "Sincronizar dados"), `DashboardView.tsx` (4 cards de métrica, 2 cards de status +
-  1 link de status, card do gráfico de comprometimento, card de eventos futuros), `page.tsx`
-  Tela Inicial (3 cards de destaque). `Card` ganhou prop `as` (article/div/etc) e todos os
-  usos migrados passam `interactive` para preservar o hover (levantar + sombra + borda) que
-  `.ft-card` aplicava incondicionalmente — só o brilho diagonal (`::before`) não foi
-  recriado (simplificação conhecida e aceita).
-- Botão "Em breve" (card de IA insight do dashboard) migrado para `FtButton`; regras
-  responsivas `.ft-ai-insight .ft-button`/`.ft-form-actions .ft-button` (a segunda já estava
-  órfã antes desta rodada — nunca combinava com o `Button` do shadcn usado em
-  `.ft-form-actions`) removidas; o comportamento de `grid-column:1/-1` em telas ≤1024px foi
-  preservado via classe Tailwind (`max-[1024px]:col-[1/-1]`) direto no componente.
-- `.ft-button` (base + todas as variantes + `:disabled`) removido inteiramente de
-  `design-system.css` — nenhum componente usa mais a classe crua; `Sidebar`, `PageHeader` e
-  `DashboardView` são os únicos consumidores, todos via `design-system/components/Button`.
-- **Decisão de escopo registrada**: `AgentPanel`/`PendingActionCard` e o Onboarding
-  (`OnboardingWizard`, `ProfileStep`, `ResourceStepForm`, `ReviewStep`, `ProfileSummary`)
-  foram revisados e **não precisam de migração** — já usam `Button`/`Card`/`Input` do shadcn
-  para tudo que é botão/card real; as classes `.ft-*` que restam neles (painel do agente,
-  bolhas de chat, stepper, formulário) são layout de uso único (um consumidor cada), que o
-  próprio guia de migração (`imagens/transformar o css em objetos.md`) recomenda manter como
-  CSS puro em vez de virar componente/variante artificial.
+Nenhuma classe de grid nova foi criada — a linha nova e a linha existente reutilizam
+`.ft-grid--analytics` (`1.05fr 1.05fr 1fr`, responsiva a 2 colunas ≤1280px e 1 coluna ≤720px).
 
 ## Fora de escopo (não implementado nesta slice)
-- Qualquer mudança de domínio financeiro, regra de negócio, endpoint HTTP ou schema.
-- Sistema de autenticação/conta de usuário, notificações, configurações ou sincronização de
-  dados reais (os controles do header existem só visualmente).
-- Cobertura de teste automatizado para as novas rotas/drawer (nenhum teste novo foi
-  adicionado para `resources/[resource]`, `profile`, `review`, ou o toggle do drawer mobile).
+- Qualquer alteração em `ProjectionChart`, `AutonomyPanel`, Sidebar, Topbar ou Onboarding além
+  do reposicionamento descrito acima.
+- Cobertura de teste de frontend (Vitest) para os 3 componentes novos — não foram adicionados
+  testes automatizados de UI nesta slice (risco residual conhecido).
+- Correção do erro de tipo pré-existente do `Tooltip`/`formatter` do recharts em
+  `ProjectionChart.tsx` (dívida técnica já documentada, não tocada nesta slice).

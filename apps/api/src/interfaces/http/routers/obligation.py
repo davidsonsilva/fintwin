@@ -10,9 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from src.application.use_cases.crud_use_cases import DeleteUseCase, GetUseCase, ListByProfileUseCase, UpdateUseCase
+from src.application.use_cases.expense_breakdown_use_cases import GetExpenseBreakdownByCategoryUseCase
 from src.application.use_cases.obligation_use_cases import CreateObligationUseCase
+from src.application.use_cases.profile_use_cases import GetProfileUseCase
 from src.infrastructure.persistence.session import get_session
 from src.infrastructure.repositories.obligation_repository import SqlAlchemyObligationRepository
+from src.infrastructure.repositories.profile_repository import SqlAlchemyProfileRepository
+from src.interfaces.http.schemas.dashboard import CategoryBreakdownResponse
 from src.interfaces.http.schemas.obligation import ObligationCreateRequest, ObligationResponse
 
 profiles_router = APIRouter(prefix="/api/v1/profiles", tags=["obligations"])
@@ -44,6 +48,20 @@ def list_obligations(profile_id: str, session: Session = Depends(get_session)) -
     repo = SqlAlchemyObligationRepository(session)
     obligations = ListByProfileUseCase(repo).execute(profile_id)
     return [ObligationResponse.from_domain(obligation) for obligation in obligations]
+
+
+@profiles_router.get("/{profile_id}/obligations/by-category", response_model=list[CategoryBreakdownResponse])
+def get_obligations_by_category(
+    profile_id: str, session: Session = Depends(get_session)
+) -> list[CategoryBreakdownResponse]:
+    profile_repo = SqlAlchemyProfileRepository(session)
+    profile = GetProfileUseCase(profile_repo).execute(profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Perfil não encontrado.")
+
+    obligation_repo = SqlAlchemyObligationRepository(session)
+    breakdown = GetExpenseBreakdownByCategoryUseCase(obligation_repo).execute(profile_id, profile.currency)
+    return [CategoryBreakdownResponse.from_domain(item) for item in breakdown]
 
 
 @obligations_router.put("/{obligation_id}", response_model=ObligationResponse)
