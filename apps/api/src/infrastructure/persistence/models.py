@@ -33,6 +33,7 @@ class ProfileModel(Base):
     __tablename__ = "profiles"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     dependents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     monthly_expense_reduction_capacity: Mapped[Optional[str]] = mapped_column(Numeric(6, 4), nullable=True)

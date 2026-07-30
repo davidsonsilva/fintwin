@@ -19,10 +19,12 @@ class ProfileCreateRequest(BaseModel):
     currency: str = Field(min_length=3, max_length=3)
     dependents: int = Field(default=0, ge=0)
     monthly_expense_reduction_capacity: Optional[Decimal] = Field(default=None, ge=0, le=1)
+    name: Optional[str] = Field(default=None, max_length=120)
 
 
 class ProfileResponse(BaseModel):
     id: str
+    name: Optional[str]
     currency: str
     dependents: int
     monthly_expense_reduction_capacity: Optional[Decimal]
@@ -33,6 +35,7 @@ class ProfileResponse(BaseModel):
     def from_domain(cls, profile: FinancialProfile) -> "ProfileResponse":
         return cls(
             id=profile.id,
+            name=profile.name,
             currency=profile.currency,
             dependents=profile.dependents,
             monthly_expense_reduction_capacity=(

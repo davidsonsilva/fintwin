@@ -34,12 +34,13 @@ export function ProfileStep({
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { currency: "BRL", dependents: 0, monthly_expense_reduction_capacity: "" },
+    defaultValues: { name: "", currency: "BRL", dependents: 0, monthly_expense_reduction_capacity: "" },
   });
 
   const createProfileMutation = useMutation({
     mutationFn: (values: ProfileFormValues) =>
       onboardingApi.createProfile({
+        name: values.name || null,
         currency: values.currency,
         dependents: values.dependents,
         monthly_expense_reduction_capacity: values.monthly_expense_reduction_capacity || null,
@@ -59,7 +60,7 @@ export function ProfileStep({
   return (
     <Card className="ft-form-card">
       <CardContent className="space-y-6 p-0">
-        <div>
+        <div className="ft-form-header">
           <h2 className="ft-form-title">Perfil financeiro</h2>
           <p className="ft-form-description">Alguns dados básicos para calibrar sua projeção e autonomia.</p>
         </div>
@@ -67,6 +68,11 @@ export function ProfileStep({
           onSubmit={handleSubmit((values) => createProfileMutation.mutate(values))}
           className="ft-form-grid"
         >
+          <div className="ft-field ft-field--full">
+            <Label className="ft-label" htmlFor="name">Nome (opcional)</Label>
+            <Input id="name" placeholder="Como podemos te chamar?" {...register("name")} />
+            {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+          </div>
           <div className="ft-field">
             <Label className="ft-label" htmlFor="currency">Moeda</Label>
             <Input id="currency" maxLength={3} {...register("currency")} />

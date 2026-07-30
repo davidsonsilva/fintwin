@@ -25,6 +25,7 @@ class FinancialProfile:
     monthly_expense_reduction_capacity: Optional[Percentage]
     created_at: datetime
     updated_at: datetime
+    name: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.id:

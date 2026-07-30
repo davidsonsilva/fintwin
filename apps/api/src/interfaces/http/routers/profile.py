@@ -34,6 +34,7 @@ def create_profile(payload: ProfileCreateRequest, session: Session = Depends(get
         currency=payload.currency,
         dependents=payload.dependents,
         monthly_expense_reduction_capacity=capacity,
+        name=payload.name,
     )
     return ProfileResponse.from_domain(profile)
 
@@ -62,5 +63,6 @@ def update_profile(
         if payload.monthly_expense_reduction_capacity is not None
         else None
     )
+    profile.name = payload.name
     UpdateProfileUseCase(repo).execute(profile)
     return ProfileResponse.from_domain(profile)

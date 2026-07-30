@@ -25,6 +25,7 @@ class CreateProfileUseCase:
         currency: str,
         dependents: int,
         monthly_expense_reduction_capacity: Optional[Percentage],
+        name: Optional[str] = None,
     ) -> FinancialProfile:
         now = datetime.utcnow()
         profile = FinancialProfile(
@@ -34,6 +35,7 @@ class CreateProfileUseCase:
             monthly_expense_reduction_capacity=monthly_expense_reduction_capacity,
             created_at=now,
             updated_at=now,
+            name=name,
         )
         self._repo.add(profile)
         return profile

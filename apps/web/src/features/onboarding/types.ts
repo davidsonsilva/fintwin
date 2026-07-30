@@ -13,6 +13,7 @@ export interface MoneyDto {
 
 export interface ProfileDto {
   id: string;
+  name: string | null;
   currency: string;
   dependents: number;
   monthly_expense_reduction_capacity: string | null;

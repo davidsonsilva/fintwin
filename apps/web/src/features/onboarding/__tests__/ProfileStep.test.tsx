@@ -37,6 +37,7 @@ describe("ProfileStep", () => {
     const onCreated = vi.fn();
     vi.mocked(onboardingApi.createProfile).mockResolvedValue({
       id: "profile-1",
+      name: null,
       currency: "BRL",
       dependents: 0,
       monthly_expense_reduction_capacity: null,
@@ -57,6 +58,7 @@ describe("ProfileStep", () => {
     const onDemoLoaded = vi.fn();
     vi.mocked(onboardingApi.createProfile).mockResolvedValue({
       id: "demo-profile",
+      name: null,
       currency: "BRL",
       dependents: 2,
       monthly_expense_reduction_capacity: null,

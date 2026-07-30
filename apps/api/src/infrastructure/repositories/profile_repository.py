@@ -21,6 +21,7 @@ from src.infrastructure.persistence.models import ProfileModel
 def _to_model(profile: FinancialProfile) -> ProfileModel:
     return ProfileModel(
         id=profile.id,
+        name=profile.name,
         currency=profile.currency,
         dependents=profile.dependents,
         monthly_expense_reduction_capacity=(
@@ -36,6 +37,7 @@ def _to_model(profile: FinancialProfile) -> ProfileModel:
 def _to_entity(model: ProfileModel) -> FinancialProfile:
     return FinancialProfile(
         id=model.id,
+        name=model.name,
         currency=model.currency,
         dependents=model.dependents,
         monthly_expense_reduction_capacity=(

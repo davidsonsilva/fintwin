@@ -29,6 +29,7 @@ export const incomeStabilityOptions = ["stable", "variable"] as const;
 export const directionOptions = ["income", "expense"] as const;
 
 export const profileSchema = z.object({
+  name: z.string().max(120, "Máximo de 120 caracteres.").optional().or(z.literal("")),
   currency: z.string().length(3, "Use o código de 3 letras da moeda (ex: BRL)."),
   dependents: z.coerce.number().int().min(0, "Não pode ser negativo."),
   monthly_expense_reduction_capacity: z
