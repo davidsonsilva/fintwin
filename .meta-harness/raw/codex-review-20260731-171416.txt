@@ -1,0 +1,9 @@
+O diff é apenas documental, mas introduz dois critérios de aceite internamente não verificáveis. `git diff --check` e o ESLint limitado aos arquivos da migração passaram; `tsc` reproduziu TS2322, TS2345 e TS2769 da baseline, enquanto Vitest e pytest não puderam ser verificados por limitações do ambiente.
+
+Full review comments:
+
+- [P2] Restrinja a checagem de seletores a usos reais — D:\IA Projects\gemeo-financeiro\.meta-harness\contracts\acceptance-criteria.md:17-19
+  Como escrito, este critério não pode passar: há ocorrências literais desses seletores em comentários de `design-system.css`, `StatusCard.tsx`, `iconChipVariants.ts` e `badgeVariants.ts`, embora as regras e usos em `className` tenham sido removidos. Defina a verificação como ausência de regras CSS e de usos em markup, ou exclua comentários da busca, para que o contrato valide a migração em vez de falhar sobre sua documentação.
+
+- [P2] Exclua ft-grid--indicators da declaração de layout intacto — D:\IA Projects\gemeo-financeiro\.meta-harness\contracts\acceptance-criteria.md:53-55
+  O critério 1 permite explicitamente remover `grid-auto-rows` de `.ft-grid--indicators`, e o CSS atual confirma essa alteração; este critério, porém, afirma que todas as `.ft-grid--*` permanecem intactas. A mesma mudança fica simultaneamente aprovada e reprovada, impedindo uma decisão determinística de aceite; explicite aqui a exceção para `.ft-grid--indicators`.

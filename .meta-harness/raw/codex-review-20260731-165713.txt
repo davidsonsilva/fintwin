@@ -1,0 +1,6 @@
+The migration has a concrete visual regression in the link badge transition. Targeted ESLint and git diff --check passed; full frontend lint has pre-existing failures plus baseline-unlisted errors outside this diff, Vitest could not run because the sandbox blocks temporary-directory creation, and backend pytest could not start because its virtualenv references a missing Python executable.
+
+Review comment:
+
+- [P2] Preserve the original link transition timing — D:\IA Projects\gemeo-financeiro\apps\web\src\design-system\components\Badge\badgeVariants.ts:56-56
+  For the clickable StatusCard badge, the removed CSS used `transition: ... 0.15s ease`, while this variant uses `ease-in-out`. This makes the hover interaction visibly accelerate/decelerate differently, so the CSS-to-CVA migration is not visually neutral as required; use the `ease` timing utility instead.
