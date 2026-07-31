@@ -30,6 +30,8 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { useSidebarContext } from "@/components/shell/SidebarContext";
 import { Button as FtButton, buttonVariants } from "@/design-system/components/Button";
 import { Card as FtCard } from "@/design-system/components/Card";
+import { IconChip } from "@/design-system/components/IconChip";
+import { StatusCard } from "@/design-system/components/StatusCard";
 import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -207,133 +209,71 @@ export function DashboardView({ profileId }: { profileId: string }) {
           </section>
 
           <section className="ft-grid ft-grid--indicators">
-            <FtCard interactive className="ft-status-card">
-              <div className="ft-status-icon ft-metric-icon--primary">
-                <ShieldCheck size={18} />
-              </div>
-              <div>
-                <p className="ft-status-title ft-label-info">
-                  Autonomia básica
-                  <InfoTooltip
-                    label="Por quantos meses suas reservas cobririam só as despesas essenciais, se a renda parasse."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-status-description">
-                  {autonomyQuery.isLoading ? "Calculando..." : formatMonths(autonomyQuery.data?.basic_autonomy_months ?? null)}
-                </p>
-              </div>
-            </FtCard>
+            <StatusCard
+              icon={ShieldCheck}
+              tone="primary"
+              label="Autonomia básica"
+              hint="Por quantos meses suas reservas cobririam só as despesas essenciais, se a renda parasse."
+              loading={autonomyQuery.isLoading}
+              value={formatMonths(autonomyQuery.data?.basic_autonomy_months ?? null)}
+            />
 
-            <FtCard interactive className="ft-status-card">
-              <div className="ft-status-icon ft-metric-icon--info">
-                <ShieldCheck size={18} />
-              </div>
-              <div>
-                <p className="ft-status-title ft-label-info">
-                  Autonomia provável
-                  <InfoTooltip
-                    label="Meses de autonomia no cenário provável, incluindo dívidas, metas e eventos futuros."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-status-description">
-                  {autonomyQuery.isLoading
-                    ? "Calculando..."
-                    : formatMonths(autonomyQuery.data?.probable_autonomy_months ?? null)}
-                </p>
-              </div>
-            </FtCard>
+            <StatusCard
+              icon={ShieldCheck}
+              tone="info"
+              label="Autonomia provável"
+              hint="Meses de autonomia no cenário provável, incluindo dívidas, metas e eventos futuros."
+              loading={autonomyQuery.isLoading}
+              value={formatMonths(autonomyQuery.data?.probable_autonomy_months ?? null)}
+            />
 
-            <FtCard interactive className="ft-status-card">
-              <div className="ft-status-icon ft-metric-icon--purple">
-                <ShieldAlert size={18} />
-              </div>
-              <div>
-                <p className="ft-status-title ft-label-info">
-                  Autonomia adversa
-                  <InfoTooltip
-                    label="Meses de autonomia num cenário de aperto: menos renda e mais custos que o normal."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-status-description">
-                  {autonomyQuery.isLoading
-                    ? "Calculando..."
-                    : formatMonths(autonomyQuery.data?.adverse_autonomy_months ?? null)}
-                </p>
-              </div>
-            </FtCard>
+            <StatusCard
+              icon={ShieldAlert}
+              tone="purple"
+              label="Autonomia adversa"
+              hint="Meses de autonomia num cenário de aperto: menos renda e mais custos que o normal."
+              loading={autonomyQuery.isLoading}
+              value={formatMonths(autonomyQuery.data?.adverse_autonomy_months ?? null)}
+            />
 
-            <FtCard interactive className="ft-status-card">
-              <div className="ft-status-icon ft-metric-icon--warning">
-                <ShieldAlert size={18} />
-              </div>
-              <div>
-                <p className="ft-status-title ft-label-info">
-                  Perda de renda
-                  <InfoTooltip
-                    label="Por quanto tempo você se manteria se perdesse toda a sua renda."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-status-description">
-                  {autonomyQuery.isLoading
-                    ? "Calculando..."
-                    : formatMonths(autonomyQuery.data?.income_loss_autonomy_months ?? null)}
-                </p>
-              </div>
-            </FtCard>
+            <StatusCard
+              icon={ShieldAlert}
+              tone="warning"
+              label="Perda de renda"
+              hint="Por quanto tempo você se manteria se perdesse toda a sua renda."
+              loading={autonomyQuery.isLoading}
+              value={formatMonths(autonomyQuery.data?.income_loss_autonomy_months ?? null)}
+            />
 
-            <FtCard interactive className="ft-status-card">
-              <div className="ft-status-icon ft-metric-icon--info">
-                <CalendarClock size={18} />
-              </div>
-              <div>
-                <p className="ft-status-title ft-label-info">
-                  Próximo déficit previsto
-                  <InfoTooltip
-                    label="Primeiro mês em que o saldo projetado ficaria negativo, se nada mudar (cenário provável, 12 meses)."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-status-description">
-                  {projectionQuery.isLoading
-                    ? "Calculando..."
-                    : (projectionQuery.data?.first_deficit_period ??
-                      "Sem déficit projetado (12 meses, cenário provável)")}
-                </p>
-              </div>
-            </FtCard>
+            <StatusCard
+              icon={CalendarClock}
+              tone="info"
+              label="Próximo déficit previsto"
+              hint="Primeiro mês em que o saldo projetado ficaria negativo, se nada mudar (cenário provável, 12 meses)."
+              loading={projectionQuery.isLoading}
+              value={
+                projectionQuery.data?.first_deficit_period ??
+                "Sem déficit projetado (12 meses, cenário provável)"
+              }
+            />
 
-            <FtCard interactive className="ft-status-card">
-              <div className="ft-status-icon ft-metric-icon--warning">
-                <TrendingDown size={18} />
-              </div>
-              <div>
-                <p className="ft-status-title ft-label-info">
-                  Fragilidades detectadas
-                  <InfoTooltip
-                    label="Riscos financeiros no seu perfil detectados por regras verificáveis — como renda concentrada em uma única fonte, reserva de emergência baixa ou endividamento alto."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-status-description">
-                  {fragilitiesQuery.isLoading ? "Calculando..." : `${fragilitiesQuery.data?.length ?? 0} encontradas`}
-                </p>
-                <Link href={`/dashboard/${profileId}/fragilities`} className="ft-badge ft-badge--link">
-                  Ver radar de fragilidade
-                  <ArrowRight size={12} />
-                </Link>
-              </div>
-            </FtCard>
+            <StatusCard
+              icon={TrendingDown}
+              tone="warning"
+              label="Fragilidades detectadas"
+              hint="Riscos financeiros no seu perfil detectados por regras verificáveis — como renda concentrada em uma única fonte, reserva de emergência baixa ou endividamento alto."
+              loading={fragilitiesQuery.isLoading}
+              value={`${fragilitiesQuery.data?.length ?? 0} encontradas`}
+              action={{
+                href: `/dashboard/${profileId}/fragilities`,
+                label: "Ver radar de fragilidade",
+              }}
+            />
 
             <FtCard interactive className="ft-indicators-events">
               <div className="ft-card-header">
                 <div className="flex items-center gap-3">
-                  <div className="ft-status-icon ft-metric-icon--purple">
-                    <Calendar size={18} />
-                  </div>
+                  <IconChip icon={Calendar} tone="purple" size="sm" />
                   <h3 className="ft-card-title ft-label-info">
                     Próximos eventos financeiros
                     <InfoTooltip

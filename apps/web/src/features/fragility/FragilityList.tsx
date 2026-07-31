@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button as FtButton } from "@/design-system/components/Button";
 import { Card as FtCard } from "@/design-system/components/Card";
+import { IconChip } from "@/design-system/components/IconChip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
@@ -85,9 +86,7 @@ export function FragilityList({ profileId }: { profileId: string }) {
 
       {data && data.length === 0 && (
         <FtCard className="flex flex-col items-center gap-3 py-10 text-center">
-          <div className="ft-status-icon ft-metric-icon--primary">
-            <ShieldCheck size={22} />
-          </div>
+          <IconChip icon={ShieldCheck} tone="primary" size="sm" iconSize={22} />
           <div className="space-y-1">
             <p className="ft-card-title">Nenhuma fragilidade encontrada</p>
             <p className="max-w-md text-sm text-muted-foreground">

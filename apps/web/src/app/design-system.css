@@ -569,9 +569,12 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* Sem `grid-auto-rows`: linha dimensionada pelo próprio conteúdo. Com `1fr` todas as
+   linhas ficavam iguais à mais alta, então o card de eventos (alto, e cuja altura depende
+   de quantos eventos o usuário tem) esticava os seis cards de status junto. Quem define a
+   própria altura agora é cada card — ver StatusCard. */
 .ft-grid--indicators {
   grid-template-columns: repeat(3, minmax(0, 1fr)) 1.1fr;
-  grid-auto-rows: minmax(0, 1fr);
 }
 
 .ft-indicators-events {
@@ -796,36 +799,6 @@ body {
 /* =========================================================
    STATUS CARDS
    ========================================================= */
-
-.ft-status-card {
-  display: flex;
-  min-height: 104px;
-  align-items: flex-start;
-  gap: 13px;
-}
-
-.ft-status-icon {
-  display: grid;
-  width: 38px;
-  height: 38px;
-
-  flex: 0 0 auto;
-  place-items: center;
-
-  border-radius: 12px;
-}
-
-.ft-status-title {
-  margin: 1px 0 6px;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.ft-status-description {
-  margin: 0;
-  color: var(--ft-text-secondary);
-  font-size: 13px;
-}
 
 .ft-badge {
   display: inline-flex;

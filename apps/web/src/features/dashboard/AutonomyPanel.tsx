@@ -13,6 +13,7 @@ import { ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Card as FtCard } from "@/design-system/components/Card";
+import { IconChip } from "@/design-system/components/IconChip";
 import { InfoTooltip } from "@/components/ui/tooltip";
 
 import { dashboardApi } from "./api";
@@ -31,9 +32,7 @@ export function AutonomyPanel({ profileId }: { profileId: string }) {
     <FtCard interactive>
       <div className="ft-card-header">
         <div className="flex items-center gap-3">
-          <div className="ft-status-icon ft-metric-icon--primary">
-            <ShieldCheck size={18} />
-          </div>
+          <IconChip icon={ShieldCheck} tone="primary" size="sm" />
           <h3 className="ft-card-title ft-label-info">
             Detalhamento da autonomia financeira
             <InfoTooltip label="Mostra os ativos e despesas usados no cálculo de autonomia e as premissas de cada cenário." iconSize={13} />
