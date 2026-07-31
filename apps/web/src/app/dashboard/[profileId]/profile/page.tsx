@@ -18,7 +18,11 @@ export default async function ProfilePage({
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
-      <PageHeader title="Perfil" description="Dados básicos do seu perfil financeiro." />
+      <PageHeader
+        title="Perfil"
+        description="Dados básicos do seu perfil financeiro."
+        info="Dados básicos usados para calibrar todos os cálculos do seu gêmeo financeiro (moeda, dependentes e capacidade de redução de despesas)."
+      />
       <ProfileSummary profileId={profileId} />
     </div>
   );

@@ -22,6 +22,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import type { FieldConfig, ResourceStepConfig } from "./resourceConfigs";
 
+const OPTION_LABELS: Record<string, string> = {
+  // liquidityTypeOptions
+  checking_account: "Conta corrente",
+  savings_account: "Poupança",
+  emergency_fund: "Reserva de emergência",
+  investment: "Investimento",
+  other: "Outro",
+  // recurrenceOptions
+  one_off: "Única vez",
+  monthly: "Mensal",
+  weekly: "Semanal",
+  yearly: "Anual",
+  // incomeStabilityOptions
+  stable: "Estável",
+  variable: "Variável",
+  // directionOptions
+  income: "Recebimento",
+  expense: "Pagamento",
+};
+
 function nullifyEmptyStrings(value: unknown): unknown {
   if (typeof value === "string") {
     return value === "" ? null : value;
@@ -55,17 +75,18 @@ function Field({ field, register, watch, setValue }: { field: FieldConfig; regis
 
   if (field.type === "select") {
     const value = watch(field.name);
+    const items = field.options.map((option) => ({ value: option, label: OPTION_LABELS[option] ?? option }));
     return (
       <div className="ft-field">
         <Label className="ft-label" htmlFor={field.name}>{field.label}</Label>
-        <Select value={value ?? ""} onValueChange={(next) => setValue(field.name, next)}>
+        <Select items={items} value={value ?? ""} onValueChange={(next) => setValue(field.name, next)}>
           <SelectTrigger id={field.name} className="w-full">
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
             {field.options.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {OPTION_LABELS[option] ?? option}
               </SelectItem>
             ))}
           </SelectContent>
@@ -138,7 +159,9 @@ export function ResourceStepForm({
   return (
     <Card className="ft-form-card">
       <CardContent className="space-y-6 p-0">
-        <h2 className="ft-form-title">{config.title}</h2>
+        <div className="ft-form-header">
+          <h2 className="ft-form-title">{config.title}</h2>
+        </div>
 
         <form
           onSubmit={handleSubmit((values) => mutation.mutate(values))}

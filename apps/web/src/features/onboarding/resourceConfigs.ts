@@ -22,6 +22,12 @@ import {
   recurrenceOptions,
 } from "./schemas";
 
+function formatMoney(money: { amount: string; currency: string }): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: money.currency }).format(
+    Number(money.amount)
+  );
+}
+
 export type FieldConfig =
   | { name: string; label: string; type: "text" }
   | { name: string; label: string; type: "number" }
@@ -33,6 +39,7 @@ export type FieldConfig =
 export interface ResourceStepConfig<T extends Record<string, unknown>> {
   key: string;
   title: string;
+  info?: string;
   emptyLabel: string;
   fields: FieldConfig[];
   schema: ZodType<T>;
@@ -45,6 +52,7 @@ export interface ResourceStepConfig<T extends Record<string, unknown>> {
 export const accountStepConfig: ResourceStepConfig<any> = {
   key: "accounts",
   title: "Contas e saldos",
+  info: "Onde seu dinheiro está guardado (conta corrente, poupança, reserva de emergência). Marque como 'elegível para autonomia' o que serve de reserva.",
   emptyLabel: "Nenhuma conta adicionada ainda.",
   fields: [
     { name: "description", label: "Descrição", type: "text" },
@@ -61,12 +69,13 @@ export const accountStepConfig: ResourceStepConfig<any> = {
   },
   create: (profileId, payload) => onboardingApi.createAccount(profileId, payload),
   list: (profileId) => onboardingApi.listAccounts(profileId),
-  renderSummary: (item) => `${item.description} — ${(item.balance as any).amount} ${(item.balance as any).currency}`,
+  renderSummary: (item) => `${item.description} — ${formatMoney(item.balance as any)}`,
 };
 
 export const incomeStepConfig: ResourceStepConfig<any> = {
   key: "incomes",
   title: "Rendas",
+  info: "Suas fontes de renda (salário, freelas, aluguéis). A estabilidade indica se a renda é fixa ou variável, o que afeta os cenários de projeção.",
   emptyLabel: "Nenhuma renda adicionada ainda.",
   fields: [
     { name: "description", label: "Descrição", type: "text" },
@@ -87,12 +96,13 @@ export const incomeStepConfig: ResourceStepConfig<any> = {
   },
   create: (profileId, payload) => onboardingApi.createIncome(profileId, payload),
   list: (profileId) => onboardingApi.listIncomes(profileId),
-  renderSummary: (item) => `${item.description} — ${(item.amount as any).amount} ${(item.amount as any).currency}`,
+  renderSummary: (item) => `${item.description} — ${formatMoney(item.amount as any)}`,
 };
 
 export const obligationStepConfig: ResourceStepConfig<any> = {
   key: "obligations",
   title: "Obrigações e despesas",
+  info: "Tudo que você paga de forma recorrente (aluguel, contas, mercado, assinaturas). Marque como essencial o que você não conseguiria cortar facilmente.",
   emptyLabel: "Nenhuma obrigação adicionada ainda.",
   fields: [
     { name: "description", label: "Descrição", type: "text" },
@@ -119,12 +129,13 @@ export const obligationStepConfig: ResourceStepConfig<any> = {
   },
   create: (profileId, payload) => onboardingApi.createObligation(profileId, payload),
   list: (profileId) => onboardingApi.listObligations(profileId),
-  renderSummary: (item) => `${item.description} — ${(item.amount as any).amount} ${(item.amount as any).currency}`,
+  renderSummary: (item) => `${item.description} — ${formatMoney(item.amount as any)}`,
 };
 
 export const debtStepConfig: ResourceStepConfig<any> = {
   key: "debts",
   title: "Dívidas",
+  info: "Financiamentos e empréstimos em aberto (carro, casa, cartão parcelado). Usamos o saldo devedor e as parcelas restantes nas projeções.",
   emptyLabel: "Nenhuma dívida adicionada ainda.",
   fields: [
     { name: "description", label: "Descrição", type: "text" },
@@ -145,13 +156,13 @@ export const debtStepConfig: ResourceStepConfig<any> = {
   },
   create: (profileId, payload) => onboardingApi.createDebt(profileId, payload),
   list: (profileId) => onboardingApi.listDebts(profileId),
-  renderSummary: (item) =>
-    `${item.description} — saldo ${(item.outstanding_balance as any).amount} ${(item.outstanding_balance as any).currency}`,
+  renderSummary: (item) => `${item.description} — saldo ${formatMoney(item.outstanding_balance as any)}`,
 };
 
 export const goalStepConfig: ResourceStepConfig<any> = {
   key: "goals",
   title: "Metas",
+  info: "Objetivos financeiros que você está juntando dinheiro para alcançar (entrada de imóvel, viagem, reserva). Definem para onde direcionar a sobra.",
   emptyLabel: "Nenhuma meta adicionada ainda.",
   fields: [
     { name: "description", label: "Descrição", type: "text" },
@@ -172,13 +183,13 @@ export const goalStepConfig: ResourceStepConfig<any> = {
   },
   create: (profileId, payload) => onboardingApi.createGoal(profileId, payload),
   list: (profileId) => onboardingApi.listGoals(profileId),
-  renderSummary: (item) =>
-    `${item.description} — alvo ${(item.target_amount as any).amount} ${(item.target_amount as any).currency}`,
+  renderSummary: (item) => `${item.description} — alvo ${formatMoney(item.target_amount as any)}`,
 };
 
 export const eventStepConfig: ResourceStepConfig<any> = {
   key: "events",
   title: "Eventos futuros",
+  info: "Recebimentos ou gastos pontuais já previstos (IPVA, 13º, férias, manutenção). Entram na projeção no mês em que devem acontecer.",
   emptyLabel: "Nenhum evento adicionado ainda.",
   fields: [
     { name: "description", label: "Descrição", type: "text" },
@@ -199,5 +210,5 @@ export const eventStepConfig: ResourceStepConfig<any> = {
   },
   create: (profileId, payload) => onboardingApi.createEvent(profileId, payload),
   list: (profileId) => onboardingApi.listEvents(profileId),
-  renderSummary: (item) => `${item.description} — ${(item.amount as any).amount} ${(item.amount as any).currency}`,
+  renderSummary: (item) => `${item.description} — ${formatMoney(item.amount as any)}`,
 };

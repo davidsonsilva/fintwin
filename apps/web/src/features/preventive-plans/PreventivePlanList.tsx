@@ -37,6 +37,7 @@ export function PreventivePlanList({ profileId }: { profileId: string }) {
         <CardTitle>Planos preventivos</CardTitle>
         <Button onClick={() => generatePlans()}>Gerar planos</Button>
       </CardHeader>
+      <div className="mx-(--card-spacing) mb-2 border-b" />
       <CardContent className="space-y-3">
         {isLoading && <p className="text-sm text-muted-foreground">Carregando planos...</p>}
         {isError && (

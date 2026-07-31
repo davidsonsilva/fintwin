@@ -18,7 +18,11 @@ export default async function ReviewPage({
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
-      <PageHeader title="Revisão" description="Panorama do que está cadastrado no seu perfil." />
+      <PageHeader
+        title="Revisão"
+        description="Panorama do que está cadastrado no seu perfil."
+        info="Confira tudo que você cadastrou (contas, rendas, obrigações, dívidas, metas e eventos) antes de confiar nas projeções."
+      />
       <ReviewStep profileId={profileId} />
     </div>
   );

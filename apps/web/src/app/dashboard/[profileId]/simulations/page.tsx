@@ -22,6 +22,7 @@ export default async function SimulationsPage({
       <PageHeader
         title="Simulador de decisões"
         description="Compare o cenário atual com uma decisão financeira hipotética."
+        info="Simule uma decisão (ex.: financiar um carro ou aumentar um aporte) e veja o impacto no seu fluxo antes de decidir. Nada é aplicado de verdade."
       />
       <SimulationsPageClient profileId={profileId} />
     </div>

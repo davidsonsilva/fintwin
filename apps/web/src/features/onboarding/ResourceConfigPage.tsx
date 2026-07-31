@@ -40,7 +40,7 @@ export function ResourceConfigPage({ profileId, resource }: { profileId: string;
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
-      <PageHeader title={config.title} />
+      <PageHeader title={config.title} info={config.info} />
       <ResourceStepForm profileId={profileId} config={config} />
     </div>
   );

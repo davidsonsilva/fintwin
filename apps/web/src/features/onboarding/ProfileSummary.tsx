@@ -23,7 +23,7 @@ export function ProfileSummary({ profileId }: { profileId: string }) {
   return (
     <Card className="ft-form-card">
       <CardContent className="space-y-6 p-0">
-        <div>
+        <div className="ft-form-header">
           <h2 className="ft-form-title">Perfil financeiro</h2>
           <p className="ft-form-description">Dados básicos usados para calibrar sua projeção e autonomia.</p>
         </div>

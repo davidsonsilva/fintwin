@@ -45,7 +45,7 @@ describe("FragilityList", () => {
     renderWithClient(<FragilityList profileId="profile-1" />);
 
     expect(await screen.findByText("Renda concentrada")).toBeInTheDocument();
-    expect(screen.getByText("high")).toBeInTheDocument();
+    expect(screen.getByText("Alta")).toBeInTheDocument();
     expect(screen.getByText(/main_source_percentage/)).toBeInTheDocument();
   });
 

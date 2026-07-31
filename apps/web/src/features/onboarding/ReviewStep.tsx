@@ -70,7 +70,7 @@ export function ReviewStep({ profileId, onBack }: { profileId: string; onBack?: 
   return (
     <Card className="ft-form-card">
       <CardContent className="space-y-6 p-0">
-        <div>
+        <div className="ft-form-header">
           <h2 className="ft-form-title">Revisão</h2>
           <p className="ft-form-description">Confira o que foi cadastrado antes de ir para o dashboard.</p>
         </div>

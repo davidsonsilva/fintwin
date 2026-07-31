@@ -22,7 +22,11 @@ export default async function SimulationDetailPage({
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
-      <PageHeader title="Detalhe da simulação" description="Comparação entre o cenário-base e o cenário simulado.">
+      <PageHeader
+        title="Detalhe da simulação"
+        description="Comparação entre o cenário-base e o cenário simulado."
+        info="Mostra lado a lado como seus números ficariam com e sem a decisão simulada, para você comparar o impacto antes de agir."
+      >
         <Button
           variant="outline"
           nativeButton={false}

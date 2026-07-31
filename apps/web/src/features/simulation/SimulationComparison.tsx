@@ -43,6 +43,7 @@ export function SimulationComparison({ simulation }: { simulation: SimulationDto
         <CardHeader>
           <CardTitle>{DECISION_LABELS[simulation.type]}</CardTitle>
         </CardHeader>
+        <div className="mx-(--card-spacing) mb-2 border-b" />
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 rounded-md border p-3">
             <h3 className="text-sm font-medium text-muted-foreground">Cenário-base</h3>
@@ -65,6 +66,7 @@ export function SimulationComparison({ simulation }: { simulation: SimulationDto
         <CardHeader>
           <CardTitle>Comparação de saldo</CardTitle>
         </CardHeader>
+        <div className="mx-(--card-spacing) mb-2 border-b" />
         <CardContent>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -86,6 +88,7 @@ export function SimulationComparison({ simulation }: { simulation: SimulationDto
         <CardHeader>
           <CardTitle>Impacto da decisão</CardTitle>
         </CardHeader>
+        <div className="mx-(--card-spacing) mb-2 border-b" />
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-md border p-3">
             <p className="text-sm text-muted-foreground">Delta de autonomia</p>
@@ -115,6 +118,7 @@ export function SimulationComparison({ simulation }: { simulation: SimulationDto
           <CardHeader>
             <CardTitle>Custo total</CardTitle>
           </CardHeader>
+          <div className="mx-(--card-spacing) mb-2 border-b" />
           <CardContent>
             <p className="text-lg font-semibold">
               {formatMoney(total_cost.total_cost.amount, total_cost.total_cost.currency)}

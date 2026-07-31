@@ -28,6 +28,7 @@ export function SimulationHistory({ profileId }: { profileId: string }) {
       <CardHeader>
         <CardTitle>Histórico de simulações</CardTitle>
       </CardHeader>
+      <div className="mx-(--card-spacing) mb-2 border-b" />
       <CardContent className="space-y-2">
         {isLoading && <p className="text-sm text-muted-foreground">Carregando histórico...</p>}
         {isError && <p className="text-sm text-red-500">Não foi possível carregar o histórico.</p>}

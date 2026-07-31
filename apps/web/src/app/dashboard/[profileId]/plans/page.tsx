@@ -21,6 +21,7 @@ export default async function PlansPage({
       <PageHeader
         title="Planos preventivos"
         description="Ações propostas por regras a partir das fragilidades detectadas."
+        info="Sugestões para reduzir os riscos encontrados no seu perfil. São propostas por regras — nada é executado automaticamente, você é quem decide."
       />
       <PreventivePlanList profileId={profileId} />
     </div>

@@ -22,10 +22,31 @@ from src.domain.financial_profile.entities import FinancialAccount
 from src.domain.obligations.entities import Debt, FinancialObligation, IncomeSource
 from src.domain.projection.entities import PeriodProjection, ProjectionResult
 from src.domain.projection.scenario import ScenarioParameters
-from src.domain.shared.enums import Direction, Recurrence
+from src.domain.shared.enums import Direction, Recurrence, ScenarioType
 from src.domain.shared.money import Money
 from src.domain.shared.percentage import Percentage
 from src.domain.shared.recurrence import monthly_equivalent
+
+_SCENARIO_LABELS_PT = {
+    ScenarioType.PROBABLE: "provável",
+    ScenarioType.ADVERSE: "adverso",
+    ScenarioType.INCOME_LOSS: "perda de renda",
+    ScenarioType.CUSTOM: "personalizado",
+}
+
+
+def _multiplier_phrase(multiplier: Decimal, *, plural: bool = False) -> str:
+    """Traduz um multiplicador (ex.: 0.75) em linguagem simples (ex.: "reduzida em 25%").
+
+    `plural` concorda o particípio com o sujeito (ex.: "despesas ... reduzidas").
+    """
+    suffix = "s" if plural else ""
+    delta = (multiplier - Decimal("1")) * 100
+    if delta == 0:
+        return f"mantida{suffix}"
+    amount = f"{abs(delta):.1f}".rstrip("0").rstrip(".")
+    verb = "aumentada" if delta > 0 else "reduzida"
+    return f"{verb}{suffix} em {amount}%"
 
 
 def _add_months(base: date, months: int) -> date:
@@ -185,11 +206,12 @@ def project_cashflow(
     main_pressures = essential_categories[:3]
 
     assumptions = [
-        f"Cenário {scenario.scenario_type.value}: renda x{scenario.income_multiplier}, "
-        f"despesas essenciais x{scenario.essential_expense_multiplier}, "
-        f"despesas não essenciais x{scenario.nonessential_expense_multiplier}.",
-        "Despesa inesperada não configurada nesta simulação (0,00).",
-        "Eventos futuros e dívidas entram pelo valor contratual/cadastrado, sem ajuste de cenário.",
+        f"Cenário {_SCENARIO_LABELS_PT[scenario.scenario_type]}: "
+        f"renda {_multiplier_phrase(scenario.income_multiplier)}, "
+        f"despesas essenciais {_multiplier_phrase(scenario.essential_expense_multiplier, plural=True)} "
+        f"e despesas não essenciais {_multiplier_phrase(scenario.nonessential_expense_multiplier, plural=True)}.",
+        "Não incluímos nenhuma despesa inesperada (surpresa) nesta simulação.",
+        "Eventos futuros e dívidas entram pelo valor já cadastrado, sem ajuste do cenário.",
     ]
 
     return ProjectionResult(
