@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "visual-spec",
+  "description": "Especificação visual de um componente. Usada tanto para a referência (extraída de imagem) quanto para o render atual (extraído do DOM). Campos ausentes não são comparados.",
+  "type": "object",
+  "required": ["canvas", "elements"],
+  "properties": {
+    "canvas": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "number" },
+        "height": { "type": "number" }
+      }
+    },
+    "texts": {
+      "type": "array",
+      "description": "Todos os textos visíveis, para a comparação semântica.",
+      "items": { "type": "string" }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identificador legível usado nos findings. Ex: 'gauge-value'."
+          },
+          "match": {
+            "type": "string",
+            "description": "Âncora no DOM real, normalmente uma classe. Ex: '.ft-gauge-status'. Sem isso o casamento depende do texto."
+          },
+          "tag": { "type": "string" },
+          "cls": { "type": "string" },
+          "text": { "type": "string" },
+          "bounds": {
+            "type": "object",
+            "description": "Posição relativa ao canto superior esquerdo do componente, em px.",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "w": { "type": "number" },
+              "h": { "type": "number" }
+            }
+          },
+          "typography": {
+            "type": "object",
+            "properties": {
+              "fontFamily": { "type": "string" },
+              "fontSize": { "type": "number" },
+              "fontWeight": { "type": "number" },
+              "lineHeight": { "type": ["number", "string"] }
+            }
+          },
+          "color": { "type": "string", "description": "Cor do texto, em hex ou rgb()." },
+          "background": { "type": "string" },
+          "borderRadius": { "type": "string" },
+          "border": { "type": "string" },
+          "boxShadow": { "type": "string" }
+        }
+      }
+    },
+    "svgs": {
+      "type": "array",
+      "description": "Geometria de SVG. Essencial para gauges, gráficos e ícones.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "viewBox": { "type": "string" },
+          "bounds": { "type": "object" },
+          "shapes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tag": { "type": "string" },
+                "d": { "type": "string" },
+                "text": { "type": "string" },
+                "stroke": { "type": "string" },
+                "strokeWidth": { "type": "string" },
+                "strokeLinecap": { "type": "string" },
+                "fill": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "meta": { "type": "object" }
+  }
+}

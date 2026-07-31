@@ -10,3 +10,6 @@ __pycache__/
 
 # Env
 .env
+
+# Artefatos da skill visual-rebuild (capturas, specs, relatorios)
+.visual/
