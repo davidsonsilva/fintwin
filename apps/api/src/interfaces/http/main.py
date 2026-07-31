@@ -6,6 +6,8 @@
 
 """Ponto de entrada HTTP da API — health check, onboarding (VS-02) e dashboard (VS-03)."""
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -27,9 +29,17 @@ from src.interfaces.http.routers import (
 
 app = FastAPI(title="FinTwin AI API", version="v1")
 
+# 3000 = web servido pelo Docker; 3001 = `next dev` no host, usado pelo loop de
+# validação visual (skill visual-rebuild), que precisa de HMR.
+_DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:3001"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",")
+        if origin.strip()
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
