@@ -14,9 +14,17 @@
 
 2. **Regra global sai no mesmo commit**: nenhum componente novo entra sem que a classe `.ft-*`
    equivalente seja removida de `design-system.css` no mesmo commit. O ganho vem de deletar
-   CSS, não de somar abstração. Verificável: zero ocorrências de `.ft-status-card`,
-   `.ft-status-icon`, `.ft-status-title`, `.ft-status-description`, `.ft-metric-icon` e
-   `.ft-badge` (e modificadores) em todo `apps/web/src`.
+   CSS, não de somar abstração.
+
+   Verificação, para `.ft-status-card`, `.ft-status-icon`, `.ft-status-title`,
+   `.ft-status-description`, `.ft-metric-icon` e `.ft-badge` (e seus modificadores), em todo
+   `apps/web/src`: **(a)** nenhuma declaração de regra CSS com esses seletores permanece; e
+   **(b)** nenhum uso em markup — `className`, `class`, ou string montada que vire nome de
+   classe — permanece.
+
+   Menções em **comentário** são esperadas e não violam o critério: são o rastro que aponta
+   para onde a regra foi parar. Uma busca textual crua pelo seletor falha por causa da própria
+   documentação e não serve como verificação.
 
 3. **Sem regressão de testes existentes**: nenhum teste pré-existente removido ou marcado
    `skip`. A suíte de backend não é afetada por esta slice (nenhum arquivo de `apps/api`
@@ -50,12 +58,17 @@
    (`badgeVariants({ tone: "link" })`), mesmo padrão já adotado com `buttonVariants` — em vez
    de adicionar prop `as`/`render` ao componente.
 
-9. **Escopo respeitado**: nada da frente de layout é tocado. `.ft-metric-card`,
-   `.ft-analytics-card`, `.ft-card-header/title/subtitle/footer` e `.ft-grid--*` permanecem
-   intactos; `ui/card` (shadcn) permanece no onboarding, simulações e planos preventivos
-   (exclusão deliberada de 27/07). Espaçamento externo embutido no CSS original — o
-   `margin-top: 10px` do `.ft-badge` — é reproduzido, não corrigido: removê-lo é decisão de
-   layout.
+9. **Escopo respeitado**: nada da frente de layout é tocado, com **uma exceção explícita**.
+
+   Permanecem intactos: `.ft-metric-card`, `.ft-analytics-card`,
+   `.ft-card-header/title/subtitle/footer` e todas as `.ft-grid--*`, **exceto** a remoção de
+   `grid-auto-rows: minmax(0,1fr)` de `.ft-grid--indicators`, autorizada pelo critério 1 como
+   correção do bug que originou o trabalho. Nenhuma outra propriedade de `.ft-grid--indicators`
+   é alterada, e nenhuma outra `.ft-grid--*` é tocada.
+
+   `ui/card` (shadcn) permanece no onboarding, simulações e planos preventivos (exclusão
+   deliberada de 27/07). Espaçamento externo embutido no CSS original — o `margin-top: 10px` do
+   `.ft-badge` — é reproduzido, não corrigido: removê-lo é decisão de layout.
 
 10. **Verificação visual antes do commit**: toda tela afetada é conferida pelo usuário antes do
     commit, não só a que motivou a mudança. Nesta slice foram quatro: tela inicial, dashboard,
