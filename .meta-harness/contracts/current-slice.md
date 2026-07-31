@@ -1,64 +1,103 @@
-# Slice atual: Dashboard — Linha de 3 gráficos (distribuição, evolução do saldo, comprometimento)
+# Slice atual: Design system — fechamento da migração CSS→CVA (IconChip, StatusCard, Badge)
 
-> Plano formal aprovado previamente: `planning/dashboard-3-graficos-linha_20260727` (Serena).
-> Fonte de verdade visual: `imagens/proposta-de-layout.png`.
+> Plano formal aprovado previamente: `planning/design-system-css-para-cva-e-meta-harness_20260727`
+> (Serena), que deixou nomeados os candidatos restantes. Consolidação e fechamento registrados
+> em `planning/migracao-css-cva-fechada_20260731`.
 
 ## Contexto
 
-Substitui a seção de analytics do dashboard por uma nova linha de 3 colunas — Distribuição das
-despesas (donut), Evolução do saldo líquido (linha) e Comprometimento da renda (gauge
-redesenhado) — mantendo `ProjectionChart` e `AutonomyPanel` (reposicionados abaixo da nova
-linha, não removidos). Ao contrário da slice anterior (puramente front-end), esta inclui
-mudanças reais de domínio/backend: uma nova entidade (`BalanceSnapshot`), uma migração Alembic,
-um caso de uso de captura idempotente de snapshot e dois endpoints HTTP novos.
+Slice **puramente front-end e visualmente neutra por construção**. Nenhuma mudança de domínio,
+backend, schema, endpoint ou contrato de API.
+
+A migração de classes CSS globais (`design-system.css`) para componentes CVA tipados começou em
+27/07 cobrindo a *caixa* (`.ft-card`, `.ft-button`) e parou antes do *conteúdo*, deixando
+registrado quais eram os próximos candidatos: o chip de ícone colorido (`.ft-status-icon` /
+`.ft-metric-icon`, repetido 9×) e a pill (`.ft-badge`, repetida 6×). Esta slice fecha exatamente
+esses dois, mais os cards de status do dashboard que dependiam do chip.
+
+Entregue em **dois commits**:
+
+- `c248ec0` — `IconChip` + `StatusCard`
+- `2d920d1` — `.ft-metric-icon` + `.ft-badge`
+
+O critério de aceite aplicado foi: **os componentes reproduzem medida por medida o CSS que
+substituem**. A comparação foi feita contra o conteúdo original extraído com
+`git show HEAD:<arquivo>` — tanto do CSS quanto do JSX, porque o JSX carregava decisões que o
+CSS não mostra (tamanho de glifo, combinação de classes).
 
 ## Escopo entregue
 
-### Backend
-- **Agregação de despesas por categoria**: novo endpoint que retorna obrigações mensais
-  agrupadas por categoria com percentual sobre o total (`CategoryBreakdownDto`), consumido pelo
-  donut do frontend.
-- **Entidade `BalanceSnapshot`**: nova tabela `balance_snapshots` (migração Alembic
-  `59331c899349_balance_snapshots.py`, aplicada sobre `f1b2c3d4e5a6`), repositório
-  `SqlAlchemyBalanceSnapshotRepository`, captura idempotente de snapshot mensal do saldo líquido
-  ao carregar o dashboard (`LoadDemoProfileUseCase`/fluxo de summary), e endpoint de histórico
-  (`/balance-history?months=N`) que retorna os últimos N snapshots ordenados por período.
-- **Seed demo**: `data/demo/balance_snapshots.json` com 6 meses sintéticos (2026-01 a 2026-06,
-  saldo líquido evoluindo de 8200.00 a 12100.00 BRL), carregado de forma idempotente por
-  `LoadDemoProfileUseCase`.
-- **Testes novos**: `test_summary_captures_balance_snapshot_idempotently` (unit),
-  `test_balance_history_after_loading_demo_profile` e
-  `test_balance_history_missing_profile_returns_404` (integration). Suite completa: 196 testes
-  passando.
-- Verificação end-to-end via Docker (fora do pytest): perfil demo carregado, `/dashboard` →
-  saldo líquido 12500.00, `/obligations/by-category` → 3 categorias somando 100%,
-  `/balance-history` → 6 entradas fev–jul terminando em 12500.00; idempotência confirmada
-  chamando `/dashboard` duas vezes e comparando o histórico resultante (sem duplicação).
+### Componentes novos (`apps/web/src/design-system/components/`)
 
-### Frontend (`apps/web/src/features/dashboard/`)
-- `ExpenseBreakdownChart.tsx` (novo): donut (`recharts` `PieChart`/`Pie`/`Cell`) consumindo
-  `getExpenseBreakdown`, com legenda via `.ft-chart-legend`/`.ft-legend-item`/`.ft-legend-dot`
-  já existentes, estados de loading/erro/vazio, link "Ver obrigações".
-- `BalanceHistoryChart.tsx` (novo): linha (`LineChart`/`Line`) consumindo
-  `getBalanceHistory(profileId, 6)`, tooltip formatado em BRL, estados de loading/erro/vazio.
-- `IncomeCommitmentCard.tsx` (novo): gauge (`RadialBarChart`) com 4 níveis de risco
-  (`riskTierFor`: Saudável ≤40% / Atenção ≤60% / Elevado ≤75% / Crítico >75%) mapeados para
-  badges de cor (`.ft-badge--success/warning/purple/danger`, adicionados a `design-system.css`
-  reaproveitando os tokens `--ft-success/warning/purple/danger` existentes), substitui o gauge
-  inline antigo do `DashboardView`.
-- `types.ts`/`api.ts`: `CategoryBreakdownDto`, `BalanceSnapshotDto`,
-  `dashboardApi.getExpenseBreakdown`/`getBalanceHistory`.
-- `DashboardView.tsx`: nova seção `ft-grid ft-grid--analytics` com os 3 componentes acima;
-  seção seguinte (mesma classe de grid, reaproveitada) mantém `ProjectionChart` +
-  `AutonomyPanel` sem alteração de conteúdo, apenas reposicionados abaixo da nova linha.
+- **`IconChip/`** (`IconChip.tsx`, `iconChipVariants.ts`, `index.ts`) — substitui
+  `.ft-status-icon` (38px) e `.ft-metric-icon` (48px) + seus 4 modificadores de cor.
+  Variantes CVA: `tone` (primary/info/purple/warning) e `size` (sm=38px/rounded-12,
+  md=48px/rounded-15). **A borda mora na variante `md`, não na base**, porque no CSS original
+  só `.ft-metric-icon` tinha `border: 1px solid transparent`. Prop `iconSize` opcional porque o
+  CSS nunca amarrou glifo a chip: 38px aparecia com glifo de 18px no dashboard e de 22px no
+  radar de fragilidade.
+- **`StatusCard/`** (`StatusCard.tsx`, `index.ts`) — substitui `.ft-status-card`,
+  `.ft-status-title`, `.ft-status-description`. Props: `icon`, `tone`, `label`, `hint`,
+  `value`, `loading?`, `action?`. `action` é opcional porque só 1 dos 6 indicadores tem link
+  de detalhe (ISP — o contrato não obriga quem não usa). Os 6 blocos de ~20 linhas de JSX
+  repetidas viraram 6 chamadas declarativas.
+- **`Badge/`** (`Badge.tsx`, `badgeVariants.ts`, `index.ts`) — substitui `.ft-badge` e os
+  modificadores `--success/--warning/--purple/--danger/--link`. Renderiza `<span>`; quando o
+  badge precisa ser outro elemento (o `<Link>` do `StatusCard`), usa-se `badgeVariants()`
+  direto no `className`, mesmo padrão já adotado com `buttonVariants`.
 
-Nenhuma classe de grid nova foi criada — a linha nova e a linha existente reutilizam
-`.ft-grid--analytics` (`1.05fr 1.05fr 1fr`, responsiva a 2 colunas ≤1280px e 1 coluna ≤720px).
+### Consumidores migrados
+
+`DashboardView.tsx` (6 StatusCard + 4 IconChip md + 1 IconChip sm), `page.tsx` (3 IconChip md),
+`AutonomyPanel.tsx`, `FragilityList.tsx` (IconChip + 4 Badge por severidade),
+`PlanCard.tsx` (1 Badge).
+
+Duas trocas de string mágica por tipo: `FragilityList` guardava `badge: "ft-badge--danger"`
+(nome de classe CSS) e passou a guardar `tone: BadgeTone`; `page.tsx` montava a variante por
+template string (`ft-metric-icon--${variant}`) e passa `tone={variant}` verificado em
+compilação.
+
+### CSS removido no mesmo passo (regra dura do projeto)
+
+Componente novo só entra se a regra global equivalente sair no mesmo commit — o ganho vem de
+deletar CSS, não de somar abstração. Removidos de `design-system.css` (~100 linhas):
+`.ft-status-card`, `.ft-status-icon`, `.ft-status-title`, `.ft-status-description`,
+`.ft-metric-icon` + 4 modificadores, `.ft-badge` + 5 modificadores (incluindo `--link` e seu
+`:hover`). Verificado: zero ocorrências dessas classes no código.
+
+### Única mudança visual intencional
+
+Removido `grid-auto-rows: minmax(0, 1fr)` de `.ft-grid--indicators`. Essa regra fazia **todas
+as linhas do grid ficarem iguais à mais alta**, então o card de eventos — cuja altura é função
+de quantos eventos o perfil tem — esticava os seis cards de status junto, chegando a 416px na
+faixa de duas colunas. É a correção do bug que originou o trabalho. Medido antes/depois em
+viewport 996×706: alturas 104/124 divergentes → 104 uniformes; aproveitamento horizontal
+27–40% → 80%. Validada visualmente pelo usuário.
 
 ## Fora de escopo (não implementado nesta slice)
-- Qualquer alteração em `ProjectionChart`, `AutonomyPanel`, Sidebar, Topbar ou Onboarding além
-  do reposicionamento descrito acima.
-- Cobertura de teste de frontend (Vitest) para os 3 componentes novos — não foram adicionados
-  testes automatizados de UI nesta slice (risco residual conhecido).
-- Correção do erro de tipo pré-existente do `Tooltip`/`formatter` do recharts em
-  `ProjectionChart.tsx` (dívida técnica já documentada, não tocada nesta slice).
+
+- **Arquitetura de cards por papel** (`MetricCard`, `EventsCard`, `AnalyticsCard`, Sidebar) —
+  decisão explícita do usuário de parar a frente de layout até a migração fechar. As classes
+  `.ft-metric-card`, `.ft-analytics-card`, `.ft-card-header/title/subtitle/footer` e
+  `.ft-grid--*` **permanecem intactas de propósito**.
+- **`ui/card` (shadcn) no onboarding, simulações e planos preventivos** — exclusão deliberada
+  de 27/07, registrada para não ser reaberta. `DashboardView` ainda importa `Card/CardContent`
+  do shadcn, mas apenas nos blocos de erro e perfil-não-encontrado.
+- **`margin-top: 10px` embutido no `.ft-badge`** — reproduzido no componente em vez de
+  removido. Tirar é decisão de layout e mudaria o visual, o que esta slice não faz.
+- **Testes de frontend (Vitest)** para os componentes novos — não adicionados. Risco residual
+  conhecido; a suíte de frontend já falha desde antes desta slice (ver baseline).
+
+## Verificação executada
+
+- `tsc --noEmit`: 3 erros, **todos pré-existentes** e nos mesmos 2 arquivos da baseline
+  (`ProfileStep.tsx`, `ResourceStepForm.tsx` — incompatibilidade Zod/react-hook-form). Nenhum
+  erro novo.
+- `eslint` nos arquivos tocados: limpo.
+- `docker compose build web && up -d web` antes de cada verificação visual (o serviço `web` não
+  tem volume montado, então edição no host não reflete sem rebuild).
+- Validação visual pelo usuário nas 4 telas afetadas (tela inicial, dashboard, radar de
+  fragilidade, planos preventivos) antes de cada commit.
+
+**Baseline**: `.meta-harness/baselines/statuscard-before.json`. Atenção: `vitest` já sai com
+exit code 1 na baseline — testes de frontend quebrados desde antes desta slice.

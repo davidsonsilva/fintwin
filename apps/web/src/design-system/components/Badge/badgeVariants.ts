@@ -53,7 +53,9 @@ export const badgeVariants = cva(
         ],
         link: [
           "gap-[5px] cursor-pointer text-[#b49cff]",
-          "transition-[color,border-color] duration-150 ease-in-out",
+          // `ease-[ease]` e não `ease-in-out`: o CSS original era `0.15s ease`, e o
+          // Tailwind não expõe utilitário para a curva `ease` pura.
+          "transition-[color,border-color] duration-150 ease-[ease]",
           "hover:text-[#c8b7ff] hover:border-[color:var(--ft-border-hover)]",
         ],
       },
