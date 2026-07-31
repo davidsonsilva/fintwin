@@ -42,6 +42,7 @@ decisão se aplica. É para isso que este arquivo existe.
 | Área / arquivos | Memória | O que ela decide |
 |---|---|---|
 | `.meta-harness/**`, `scripts/validate-step.sh` | `planning/meta-harness_20260724` + seção do `planning/migracao-css-cva-fechada_20260731` | Como o harness funciona de fato. **`current-slice.md` e `acceptance-criteria.md` se atualizam JUNTOS** — contrato desatualizado faz o Codex rejeitar código correto. Limitação atual: o sandbox não roda pytest/vitest/build (NOT_VERIFIED sempre). |
+| `apps/api/pyproject.toml`, `apps/api/Dockerfile`, `apps/api/.venv`, qualquer coisa que envolva versão de Python | `gotcha/pythons-instalados-e-versao-do-projeto` | Projeto fixado em **3.12** (pyproject + Dockerfile); a venv funciona (201 testes passam). `pytest` como NOT_VERIFIED no Meta Harness é o sandbox read-only, **não** venv quebrada. A máquina tem 6 instalações de Python, uma fantasma — limpeza adiada por decisão do Davidson. |
 | `docker-compose.yml`, qualquer verificação visual de `apps/web` | `gotcha/docker-web-sem-hot-reload` | **`docker compose build web && up -d web` antes de olhar qualquer mudança.** Sem isso a comparação visual é inútil. |
 | Sistema de memória, hooks, `ai-dev-template` | `planning/temp_20260731_115424` | Task do portão de entrada da memória. Regra: **toda mudança global passa pelo `ai-dev-template`**, nunca por um projeto. |
 | Convenções de código | `coding_conventions` | Estilo, nomenclatura, padrões do projeto. |

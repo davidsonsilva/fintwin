@@ -41,12 +41,21 @@ enquanto o critério 1 autorizava mexer em `.ft-grid--indicators`.
 **REGRA**: `current-slice.md` e `acceptance-criteria.md` são atualizados **juntos**. Contrato
 desatualizado faz o Codex rejeitar código correto.
 
-**LIMITAÇÃO REAL DO HARNESS neste ambiente** (aparece como NOT_VERIFIED em toda rodada, não é
-falha desta slice): o Codex roda em sandbox e **não consegue executar teste nenhum** —
-`pytest` falha porque o launcher da `.venv` aponta para um Python 3.12 ausente; `vitest` falha
-com EPERM ao criar diretório temporário; `next build` falha com EPERM ao gravar
-`.next/trace-build`. Na prática o harness valida diff, lint e tipos, **não a suíte**. Vale
-consertar a venv se quiser cobertura de verdade.
+**NOT_VERIFIED em toda rodada é COMPORTAMENTO PROJETADO, não defeito.** O
+`.meta-harness/config.json` define `"sandbox": "read-only"`, e o próprio
+`prompts/codex-review.md` instrui: comandos que escrevem cache (`pytest`, `vitest`,
+`.pytest_cache`, `node_modules`) podem falhar por causa da restrição, e nesse caso o Codex
+deve reportar `NOT_VERIFIED` em vez de tratar como finding. É exatamente o que ele faz.
+
+⚠️ **CORREÇÃO DE UM ERRO MEU**: numa versão anterior desta memória eu escrevi que a venv do
+backend estava quebrada e que o Python 3.12 estava ausente. **Falso.** Eu repeti a frase do
+relatório do Codex sem verificar. Comprovado nesta sessão:
+`apps/api/.venv/Scripts/python.exe` roda Python **3.12.10** e `pytest` dá **201 passed em
+9.91s**. O caminho do `pyvenv.cfg` existe. O que o Codex não alcança é o interpretador fora do
+diretório do projeto, por causa do sandbox.
+
+Na prática o harness valida **diff, lint e tipos** — não a suíte. Isso é uma escolha do design
+dele, não algo a consertar. Ver `mem:gotcha/pythons-instalados-e-versao-do-projeto`.
 `.serena/memories/_index.md` ainda não existe neste projeto — o `audit-projeto.ps1` do
 `ai-dev-template` já cobra (ver `mem:planning/temp_20260731_115424`).
 
