@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/design-system/components/Badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { preventivePlanApi } from "./api";
@@ -47,9 +48,7 @@ export function PlanCard({ plan }: { plan: PreventivePlanDto }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle className="text-base">{RISK_CODE_LABELS[plan.risk_code] ?? plan.risk_code}</CardTitle>
-        <span className="ft-badge">
-          {STATUS_LABELS[plan.status]}
-        </span>
+        <Badge>{STATUS_LABELS[plan.status]}</Badge>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="space-y-2">

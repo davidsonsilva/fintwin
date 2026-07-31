@@ -13,6 +13,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { InfoTooltip } from "@/components/ui/tooltip";
+import { badgeVariants } from "@/design-system/components/Badge";
 import { Card } from "@/design-system/components/Card";
 import { IconChip, type IconChipTone } from "@/design-system/components/IconChip";
 
@@ -63,7 +64,7 @@ export function StatusCard({ icon, tone, label, hint, value, loading, action }: 
         </p>
 
         {action ? (
-          <Link href={action.href} className="ft-badge ft-badge--link">
+          <Link href={action.href} className={badgeVariants({ tone: "link" })}>
             {action.label}
             <ArrowRight size={12} />
           </Link>

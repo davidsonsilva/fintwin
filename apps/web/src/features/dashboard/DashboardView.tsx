@@ -136,9 +136,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
         <>
           <section className="ft-grid ft-grid--metrics">
             <FtCard as="article" interactive className="ft-metric-card">
-              <div className="ft-metric-icon ft-metric-icon--primary">
-                <Wallet size={22} />
-              </div>
+              <IconChip icon={Wallet} tone="primary" size="md" />
               <div className="ft-metric-content">
                 <p className="ft-metric-label ft-label-info">
                   Saldo líquido disponível
@@ -152,9 +150,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
             </FtCard>
 
             <FtCard as="article" interactive className="ft-metric-card">
-              <div className="ft-metric-icon ft-metric-icon--warning">
-                <CalendarClock size={22} />
-              </div>
+              <IconChip icon={CalendarClock} tone="warning" size="md" />
               <div className="ft-metric-content">
                 <p className="ft-metric-label ft-label-info">
                   Obrigações mensais
@@ -170,9 +166,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
             </FtCard>
 
             <FtCard as="article" interactive className="ft-metric-card">
-              <div className="ft-metric-icon ft-metric-icon--purple">
-                <TrendingDown size={22} />
-              </div>
+              <IconChip icon={TrendingDown} tone="purple" size="md" />
               <div className="ft-metric-content">
                 <p className="ft-metric-label ft-label-info">
                   Comprometimento da renda
@@ -191,9 +185,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
             </FtCard>
 
             <FtCard as="article" interactive className="ft-metric-card">
-              <div className="ft-metric-icon ft-metric-icon--info">
-                <ShieldCheck size={22} />
-              </div>
+              <IconChip icon={ShieldCheck} tone="info" size="md" />
               <div className="ft-metric-content">
                 <p className="ft-metric-label ft-label-info">
                   Progresso da meta principal

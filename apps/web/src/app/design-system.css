@@ -685,38 +685,8 @@ body {
   gap: 16px;
 }
 
-.ft-metric-icon {
-  display: grid;
-  width: 48px;
-  height: 48px;
-
-  flex: 0 0 auto;
-  place-items: center;
-
-  border: 1px solid transparent;
-  border-radius: 15px;
-}
-
-.ft-metric-icon--primary {
-  color: var(--ft-primary);
-  background: var(--ft-primary-soft);
-  border-color: rgba(34, 230, 177, 0.16);
-}
-
-.ft-metric-icon--warning {
-  color: var(--ft-warning);
-  background: var(--ft-warning-soft);
-}
-
-.ft-metric-icon--purple {
-  color: #c178ff;
-  background: var(--ft-purple-soft);
-}
-
-.ft-metric-icon--info {
-  color: var(--ft-secondary);
-  background: var(--ft-secondary-soft);
-}
+/* `.ft-metric-icon` e seus 4 modificadores viraram o componente IconChip
+   (design-system/components/IconChip), variante `size="md"`. */
 
 .ft-metric-content {
   min-width: 0;
@@ -800,48 +770,8 @@ body {
    STATUS CARDS
    ========================================================= */
 
-.ft-badge {
-  display: inline-flex;
-  min-height: 22px;
-
-  align-items: center;
-
-  margin-top: 10px;
-  padding: 2px 8px;
-
-  color: var(--ft-text-secondary);
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid var(--ft-border);
-  border-radius: var(--ft-radius-xs);
-
-  font-size: var(--ft-font-size-caption);
-  line-height: 16px;
-  font-weight: var(--ft-font-weight-semibold);
-}
-
-.ft-badge--success {
-  color: var(--ft-success);
-  background: var(--ft-success-soft);
-  border-color: rgba(49, 230, 174, 0.24);
-}
-
-.ft-badge--warning {
-  color: var(--ft-warning);
-  background: var(--ft-warning-soft);
-  border-color: rgba(255, 184, 21, 0.24);
-}
-
-.ft-badge--purple {
-  color: var(--ft-purple);
-  background: var(--ft-purple-soft);
-  border-color: rgba(167, 106, 247, 0.24);
-}
-
-.ft-badge--danger {
-  color: var(--ft-danger);
-  background: var(--ft-danger-soft);
-  border-color: rgba(242, 76, 95, 0.24);
-}
+/* `.ft-badge` e seus modificadores viraram o componente Badge
+   (design-system/components/Badge). O tom `link` mora lá também. */
 
 /* =========================================================
    FINANCIAL EVENTS
@@ -1208,18 +1138,6 @@ body {
   gap: 6px;
 }
 
-/* Badge que também é link de navegação (ex.: "Ver radar de fragilidade"). */
-.ft-badge--link {
-  gap: 5px;
-  color: #b49cff;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.ft-badge--link:hover {
-  color: #c8b7ff;
-  border-color: var(--ft-border-hover);
-}
 
 /* =========================================================
    SELECT (dropdown de período/cenário/severidade)

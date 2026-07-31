@@ -13,11 +13,11 @@ import { useState } from "react";
 import { RadarIcon, ShieldCheck } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { Badge, type BadgeTone } from "@/design-system/components/Badge";
 import { Button as FtButton } from "@/design-system/components/Button";
 import { Card as FtCard } from "@/design-system/components/Card";
 import { IconChip } from "@/design-system/components/IconChip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 import { fragilityApi } from "./api";
 import type { FragilityFindingDto } from "./types";
@@ -30,11 +30,11 @@ const SEVERITY_OPTIONS = [
   { value: "low", label: "Baixa" },
 ] as const;
 
-const SEVERITY_META: Record<FragilityFindingDto["severity"], { label: string; badge: string }> = {
-  critical: { label: "Crítica", badge: "ft-badge--danger" },
-  high: { label: "Alta", badge: "ft-badge--warning" },
-  medium: { label: "Média", badge: "ft-badge--purple" },
-  low: { label: "Baixa", badge: "ft-badge--success" },
+const SEVERITY_META: Record<FragilityFindingDto["severity"], { label: string; tone: BadgeTone }> = {
+  critical: { label: "Crítica", tone: "danger" },
+  high: { label: "Alta", tone: "warning" },
+  medium: { label: "Média", tone: "purple" },
+  low: { label: "Baixa", tone: "success" },
 };
 
 export function FragilityList({ profileId }: { profileId: string }) {
@@ -103,7 +103,7 @@ export function FragilityList({ profileId }: { profileId: string }) {
           <FtCard key={finding.id} interactive as="details" className="text-sm">
             <summary className="flex cursor-pointer items-center justify-between gap-3">
               <span className="ft-card-title">{finding.title}</span>
-              <span className={cn("ft-badge", meta.badge)}>{meta.label}</span>
+              <Badge tone={meta.tone}>{meta.label}</Badge>
             </summary>
             <div className="mt-3 space-y-2 text-muted-foreground">
               <p>{finding.description}</p>
