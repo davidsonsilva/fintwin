@@ -1,33 +1,64 @@
-# Critérios de aceitação: Dashboard — Linha de 3 gráficos
+# Critérios de aceitação: Design system — fechamento da migração CSS→CVA
 
-> Derivado do plano `planning/dashboard-3-graficos-linha_20260727` (Serena).
+> Derivado de `planning/design-system-css-para-cva-e-meta-harness_20260727` (que deixou os
+> candidatos nomeados) e consolidado em `planning/migracao-css-cva-fechada_20260731` (Serena).
+> Slice puramente front-end: sem domínio, backend, schema, endpoint ou contrato de API.
 
-1. **Domínio correto**: `BalanceSnapshot`, o caso de uso de captura idempotente e o endpoint de
-   agregação por categoria vivem em `apps/api/src/domain/` e `apps/api/src/application/`; o
-   frontend não reimplementa nenhuma regra de cálculo (percentual de categoria, comprometimento
-   de renda) — apenas consome os DTOs já calculados pela API.
-2. **Idempotência do snapshot**: capturar o dashboard múltiplas vezes no mesmo período não gera
-   snapshots duplicados em `balance_snapshots` (coberto por
-   `test_summary_captures_balance_snapshot_idempotently` e verificado ao vivo via Docker).
-3. **Sem regressão de testes existentes**: a suíte de backend (`pytest`) continua passando na
-   íntegra (196 testes) após as mudanças; nenhum teste pré-existente foi removido ou marcado
-   `skip`.
-4. **Quality gates limpos além da baseline conhecida**: `npx tsc --noEmit` no frontend não
-   introduz erros novos além dos já documentados como dívida técnica pré-existente (incluindo o
-   erro de tipo do `Tooltip`/`formatter` do recharts em `ProjectionChart.tsx`, que não foi
-   tocado nesta slice); `npm run lint` não introduz novos findings.
-5. **Endpoints novos funcionam**: `/obligations/by-category` retorna categorias cujos
-   percentuais somam ~100%; `/balance-history?months=N` retorna os últimos N snapshots
-   ordenados por período (`periods == sorted(periods)`) e responde 404 para perfil inexistente.
-6. **Estados de UI cobertos**: `ExpenseBreakdownChart`, `BalanceHistoryChart` e
-   `IncomeCommitmentCard` tratam explicitamente loading, erro e vazio (sem dado) — nenhum
-   componente assume que a query sempre retorna dados.
-7. **Sem dado hardcoded ou fake no frontend**: os 3 componentes novos consomem dados reais via
-   `dashboardApi`/React Query; nenhum valor de gráfico é mockado ou calculado no cliente.
-8. **Reaproveitamento de design system**: a nova linha de 3 colunas reutiliza a classe de grid
-   `.ft-grid--analytics` existente (nenhuma classe de grid nova foi criada); as 4 variantes de
-   badge de risco (`.ft-badge--success/warning/purple/danger`) usam os tokens de cor `--ft-*`
-   já existentes, sem cores hardcoded fora do design system.
-9. **`ProjectionChart` e `AutonomyPanel` preservados**: ambos continuam renderizando e
-   funcionando sem alteração de comportamento, apenas reposicionados abaixo da nova linha de
-   gráficos.
+1. **Neutralidade visual**: cada componente reproduz medida por medida a regra CSS que
+   substitui — dimensões, raio, cor, borda, tipografia, espaçamento e **curva/duração de
+   transição**. Divergência em qualquer uma delas é regressão, não melhoria. A comparação é
+   feita contra o original extraído com `git show <base>:<arquivo>`, do **CSS e do JSX**,
+   porque o JSX carrega decisões que o CSS não mostra (tamanho de glifo, classes combinadas).
+   Única exceção declarada: a remoção de `grid-auto-rows: minmax(0,1fr)` de
+   `.ft-grid--indicators`, correção intencional do bug que originou o trabalho.
+
+2. **Regra global sai no mesmo commit**: nenhum componente novo entra sem que a classe `.ft-*`
+   equivalente seja removida de `design-system.css` no mesmo commit. O ganho vem de deletar
+   CSS, não de somar abstração. Verificável: zero ocorrências de `.ft-status-card`,
+   `.ft-status-icon`, `.ft-status-title`, `.ft-status-description`, `.ft-metric-icon` e
+   `.ft-badge` (e modificadores) em todo `apps/web/src`.
+
+3. **Sem regressão de testes existentes**: nenhum teste pré-existente removido ou marcado
+   `skip`. A suíte de backend não é afetada por esta slice (nenhum arquivo de `apps/api`
+   tocado). **A suíte de frontend (Vitest) já falha na baseline** — ver
+   `.meta-harness/baselines/statuscard-before.json`; falha dela não conta como regressão desta
+   slice, mas também não pode piorar.
+
+4. **Quality gates limpos além da baseline conhecida**: `npx tsc --noEmit` não introduz erros
+   novos além dos 3 pré-existentes em `ProfileStep.tsx` e `ResourceStepForm.tsx`
+   (incompatibilidade Zod/react-hook-form); `eslint` limpo nos arquivos tocados; nenhum import
+   órfão deixado para trás após a troca de classe por componente.
+
+5. **Tipo no lugar de string mágica**: onde a variante era escolhida por nome de classe CSS
+   (`badge: "ft-badge--danger"`) ou montada por template string
+   (`ft-metric-icon--${variant}`), passa a ser um tipo do design system (`BadgeTone`,
+   `IconChipTone`). Critério: valor inválido deve falhar em compilação, não silenciosamente em
+   runtime.
+
+6. **Contrato mínimo por papel (ISP)**: props que só alguns consumidores usam são opcionais —
+   `action` no `StatusCard` (1 de 6 indicadores tem link de detalhe), `iconSize` no `IconChip`
+   (o CSS nunca amarrou glifo a chip: 38px aparece com glifo de 18px e de 22px). Nenhum
+   componente vira um `Card` gordo com props opcionais que ninguém usa.
+
+7. **Diferenças reais do CSS preservadas nas variantes, não na base**: a borda existe só no
+   chip de 48px (`.ft-metric-icon`), nunca no de 38px (`.ft-status-icon`) — logo mora na
+   variante `size`, não na base do CVA. Vale para qualquer diferença entre modificadores que a
+   base tentaria unificar.
+
+8. **Polimorfismo sem inchar o componente**: quando o elemento precisa ser outro (o `<Link>` do
+   `StatusCard`), usa-se a função de variantes direto no `className`
+   (`badgeVariants({ tone: "link" })`), mesmo padrão já adotado com `buttonVariants` — em vez
+   de adicionar prop `as`/`render` ao componente.
+
+9. **Escopo respeitado**: nada da frente de layout é tocado. `.ft-metric-card`,
+   `.ft-analytics-card`, `.ft-card-header/title/subtitle/footer` e `.ft-grid--*` permanecem
+   intactos; `ui/card` (shadcn) permanece no onboarding, simulações e planos preventivos
+   (exclusão deliberada de 27/07). Espaçamento externo embutido no CSS original — o
+   `margin-top: 10px` do `.ft-badge` — é reproduzido, não corrigido: removê-lo é decisão de
+   layout.
+
+10. **Verificação visual antes do commit**: toda tela afetada é conferida pelo usuário antes do
+    commit, não só a que motivou a mudança. Nesta slice foram quatro: tela inicial, dashboard,
+    radar de fragilidade e planos preventivos. O rebuild do container `web`
+    (`docker compose build web && up -d web`) é obrigatório antes de qualquer conferência — o
+    serviço não tem volume montado e serve build congelado.
