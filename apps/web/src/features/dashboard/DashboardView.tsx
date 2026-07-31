@@ -9,17 +9,27 @@
  */
 
 
-import { ArrowRight, Calendar, CalendarClock, ShieldCheck, Sparkles, TrendingDown, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  CalendarClock,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  TrendingDown,
+  Wallet,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/ui/tooltip";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { useSidebarContext } from "@/components/shell/SidebarContext";
 import { Button as FtButton, buttonVariants } from "@/design-system/components/Button";
-import { Card as FtCard, cardVariants } from "@/design-system/components/Card";
+import { Card as FtCard } from "@/design-system/components/Card";
 import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -36,10 +46,6 @@ const MONTH_ABBREVIATIONS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "A
 
 function formatMoney(amount: string, currency: string) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(amount));
-}
-
-function formatMoneyPlain(amount: string, currency: string) {
-  return `${Number(amount).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
 function formatPercent(fraction: string) {
@@ -67,6 +73,14 @@ export function DashboardView({ profileId }: { profileId: string }) {
     retry: false,
   });
 
+  const profileQuery = useQuery({
+    queryKey: ["profile", profileId],
+    queryFn: () => dashboardApi.getProfile(profileId),
+    retry: false,
+  });
+
+  const firstName = profileQuery.data?.name?.trim().split(" ")[0];
+
   const projectionQuery = useQuery({
     queryKey: ["projection", profileId, "probable", 12],
     queryFn: () => dashboardApi.getProjection(profileId, { scenario: "probable", months: 12 }),
@@ -89,7 +103,10 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
   return (
     <div className="ft-section flex flex-col gap-6 pb-8">
-      <PageHeader title="Olá! 👋" description="Aqui está o panorama da sua vida financeira." />
+      <PageHeader
+        title={firstName ? `Olá, ${firstName}! 👋` : "Olá! 👋"}
+        description="Aqui está o panorama da sua vida financeira."
+      />
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando resumo financeiro...</p>}
 
@@ -121,7 +138,13 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <Wallet size={22} />
               </div>
               <div className="ft-metric-content">
-                <p className="ft-metric-label">Saldo líquido disponível</p>
+                <p className="ft-metric-label ft-label-info">
+                  Saldo líquido disponível
+                  <InfoTooltip
+                    label="Quanto você tem disponível somando as contas elegíveis, já descontado o que está comprometido."
+                    iconSize={12}
+                  />
+                </p>
                 <p className="ft-metric-value">{formatMoney(data.net_balance.amount, data.net_balance.currency)}</p>
               </div>
             </FtCard>
@@ -131,7 +154,13 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <CalendarClock size={22} />
               </div>
               <div className="ft-metric-content">
-                <p className="ft-metric-label">Obrigações mensais</p>
+                <p className="ft-metric-label ft-label-info">
+                  Obrigações mensais
+                  <InfoTooltip
+                    label="Soma de tudo que você paga todo mês: contas fixas, dívidas e despesas recorrentes."
+                    iconSize={12}
+                  />
+                </p>
                 <p className="ft-metric-value">
                   {formatMoney(data.monthly_obligations_total.amount, data.monthly_obligations_total.currency)}
                 </p>
@@ -143,7 +172,13 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <TrendingDown size={22} />
               </div>
               <div className="ft-metric-content">
-                <p className="ft-metric-label">Comprometimento da renda</p>
+                <p className="ft-metric-label ft-label-info">
+                  Comprometimento da renda
+                  <InfoTooltip
+                    label="Quanto da sua renda mensal já está comprometido com obrigações. Quanto menor, mais folga você tem."
+                    iconSize={12}
+                  />
+                </p>
                 <p className="ft-metric-value">
                   {data.income_commitment_pct !== null ? formatPercent(data.income_commitment_pct) : "—"}
                 </p>
@@ -158,7 +193,13 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <ShieldCheck size={22} />
               </div>
               <div className="ft-metric-content">
-                <p className="ft-metric-label">Progresso da meta principal</p>
+                <p className="ft-metric-label ft-label-info">
+                  Progresso da meta principal
+                  <InfoTooltip
+                    label="Quanto você já juntou da sua meta prioritária em relação ao valor-alvo."
+                    iconSize={12}
+                  />
+                </p>
                 <p className="ft-metric-value">{data.main_goal ? formatPercent(data.main_goal.progress_pct) : "—"}</p>
                 <p className="ft-metric-helper">{data.main_goal?.description ?? "Nenhuma meta cadastrada"}</p>
               </div>
@@ -171,9 +212,75 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <ShieldCheck size={18} />
               </div>
               <div>
-                <p className="ft-status-title">Autonomia básica</p>
+                <p className="ft-status-title ft-label-info">
+                  Autonomia básica
+                  <InfoTooltip
+                    label="Por quantos meses suas reservas cobririam só as despesas essenciais, se a renda parasse."
+                    iconSize={12}
+                  />
+                </p>
                 <p className="ft-status-description">
                   {autonomyQuery.isLoading ? "Calculando..." : formatMonths(autonomyQuery.data?.basic_autonomy_months ?? null)}
+                </p>
+              </div>
+            </FtCard>
+
+            <FtCard interactive className="ft-status-card">
+              <div className="ft-status-icon ft-metric-icon--info">
+                <ShieldCheck size={18} />
+              </div>
+              <div>
+                <p className="ft-status-title ft-label-info">
+                  Autonomia provável
+                  <InfoTooltip
+                    label="Meses de autonomia no cenário provável, incluindo dívidas, metas e eventos futuros."
+                    iconSize={12}
+                  />
+                </p>
+                <p className="ft-status-description">
+                  {autonomyQuery.isLoading
+                    ? "Calculando..."
+                    : formatMonths(autonomyQuery.data?.probable_autonomy_months ?? null)}
+                </p>
+              </div>
+            </FtCard>
+
+            <FtCard interactive className="ft-status-card">
+              <div className="ft-status-icon ft-metric-icon--purple">
+                <ShieldAlert size={18} />
+              </div>
+              <div>
+                <p className="ft-status-title ft-label-info">
+                  Autonomia adversa
+                  <InfoTooltip
+                    label="Meses de autonomia num cenário de aperto: menos renda e mais custos que o normal."
+                    iconSize={12}
+                  />
+                </p>
+                <p className="ft-status-description">
+                  {autonomyQuery.isLoading
+                    ? "Calculando..."
+                    : formatMonths(autonomyQuery.data?.adverse_autonomy_months ?? null)}
+                </p>
+              </div>
+            </FtCard>
+
+            <FtCard interactive className="ft-status-card">
+              <div className="ft-status-icon ft-metric-icon--warning">
+                <ShieldAlert size={18} />
+              </div>
+              <div>
+                <p className="ft-status-title ft-label-info">
+                  Perda de renda
+                  <InfoTooltip
+                    label="Por quanto tempo você se manteria se perdesse toda a sua renda."
+                    iconSize={12}
+                  />
+                </p>
+                <p className="ft-status-description">
+                  {autonomyQuery.isLoading
+                    ? "Calculando..."
+                    : formatMonths(autonomyQuery.data?.income_loss_autonomy_months ?? null)}
                 </p>
               </div>
             </FtCard>
@@ -183,7 +290,13 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 <CalendarClock size={18} />
               </div>
               <div>
-                <p className="ft-status-title">Próximo déficit previsto</p>
+                <p className="ft-status-title ft-label-info">
+                  Próximo déficit previsto
+                  <InfoTooltip
+                    label="Primeiro mês em que o saldo projetado ficaria negativo, se nada mudar (cenário provável, 12 meses)."
+                    iconSize={12}
+                  />
+                </p>
                 <p className="ft-status-description">
                   {projectionQuery.isLoading
                     ? "Calculando..."
@@ -193,22 +306,74 @@ export function DashboardView({ profileId }: { profileId: string }) {
               </div>
             </FtCard>
 
-            <Link
-              href={`/dashboard/${profileId}/fragilities`}
-              className={cn(cardVariants({ interactive: true }), "ft-status-card")}
-            >
+            <FtCard interactive className="ft-status-card">
               <div className="ft-status-icon ft-metric-icon--warning">
                 <TrendingDown size={18} />
               </div>
               <div>
-                <p className="ft-status-title">Fragilidades detectadas</p>
+                <p className="ft-status-title ft-label-info">
+                  Fragilidades detectadas
+                  <InfoTooltip
+                    label="Riscos financeiros no seu perfil detectados por regras verificáveis — como renda concentrada em uma única fonte, reserva de emergência baixa ou endividamento alto."
+                    iconSize={12}
+                  />
+                </p>
                 <p className="ft-status-description">
                   {fragilitiesQuery.isLoading ? "Calculando..." : `${fragilitiesQuery.data?.length ?? 0} encontradas`}
                 </p>
-                <span className="ft-badge">Ver radar de fragilidade</span>
+                <Link href={`/dashboard/${profileId}/fragilities`} className="ft-badge ft-badge--link">
+                  Ver radar de fragilidade
+                  <ArrowRight size={12} />
+                </Link>
               </div>
-            </Link>
+            </FtCard>
+
+            <FtCard interactive className="ft-indicators-events">
+              <div className="ft-card-header">
+                <div className="flex items-center gap-3">
+                  <div className="ft-status-icon ft-metric-icon--purple">
+                    <Calendar size={18} />
+                  </div>
+                  <h3 className="ft-card-title ft-label-info">
+                    Próximos eventos financeiros
+                    <InfoTooltip
+                      label="Recebimentos e pagamentos futuros já previstos, como impostos, férias e 13º salário."
+                      iconSize={13}
+                    />
+                  </h3>
+                </div>
+              </div>
+              <div className="ft-event-list">
+                {data.upcoming_events.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum evento futuro cadastrado.</p>
+                )}
+                {data.upcoming_events.map((event) => (
+                  <div key={event.id} className="ft-event-item">
+                    <div className="ft-event-date">
+                      {event.date.slice(8, 10)}
+                      <small>{formatEventMonth(event.date)}</small>
+                    </div>
+                    <div className="ft-event-content">
+                      <p className="ft-event-title">{event.description}</p>
+                      <p className="ft-event-description">{describeEventDirection(event.direction)}</p>
+                    </div>
+                    <span className="ft-event-amount">
+                      {formatMoney(event.amount.amount, event.amount.currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <Link
+                href={`/dashboard/${profileId}/resources/events`}
+                className={cn(buttonVariants({ variant: "ghost-purple", fullWidth: true }), "mt-3 justify-between")}
+              >
+                Ver todos os eventos
+                <ArrowRight size={16} />
+              </Link>
+            </FtCard>
           </section>
+
+          <AutonomyPanel profileId={profileId} />
 
           <section className="ft-grid ft-grid--analytics">
             <ExpenseBreakdownChart profileId={profileId} />
@@ -216,49 +381,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
             <IncomeCommitmentCard profileId={profileId} incomeCommitmentPct={data.income_commitment_pct} />
           </section>
 
-          <section className="ft-grid ft-grid--analytics">
-            <ProjectionChart profileId={profileId} />
-
-            <div className="ft-col-span-2">
-              <AutonomyPanel profileId={profileId} />
-            </div>
-          </section>
-
-          <FtCard interactive>
-            <div className="ft-card-header">
-              <div className="flex items-center gap-3">
-                <div className="ft-status-icon ft-metric-icon--purple">
-                  <Calendar size={18} />
-                </div>
-                <h3 className="ft-card-title">Próximos eventos financeiros</h3>
-              </div>
-            </div>
-            <div className="ft-event-list">
-              {data.upcoming_events.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum evento futuro cadastrado.</p>
-              )}
-              {data.upcoming_events.map((event) => (
-                <div key={event.id} className="ft-event-item">
-                  <div className="ft-event-date">
-                    {event.date.slice(8, 10)}
-                    <small>{formatEventMonth(event.date)}</small>
-                  </div>
-                  <div>
-                    <p className="ft-event-title">{event.description}</p>
-                    <p className="ft-event-description">{describeEventDirection(event.direction)}</p>
-                  </div>
-                  <span className="ft-event-amount">{formatMoneyPlain(event.amount.amount, event.amount.currency)}</span>
-                </div>
-              ))}
-            </div>
-            <Link
-              href={`/dashboard/${profileId}/resources/events`}
-              className={cn(buttonVariants({ variant: "ghost-purple", fullWidth: true }), "mt-3 justify-between")}
-            >
-              Ver todos os eventos
-              <ArrowRight size={16} />
-            </Link>
-          </FtCard>
+          <ProjectionChart profileId={profileId} />
 
           <div className="ft-ai-insight">
             <div className="ft-ai-avatar">

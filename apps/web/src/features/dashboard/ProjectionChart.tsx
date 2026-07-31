@@ -23,9 +23,11 @@ import {
   YAxis,
 } from "recharts";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InfoTooltip } from "@/components/ui/tooltip";
+import { Card as FtCard } from "@/design-system/components/Card";
 
+import { ChartTooltip } from "./ChartTooltip";
 import { dashboardApi } from "./api";
 import type { PeriodProjectionDto } from "./types";
 
@@ -39,6 +41,10 @@ const HORIZON_OPTIONS = [
   { value: "6", label: "6 meses" },
   { value: "12", label: "12 meses" },
 ] as const;
+
+function formatMoney(value: number | string, currency: string) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(value));
+}
 
 function toChartPoint(period: PeriodProjectionDto) {
   return {
@@ -60,13 +66,21 @@ export function ProjectionChart({ profileId }: { profileId: string }) {
   });
 
   const chartData = data?.periods.map(toChartPoint) ?? [];
+  const currency = data?.periods[0]?.income_total.currency ?? "BRL";
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <CardTitle>Projeção de fluxo de caixa</CardTitle>
+    <FtCard interactive>
+      <div className="ft-card-header">
+        <h3 className="ft-card-title ft-label-info">
+          Projeção de fluxo de caixa
+          <InfoTooltip label="Estimativa de entradas, saídas e saldo acumulado nos próximos meses, conforme o cenário e o horizonte escolhidos." iconSize={13} />
+        </h3>
         <div className="flex gap-2">
-          <Select value={scenario} onValueChange={(value) => setScenario(value as "probable" | "adverse")}>
+          <Select
+            items={SCENARIO_OPTIONS}
+            value={scenario}
+            onValueChange={(value) => setScenario(value as "probable" | "adverse")}
+          >
             <SelectTrigger className="w-44" aria-label="Cenário da projeção">
               <SelectValue />
             </SelectTrigger>
@@ -78,7 +92,11 @@ export function ProjectionChart({ profileId }: { profileId: string }) {
               ))}
             </SelectContent>
           </Select>
-          <Select value={String(months)} onValueChange={(value) => setMonths(Number(value) as 3 | 6 | 12)}>
+          <Select
+            items={HORIZON_OPTIONS}
+            value={String(months)}
+            onValueChange={(value) => setMonths(Number(value) as 3 | 6 | 12)}
+          >
             <SelectTrigger className="w-32" aria-label="Horizonte da projeção">
               <SelectValue />
             </SelectTrigger>
@@ -91,47 +109,55 @@ export function ProjectionChart({ profileId }: { profileId: string }) {
             </SelectContent>
           </Select>
         </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading && <p className="text-sm text-muted-foreground">Carregando projeção...</p>}
-        {isError && <p className="text-sm text-red-500">Não foi possível carregar a projeção.</p>}
+      </div>
 
-        {data && (
-          <>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [value.toFixed(2), name]}
-                    labelFormatter={(label) => `Período: ${label}`}
-                  />
-                  <ReferenceLine y={0} stroke="currentColor" strokeDasharray="4 4" />
-                  <Bar dataKey="income" name="Entradas" fill="#16a34a" />
-                  <Bar dataKey="expense" name="Saídas" fill="#dc2626" />
-                  <Line type="monotone" dataKey="balance" name="Saldo acumulado" stroke="#2563eb" strokeWidth={2} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+      {isLoading && <p className="text-sm text-muted-foreground">Carregando projeção...</p>}
+      {isError && <p className="text-sm text-red-500">Não foi possível carregar a projeção.</p>}
 
-            {data.first_deficit_period ? (
-              <p className="mt-2 text-sm text-red-500">
-                Primeiro mês com déficit projetado: {data.first_deficit_period}
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">Sem déficit projetado neste horizonte.</p>
-            )}
+      {data && (
+        <>
+          <div className="ft-chart-container" style={{ minHeight: 288 }}>
+            <ResponsiveContainer width="100%" height={288}>
+              <ComposedChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--ft-border)" />
+                <XAxis dataKey="period" tick={{ fontSize: 11, fill: "var(--ft-text-secondary)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--ft-text-secondary)" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  content={<ChartTooltip formatter={(value) => formatMoney(value, currency)} />}
+                  cursor={{ fill: "var(--ft-bg-surface-hover)" }}
+                />
+                <ReferenceLine y={0} stroke="var(--ft-border-hover)" strokeDasharray="4 4" />
+                <Bar dataKey="income" name="Entradas" fill="var(--ft-success)" />
+                <Bar dataKey="expense" name="Saídas" fill="var(--ft-danger)" />
+                <Line type="monotone" dataKey="balance" name="Saldo acumulado" stroke="var(--ft-info)" strokeWidth={2} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
 
-            <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+          {data.first_deficit_period ? (
+            <p className="mt-2 text-sm text-red-500">
+              Primeiro mês com déficit projetado: {data.first_deficit_period}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">Sem déficit projetado neste horizonte.</p>
+          )}
+
+          <div className="mt-3 text-xs text-muted-foreground">
+            <p className="mb-1 flex items-center gap-1.5 font-medium text-foreground">
+              Premissas desta simulação
+              <InfoTooltip
+                label="A projeção não é uma previsão exata: ela aplica ajustes ao seu fluxo atual. O cenário provável mantém tudo como está; o adverso simula um aperto (menos renda, mais custos)."
+                iconSize={13}
+              />
+            </p>
+            <ul className="ft-assumptions-list">
               {data.assumptions.map((assumption) => (
                 <li key={assumption}>{assumption}</li>
               ))}
             </ul>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </div>
+        </>
+      )}
+    </FtCard>
   );
 }

@@ -7,6 +7,7 @@
  */
 
 import { apiClient } from "@/lib/api-client";
+import type { ProfileDto } from "@/features/onboarding/types";
 
 import type {
   AutonomyResponseDto,
@@ -18,6 +19,7 @@ import type {
 } from "./types";
 
 export const dashboardApi = {
+  getProfile: (profileId: string) => apiClient.get<ProfileDto>(`/api/v1/profiles/${profileId}`),
   getSummary: (profileId: string) => apiClient.get<DashboardSummaryDto>(`/api/v1/profiles/${profileId}/dashboard`),
   getProjection: (profileId: string, request: ProjectionRequestDto) =>
     apiClient.post<ProjectionResponseDto>(`/api/v1/profiles/${profileId}/projections`, request),

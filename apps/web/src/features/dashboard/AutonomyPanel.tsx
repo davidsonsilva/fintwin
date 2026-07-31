@@ -9,18 +9,16 @@
  */
 
 
+import { ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card as FtCard } from "@/design-system/components/Card";
+import { InfoTooltip } from "@/components/ui/tooltip";
 
 import { dashboardApi } from "./api";
 
-function formatMonths(months: string | null) {
-  return months !== null ? `${Number(months).toFixed(1)} meses` : "Não aplicável";
-}
-
 function formatMoney(amount: string, currency: string) {
-  return `${amount} ${currency}`;
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(amount));
 }
 
 export function AutonomyPanel({ profileId }: { profileId: string }) {
@@ -30,86 +28,95 @@ export function AutonomyPanel({ profileId }: { profileId: string }) {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Autonomia financeira</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading && <p className="text-sm text-muted-foreground">Calculando autonomia...</p>}
-        {isError && <p className="text-sm text-red-500">Não foi possível calcular a autonomia financeira.</p>}
+    <FtCard interactive>
+      <div className="ft-card-header">
+        <div className="flex items-center gap-3">
+          <div className="ft-status-icon ft-metric-icon--primary">
+            <ShieldCheck size={18} />
+          </div>
+          <h3 className="ft-card-title ft-label-info">
+            Detalhamento da autonomia financeira
+            <InfoTooltip label="Mostra os ativos e despesas usados no cálculo de autonomia e as premissas de cada cenário." iconSize={13} />
+          </h3>
+        </div>
+      </div>
 
-        {data && (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {isLoading && <p className="text-sm text-muted-foreground">Calculando autonomia...</p>}
+      {isError && <p className="text-sm text-red-500">Não foi possível calcular a autonomia financeira.</p>}
+
+      {data && (
+        <div className="flex flex-col gap-4">
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p>
+              Ativos líquidos elegíveis: {formatMoney(data.eligible_assets.amount, data.eligible_assets.currency)}
+            </p>
+            <p>
+              Despesas essenciais mensais:{" "}
+              {formatMoney(data.essential_expenses_monthly.amount, data.essential_expenses_monthly.currency)}
+            </p>
+          </div>
+
+          <details className="text-sm">
+            <summary className="cursor-pointer text-muted-foreground">
+              Ver ativos e despesas consideradas (evidências)
+            </summary>
+            <div className="mt-3 space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground">Autonomia básica</p>
-                <p className="text-xl font-semibold">{formatMonths(data.basic_autonomy_months)}</p>
+                <p className="font-medium">Contas elegíveis</p>
+                {data.eligible_accounts.length === 0 && (
+                  <p className="mt-1 text-muted-foreground">Nenhuma conta marcada como elegível para autonomia.</p>
+                )}
+                {data.eligible_accounts.length > 0 && (
+                  <ul className="ft-evidence-list">
+                    {data.eligible_accounts.map((account) => (
+                      <li key={account.id} className="ft-evidence-item">
+                        <span className="ft-evidence-dot" />
+                        <span>{account.description}</span>
+                        <span>{formatMoney(account.balance.amount, account.balance.currency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Cenário provável</p>
-                <p className="text-xl font-semibold">{formatMonths(data.probable_autonomy_months)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Cenário adverso</p>
-                <p className="text-xl font-semibold">{formatMonths(data.adverse_autonomy_months)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Perda de renda</p>
-                <p className="text-xl font-semibold">{formatMonths(data.income_loss_autonomy_months)}</p>
+                <p className="font-medium">Obrigações essenciais</p>
+                {data.essential_obligations.length === 0 && (
+                  <p className="mt-1 text-muted-foreground">Nenhuma obrigação essencial cadastrada.</p>
+                )}
+                {data.essential_obligations.length > 0 && (
+                  <ul className="ft-evidence-list">
+                    {data.essential_obligations.map((obligation) => (
+                      <li key={obligation.id} className="ft-evidence-item">
+                        <span className="ft-evidence-dot" />
+                        <span>{obligation.description}</span>
+                        <span>{formatMoney(obligation.amount.amount, obligation.amount.currency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
+          </details>
 
-            <div className="space-y-1 text-sm">
-              <p>
-                Ativos líquidos elegíveis: {formatMoney(data.eligible_assets.amount, data.eligible_assets.currency)}
-              </p>
-              <p>
-                Despesas essenciais mensais:{" "}
-                {formatMoney(data.essential_expenses_monthly.amount, data.essential_expenses_monthly.currency)}
-              </p>
-            </div>
-
-            <details className="text-sm">
-              <summary className="cursor-pointer text-muted-foreground">
-                Ver ativos e despesas consideradas (evidências)
-              </summary>
-              <div className="mt-2 space-y-2">
-                <div>
-                  <p className="font-medium">Contas elegíveis</p>
-                  {data.eligible_accounts.length === 0 && (
-                    <p className="text-muted-foreground">Nenhuma conta marcada como elegível para autonomia.</p>
-                  )}
-                  {data.eligible_accounts.map((account) => (
-                    <p key={account.id}>
-                      {account.description}: {formatMoney(account.balance.amount, account.balance.currency)}
-                    </p>
-                  ))}
-                </div>
-                <div>
-                  <p className="font-medium">Obrigações essenciais</p>
-                  {data.essential_obligations.length === 0 && (
-                    <p className="text-muted-foreground">Nenhuma obrigação essencial cadastrada.</p>
-                  )}
-                  {data.essential_obligations.map((obligation) => (
-                    <p key={obligation.id}>
-                      {obligation.description}: {formatMoney(obligation.amount.amount, obligation.amount.currency)}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </details>
-
-            <ul className="space-y-1 text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
+            <p className="mb-1 flex items-center gap-1.5 font-medium text-foreground">
+              Como calculamos os números de autonomia acima:
+              <InfoTooltip
+                label="Autonomia é por quanto tempo suas reservas cobririam os gastos se a renda parasse. A básica considera só o essencial; a ajustada usa a projeção completa (dívidas, metas e eventos) em cada cenário."
+                iconSize={13}
+              />
+            </p>
+            <ul className="ft-assumptions-list">
               {data.assumptions.map((assumption) => (
                 <li key={assumption}>{assumption}</li>
               ))}
             </ul>
-            <p className="text-xs italic text-muted-foreground">
-              Os valores representam simulações baseadas nas premissas disponíveis.
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </div>
+          <p className="text-xs italic text-muted-foreground">
+            Os valores representam simulações baseadas nas premissas disponíveis.
+          </p>
+        </div>
+      )}
+    </FtCard>
   );
 }

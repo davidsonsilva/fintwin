@@ -12,16 +12,19 @@ import { Bell, ChevronDown, Menu, RefreshCw, Settings, UserCircle } from "lucide
 
 import { Button } from "@/design-system/components/Button";
 import { IconButton } from "@/design-system/components/IconButton";
+import { InfoTooltip } from "@/components/ui/tooltip";
 
 import { useSidebarContext } from "./SidebarContext";
 
 export function PageHeader({
   title,
   description,
+  info,
   children,
 }: {
   title: string;
   description?: string;
+  info?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   const { toggleMobileSidebar } = useSidebarContext();
@@ -33,7 +36,10 @@ export function PageHeader({
           <Menu size={20} />
         </IconButton>
         <div>
-          <h2 className="ft-page-title">{title}</h2>
+          <h2 className="ft-page-title ft-label-info">
+            {title}
+            {info && <InfoTooltip label={info} side="bottom" iconSize={15} />}
+          </h2>
           {description && <p className="ft-page-description">{description}</p>}
         </div>
       </div>
