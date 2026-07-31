@@ -9,16 +9,7 @@
  */
 
 
-import {
-  ArrowRight,
-  Calendar,
-  CalendarClock,
-  ShieldAlert,
-  ShieldCheck,
-  Sparkles,
-  TrendingDown,
-  Wallet,
-} from "lucide-react";
+import { CalendarClock, ShieldAlert, ShieldCheck, Sparkles, TrendingDown, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -28,12 +19,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/tooltip";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { useSidebarContext } from "@/components/shell/SidebarContext";
-import { Button as FtButton, buttonVariants } from "@/design-system/components/Button";
+import { Button as FtButton } from "@/design-system/components/Button";
 import { Card as FtCard } from "@/design-system/components/Card";
 import { IconChip } from "@/design-system/components/IconChip";
 import { StatusCard } from "@/design-system/components/StatusCard";
 import { ApiError } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 
 import { fragilityApi } from "@/features/fragility/api";
 
@@ -43,8 +33,7 @@ import { BalanceHistoryChart } from "./BalanceHistoryChart";
 import { ExpenseBreakdownChart } from "./ExpenseBreakdownChart";
 import { IncomeCommitmentCard } from "./IncomeCommitmentCard";
 import { ProjectionChart } from "./ProjectionChart";
-
-const MONTH_ABBREVIATIONS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+import { UpcomingEventsCard } from "./UpcomingEventsCard";
 
 function formatMoney(amount: string, currency: string) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(amount));
@@ -56,14 +45,6 @@ function formatPercent(fraction: string) {
 
 function formatMonths(months: string | null) {
   return months !== null ? `${Number(months).toFixed(1)} meses` : "Não aplicável";
-}
-
-function formatEventMonth(date: string) {
-  return MONTH_ABBREVIATIONS[Number(date.slice(5, 7)) - 1];
-}
-
-function describeEventDirection(direction: string) {
-  return direction === "income" ? "Recebimento previsto" : "Pagamento previsto";
 }
 
 export function DashboardView({ profileId }: { profileId: string }) {
@@ -262,47 +243,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               }}
             />
 
-            <FtCard interactive className="ft-indicators-events">
-              <div className="ft-card-header">
-                <div className="flex items-center gap-3">
-                  <IconChip icon={Calendar} tone="purple" size="sm" />
-                  <h3 className="ft-card-title ft-label-info">
-                    Próximos eventos financeiros
-                    <InfoTooltip
-                      label="Recebimentos e pagamentos futuros já previstos, como impostos, férias e 13º salário."
-                      iconSize={13}
-                    />
-                  </h3>
-                </div>
-              </div>
-              <div className="ft-event-list">
-                {data.upcoming_events.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhum evento futuro cadastrado.</p>
-                )}
-                {data.upcoming_events.map((event) => (
-                  <div key={event.id} className="ft-event-item">
-                    <div className="ft-event-date">
-                      {event.date.slice(8, 10)}
-                      <small>{formatEventMonth(event.date)}</small>
-                    </div>
-                    <div className="ft-event-content">
-                      <p className="ft-event-title">{event.description}</p>
-                      <p className="ft-event-description">{describeEventDirection(event.direction)}</p>
-                    </div>
-                    <span className="ft-event-amount">
-                      {formatMoney(event.amount.amount, event.amount.currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <Link
-                href={`/dashboard/${profileId}/resources/events`}
-                className={cn(buttonVariants({ variant: "ghost-purple", fullWidth: true }), "mt-3 justify-between")}
-              >
-                Ver todos os eventos
-                <ArrowRight size={16} />
-              </Link>
-            </FtCard>
+            <UpcomingEventsCard profileId={profileId} events={data.upcoming_events} />
           </section>
 
           <AutonomyPanel profileId={profileId} />
