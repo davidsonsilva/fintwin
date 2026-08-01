@@ -52,7 +52,11 @@ export function CardHeader({ icon, title, help, actions, className }: CardHeader
           </span>
         ) : null}
       </div>
-      {actions ? <div className="flex flex-none items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div data-slot="card-header-actions" className="flex flex-none items-center gap-2">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }
