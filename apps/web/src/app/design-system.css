@@ -569,30 +569,17 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-/* Sem `grid-auto-rows`: linha dimensionada pelo próprio conteúdo. Com `1fr` todas as
-   linhas ficavam iguais à mais alta, então o card de eventos (alto, e cuja altura depende
-   de quantos eventos o usuário tem) esticava os seis cards de status junto. Quem define a
-   própria altura agora é cada card — ver StatusCard. */
-.ft-grid--indicators {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 1.1fr;
-}
-
-.ft-indicators-events {
-  display: flex;
-  flex-direction: column;
-  grid-column: 4;
-  grid-row: 1 / span 2;
-}
-
-/* Card compacto de indicador — sem a linha divisória dos cards de análise. */
+/* `.ft-grid--indicators` (grid único de 4 colunas com o card de eventos em
+   `grid-row: 1 / span 2`) foi removida: o `stretch` padrão do CSS Grid esticava os
+   seis cards compactos até a altura do card de eventos, sempre mais alto. A
+   composição da fileira de indicadores agora é Tailwind direto em
+   `DashboardView.tsx` — duas regiões independentes (`items-start`, nunca stretch),
+   não mais uma classe global. `.ft-indicators-events` continua existindo só para o
+   ajuste de cabeçalho abaixo; `UpcomingEventsCard` é quem decide seu próprio
+   posicionamento/layout externo agora. */
 .ft-indicators-events .ft-card-header {
   padding-bottom: 0;
   border-bottom: none;
-}
-
-.ft-indicators-events .ft-event-list {
-  flex: 1 1 auto;
-  overflow-y: auto;
 }
 
 .ft-grid--analytics {
@@ -1566,24 +1553,12 @@ body {
     grid-column: 1 / -1;
   }
 
-  /* O grid de indicadores cai para 2 colunas junto com metrics e analytics, e
-     não só a 1024px como antes.
-
-     Motivo, medido a 1057px de viewport: com 4 colunas (`repeat(3,1fr) 1.1fr`)
-     sobravam 731px de grid, o que dava 168px a cada card de status e 185px ao
-     card de eventos. Nessa largura o card de eventos não tem como funcionar —
-     o título quebrava no meio da palavra e o botão em duas linhas. A 2 colunas
-     ele passa a ocupar as duas (`1 / -1`) e volta a ter largura útil.
-
-     A faixa 1025–1280px era a única em que o card ficava abaixo de ~245px. */
-  .ft-grid--indicators {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ft-indicators-events {
-    grid-column: 1 / -1;
-    grid-row: auto;
-  }
+  /* O breakpoint da fileira de indicadores (abaixo de 1280px o card de eventos
+     cai para linha própria e os 6 compactos vão de 3 para 2 colunas) agora é
+     Tailwind (`max-[1280px]:`) direto em `DashboardView.tsx`, não mais regra
+     global aqui — o motivo histórico da escolha de 1280px (card de eventos
+     ficava abaixo de ~245px, título quebrando no meio da palavra) segue válido
+     e está documentado lá. */
 }
 
 @media (max-width: 1024px) {
@@ -1641,7 +1616,6 @@ body {
   }
 
   .ft-grid--metrics,
-  .ft-grid--indicators,
   .ft-grid--analytics,
   .ft-form-grid,
   .ft-review-grid {

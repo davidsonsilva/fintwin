@@ -32,7 +32,7 @@ export function NextDeficitCard({
   deficitPeriod: string | null | undefined;
 }) {
   return (
-    <Card.Root as="article" interactive className="h-auto min-h-[104px]">
+    <Card.Root as="article" interactive className="h-auto self-start">
       <Card.Header
         icon={<IconChip icon={CalendarClock} tone="info" size="sm" />}
         title={

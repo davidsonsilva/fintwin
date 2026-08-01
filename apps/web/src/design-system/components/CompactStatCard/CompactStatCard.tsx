@@ -33,14 +33,18 @@ export type CompactStatCardProps = {
  * `Card.Content`, com a separação real entre os dois blocos que o padrão exige —
  * não é só diferença de fonte, é espaçamento estrutural (`mt-3`).
  *
- * Ícone `size="sm"` (38px, não os 48px do `MetricCard`): estes cards continuam ao
- * lado de dois `StatusCard` não migrados na mesma fileira (`Próximo déficit
- * previsto`, `Fragilidades detectadas`) e herdam o ícone menor deles, para não
- * quebrar o alinhamento da fileira.
+ * Ícone `size="sm"` (38px, não os 48px do `MetricCard`): estes cards dividem a
+ * fileira de indicadores com `NextDeficitCard`/`FragilitiesSummaryCard`, que usam
+ * o mesmo ícone menor.
+ *
+ * `h-auto self-start`, sem `min-h`: a grade externa (`DashboardView.tsx`) usa
+ * `items-start`, não `stretch` — cada card já fica só com a própria altura, então
+ * uma altura mínima artificial para "empatar" com os vizinhos não faz falta (e o
+ * pedido explícito foi remover justamente isso).
  */
 export function CompactStatCard({ icon, tone, label, hint, value, loading }: CompactStatCardProps) {
   return (
-    <Card.Root as="article" interactive className="h-auto min-h-[104px]">
+    <Card.Root as="article" interactive className="h-auto self-start">
       <Card.Header
         icon={<IconChip icon={icon} tone={tone} size="sm" />}
         title={

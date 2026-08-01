@@ -41,7 +41,7 @@ export function FragilitiesSummaryCard({
   count: number;
 }) {
   return (
-    <Card.Root as="article" interactive className="h-auto min-h-[104px]">
+    <Card.Root as="article" interactive className="h-auto self-start">
       <Card.Header
         icon={<IconChip icon={TrendingDown} tone="warning" size="sm" />}
         title={

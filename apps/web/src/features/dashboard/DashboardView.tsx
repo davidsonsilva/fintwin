@@ -13,6 +13,7 @@ import { CalendarClock, ShieldAlert, ShieldCheck, Sparkles, TrendingDown, Wallet
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ import { ApiError } from "@/lib/api-client";
 import { fragilityApi } from "@/features/fragility/api";
 
 import { dashboardApi } from "./api";
+import { AdaptiveDashboardSection } from "./AdaptiveDashboardSection";
 import { AutonomyPanel } from "./AutonomyPanel";
 import { BalanceHistoryChart } from "./BalanceHistoryChart";
 import { ExpenseBreakdownChart } from "./ExpenseBreakdownChart";
@@ -47,8 +49,34 @@ function formatMonths(months: string | null) {
   return months !== null ? `${Number(months).toFixed(1)} meses` : "Não aplicável";
 }
 
+function subscribeToNothing() {
+  return () => {};
+}
+
+/* Só em desenvolvimento, e mesmo lá desligado por padrão (precisa de
+ * `?debug=layout` na URL). Em produção o selo não existe em hipótese alguma. */
+function getLayoutDebugSnapshot() {
+  if (process.env.NODE_ENV === "production") return false;
+  return new URLSearchParams(window.location.search).get("debug") === "layout";
+}
+
+function getLayoutDebugServerSnapshot() {
+  return false;
+}
+
 export function DashboardView({ profileId }: { profileId: string }) {
   const { openAgent } = useSidebarContext();
+
+  // `useSyncExternalStore`, não `useEffect`+`setState`: a URL é estado externo ao
+  // React, e este é o jeito de ler estado externo sem o padrão "efeito que só
+  // serve para disparar um novo render" (o linter barra `setState` direto num
+  // efeito). `getServerSnapshot` devolve `false` sem tocar em `window`, então não
+  // há mismatch de hidratação mesmo se a URL real tiver `?debug=layout`.
+  const showLayoutDebug = useSyncExternalStore(
+    subscribeToNothing,
+    getLayoutDebugSnapshot,
+    getLayoutDebugServerSnapshot
+  );
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard-summary", profileId],
@@ -151,56 +179,83 @@ export function DashboardView({ profileId }: { profileId: string }) {
             />
           </section>
 
-          <section className="ft-grid ft-grid--indicators">
-            <CompactStatCard
-              icon={ShieldCheck}
-              tone="primary"
-              label="Autonomia básica"
-              hint="Por quantos meses suas reservas cobririam só as despesas essenciais, se a renda parasse."
-              loading={autonomyQuery.isLoading}
-              value={formatMonths(autonomyQuery.data?.basic_autonomy_months ?? null)}
-            />
-
-            <CompactStatCard
-              icon={ShieldCheck}
-              tone="info"
-              label="Autonomia provável"
-              hint="Meses de autonomia no cenário provável, incluindo dívidas, metas e eventos futuros."
-              loading={autonomyQuery.isLoading}
-              value={formatMonths(autonomyQuery.data?.probable_autonomy_months ?? null)}
-            />
-
-            <CompactStatCard
-              icon={ShieldAlert}
-              tone="purple"
-              label="Autonomia adversa"
-              hint="Meses de autonomia num cenário de aperto: menos renda e mais custos que o normal."
-              loading={autonomyQuery.isLoading}
-              value={formatMonths(autonomyQuery.data?.adverse_autonomy_months ?? null)}
-            />
-
-            <CompactStatCard
-              icon={ShieldAlert}
-              tone="warning"
-              label="Perda de renda"
-              hint="Por quanto tempo você se manteria se perdesse toda a sua renda."
-              loading={autonomyQuery.isLoading}
-              value={formatMonths(autonomyQuery.data?.income_loss_autonomy_months ?? null)}
-            />
-
-            <NextDeficitCard
-              loading={projectionQuery.isLoading}
-              deficitPeriod={projectionQuery.data?.first_deficit_period}
-            />
-
-            <FragilitiesSummaryCard
-              profileId={profileId}
-              loading={fragilitiesQuery.isLoading}
-              count={fragilitiesQuery.data?.length ?? 0}
-            />
-
-            <UpcomingEventsCard profileId={profileId} events={data.upcoming_events} />
-          </section>
+          <AdaptiveDashboardSection
+            compactCards={[
+              {
+                key: "autonomia-basica",
+                node: (
+                  <CompactStatCard
+                    icon={ShieldCheck}
+                    tone="primary"
+                    label="Autonomia básica"
+                    hint="Por quantos meses suas reservas cobririam só as despesas essenciais, se a renda parasse."
+                    loading={autonomyQuery.isLoading}
+                    value={formatMonths(autonomyQuery.data?.basic_autonomy_months ?? null)}
+                  />
+                ),
+              },
+              {
+                key: "autonomia-provavel",
+                node: (
+                  <CompactStatCard
+                    icon={ShieldCheck}
+                    tone="info"
+                    label="Autonomia provável"
+                    hint="Meses de autonomia no cenário provável, incluindo dívidas, metas e eventos futuros."
+                    loading={autonomyQuery.isLoading}
+                    value={formatMonths(autonomyQuery.data?.probable_autonomy_months ?? null)}
+                  />
+                ),
+              },
+              {
+                key: "autonomia-adversa",
+                node: (
+                  <CompactStatCard
+                    icon={ShieldAlert}
+                    tone="purple"
+                    label="Autonomia adversa"
+                    hint="Meses de autonomia num cenário de aperto: menos renda e mais custos que o normal."
+                    loading={autonomyQuery.isLoading}
+                    value={formatMonths(autonomyQuery.data?.adverse_autonomy_months ?? null)}
+                  />
+                ),
+              },
+              {
+                key: "perda-de-renda",
+                node: (
+                  <CompactStatCard
+                    icon={ShieldAlert}
+                    tone="warning"
+                    label="Perda de renda"
+                    hint="Por quanto tempo você se manteria se perdesse toda a sua renda."
+                    loading={autonomyQuery.isLoading}
+                    value={formatMonths(autonomyQuery.data?.income_loss_autonomy_months ?? null)}
+                  />
+                ),
+              },
+              {
+                key: "proximo-deficit",
+                node: (
+                  <NextDeficitCard
+                    loading={projectionQuery.isLoading}
+                    deficitPeriod={projectionQuery.data?.first_deficit_period}
+                  />
+                ),
+              },
+              {
+                key: "fragilidades",
+                node: (
+                  <FragilitiesSummaryCard
+                    profileId={profileId}
+                    loading={fragilitiesQuery.isLoading}
+                    count={fragilitiesQuery.data?.length ?? 0}
+                  />
+                ),
+              },
+            ]}
+            eventsCard={<UpcomingEventsCard profileId={profileId} events={data.upcoming_events} />}
+            debug={showLayoutDebug}
+          />
 
           <AutonomyPanel profileId={profileId} />
 
