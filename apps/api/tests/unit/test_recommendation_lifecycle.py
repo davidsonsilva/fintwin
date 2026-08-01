@@ -427,3 +427,23 @@ def test_plano_cancelado_libera_o_assunto_de_novo() -> None:
     surface = world.detect()
     assert surface.recommendation is not None
     assert surface.recommendation.id != rec.id
+
+
+def test_aprovar_recomendacao_da_conversa_nao_cria_plano() -> None:
+    """Sem cenário calculado não há compromisso mensal a acompanhar.
+
+    Forçar um plano aqui exigiria inventar números que o motor nunca produziu.
+    """
+    world = World()
+    saved = RegisterConversationRecommendationUseCase(**world.repos).execute(
+        profile_id=PROFILE,
+        currency=CURRENCY,
+        conversation_id="conv-1",
+        message_id="msg-9",
+        payload={"status": "available", "summary": "Usar o 13º para antecipar a meta"},
+    )
+
+    approved = world.decide(saved.id, approve=True)
+    assert approved.status is RecommendationStatus.APPROVED
+    assert approved.plan_id is None
+    assert world.plans.plans == []

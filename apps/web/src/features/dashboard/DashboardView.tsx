@@ -9,8 +9,7 @@
  */
 
 
-import { CalendarClock, Loader2, ShieldAlert, ShieldCheck, Sparkles, TrendingDown, Wallet } from "lucide-react";
-import Image from "next/image";
+import { CalendarClock, ShieldAlert, ShieldCheck, TrendingDown, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
@@ -18,15 +17,12 @@ import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { useSidebarContext } from "@/components/shell/SidebarContext";
-import { Button as FtButton } from "@/design-system/components/Button";
 import { CompactStatCard } from "@/design-system/components/CompactStatCard";
 import { MetricCard } from "@/design-system/components/MetricCard";
 import { ApiError } from "@/lib/api-client";
 
 import { fragilityApi } from "@/features/fragility/api";
-import { OpportunityCard } from "@/features/opportunity/OpportunityCard";
-import { useAnalyzeOpportunity } from "@/features/opportunity/useAnalyzeOpportunity";
+import { InsightCard } from "@/features/recommendations/InsightCard";
 
 import { dashboardApi } from "./api";
 import { AdaptiveDashboardSection } from "./AdaptiveDashboardSection";
@@ -67,8 +63,6 @@ function getLayoutDebugServerSnapshot() {
 }
 
 export function DashboardView({ profileId }: { profileId: string }) {
-  const { openAgent } = useSidebarContext();
-  const analyze = useAnalyzeOpportunity(profileId);
 
   // `useSyncExternalStore`, não `useEffect`+`setState`: a URL é estado externo ao
   // React, e este é o jeito de ler estado externo sem o padrão "efeito que só
@@ -310,38 +304,12 @@ export function DashboardView({ profileId }: { profileId: string }) {
           <ProjectionChart profileId={profileId} />
 
           {/*
-           * Recomendação proativa. Fica em seção própria, de largura inteira:
-           * ela é a única parte do dashboard que propõe uma ação, e entrar
-           * numa fileira ao lado de cards de leitura a nivelaria com eles.
-           * O grid das seções existentes não muda.
+           * Card Insight — superfície viva de detecção. Mostra o próximo
+           * assunto que merece atenção e some quando ele é decidido. Não é
+           * histórico (isso é o registro) nem acompanhamento de execução
+           * (isso são os planos preventivos).
            */}
-          <section className="@container/opportunity">
-            <OpportunityCard profileId={profileId} />
-          </section>
-
-          <div className="ft-ai-insight">
-            <div className="ft-ai-avatar">
-              <Image src="/agent-icon.png" alt="" width={76} height={76} className="rounded-full object-cover" />
-            </div>
-            <div>
-              <p className="ft-ai-title">Insight do seu Gêmeo Financeiro</p>
-              <p className="ft-ai-text">
-                Converse com o Gêmeo Financeiro para receber recomendações personalizadas com base nos dados reais
-                do seu perfil.
-              </p>
-            </div>
-            {/* Este botão dispara a análise e abre a tela da recomendação —
-                é o gatilho descrito no documento do produto. Conversar com o
-                agente continua acessível pela sidebar. */}
-            <FtButton
-              onClick={() => analyze.run()}
-              disabled={analyze.analyzing}
-              className="[@media(max-width:1024px)]:col-[1/-1]"
-            >
-              {analyze.analyzing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-              {analyze.analyzing ? "Analisando seus dados…" : "Ver recomendações"}
-            </FtButton>
-          </div>
+          <InsightCard profileId={profileId} />
         </>
       )}
     </div>

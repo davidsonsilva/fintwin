@@ -61,11 +61,17 @@ def approve(
     plan_id: str,
     now: datetime,
 ) -> Recommendation:
+    """Aprova e vincula ao plano.
+
+    `selected_scenario`/`plan_id` vazios são o caso da recomendação vinda da
+    conversa: não há cenário calculado nem compromisso mensal a acompanhar,
+    só a decisão a registrar.
+    """
     return replace(
         recommendation,
         status=RecommendationStatus.APPROVED,
-        selected_scenario=selected_scenario,
-        plan_id=plan_id,
+        selected_scenario=selected_scenario or None,
+        plan_id=plan_id or None,
         decided_at=now,
     )
 

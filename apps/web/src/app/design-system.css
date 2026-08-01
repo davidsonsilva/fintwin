@@ -1475,3 +1475,25 @@ body.ft-scroll-locked {
     margin: 0 auto;
   }
 }
+
+/* Salvar uma resposta da IA no registro de recomendações. */
+.ft-agent-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ft-agent-saved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  color: var(--ft-text-secondary);
+  font-size: 12px;
+}
+
+.ft-agent-saved a {
+  color: #b49cff;
+}

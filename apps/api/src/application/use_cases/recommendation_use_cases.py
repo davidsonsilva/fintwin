@@ -246,6 +246,15 @@ class DecideRecommendationUseCase(_EngineBackedUseCase):
         if not approve:
             return self._repo.save(lifecycle.reject(recommendation, now))
 
+        # Recomendação da conversa não tem cenário calculado, então não vira
+        # plano: não há compromisso mensal a acompanhar, só a decisão a
+        # registrar. Forçar um plano exigiria inventar números que o motor
+        # nunca produziu.
+        if recommendation.kind is RecommendationKind.CONVERSATION_ADVICE:
+            return self._repo.save(
+                lifecycle.approve(recommendation, selected_scenario or "", "", now)
+            )
+
         scenario_key = selected_scenario or (recommendation.payload.get("recommended") or {}).get(
             "key"
         )

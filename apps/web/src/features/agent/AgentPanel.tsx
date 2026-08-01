@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api-client";
 
 import { AGENT_COMPONENT_QUERY_KEYS, agentApi } from "./api";
+import { SaveFromConversation } from "@/features/recommendations/SaveFromConversation";
+
 import { PendingActionCard } from "./PendingActionCard";
 import type { ChatMessage } from "./types";
 
@@ -130,6 +132,16 @@ export function AgentPanel({ profileId, onClose }: { profileId: string; onClose:
                   <p className="ft-agent-error">{confirmError.message}</p>
                 )}
               </>
+            )}
+            {/* Resposta da IA não vira recomendação sozinha: o registro só
+                recebe por um gesto explícito de quem está conversando. */}
+            {message.role === "assistant" && conversationId && !message.pendingAction && (
+              <SaveFromConversation
+                profileId={profileId}
+                conversationId={conversationId}
+                messageId={message.id}
+                content={message.content}
+              />
             )}
           </div>
         ))}

@@ -28,29 +28,35 @@ import { Button as LinkButton } from "@/components/ui/button";
 import { Button } from "@/design-system/components/Button";
 import { Card } from "@/design-system/components/Card";
 
-import { opportunityApi } from "./api";
+import { recommendationApi } from "./api";
 import { formatDateTime, formatMoney, formatMonthCount, formatMonths, formatPercent, formatPeriod } from "./format";
 import {
   SCENARIO_HINTS,
   SCENARIO_LABELS,
   SCENARIO_ORDER,
+  STATUS_LABELS,
+  STATUS_TONES,
   type OpportunityScenarioDto,
+  type RecommendationDto,
   type ScenarioKey,
 } from "./types";
 
 /*
- * Tela da recomendação. Ela lê um snapshot versionado por `analysisId` e nunca
+ * Tela da recomendação. Ela lê o snapshot guardado no registro e nunca
  * recalcula sozinha: o usuário decide sobre exatamente os números que está
  * vendo. Se os dados financeiros mudarem depois, aparece o aviso de defasagem
- * e o recálculo passa a ser um ato explícito — que gera outra análise, com id
- * próprio, sem apagar esta.
+ * e o recálculo passa a ser um ato explícito — que cria outra recomendação,
+ * ligada a esta, sem apagá-la.
+ *
+ * Depois de decidida, a recomendação sai do card Insight e continua aqui, no
+ * registro: é a memória de decisão do sistema.
  */
 export function RecommendationScreen({
   profileId,
-  analysisId,
+  recommendationId,
 }: {
   profileId: string;
-  analysisId: string;
+  recommendationId: string;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -59,34 +65,46 @@ export function RecommendationScreen({
   const [customPct, setCustomPct] = useState("");
 
   const query = useQuery({
-    queryKey: ["opportunity-analysis", analysisId],
-    queryFn: () => opportunityApi.get(analysisId),
+    queryKey: ["recommendation", recommendationId],
+    queryFn: () => recommendationApi.get(recommendationId),
     retry: false,
   });
 
   const decide = useMutation({
     mutationFn: (decision: "approved" | "rejected") =>
-      opportunityApi.decide(analysisId, decision, decision === "approved" ? selected?.key : undefined),
+      recommendationApi.decide(
+        recommendationId,
+        decision,
+        decision === "approved" ? selected?.key : undefined
+      ),
     onSuccess: (updated) => {
-      queryClient.setQueryData(["opportunity-analysis", analysisId], updated);
-      queryClient.invalidateQueries({ queryKey: ["opportunity-latest", profileId] });
+      queryClient.setQueryData(["recommendation", recommendationId], updated);
+      // O card Insight precisa saber que este assunto saiu de cena e ir
+      // procurar o próximo; o registro ganhou um desfecho novo.
+      queryClient.invalidateQueries({ queryKey: ["insight", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations", profileId] });
     },
   });
 
   const recalc = useMutation({
-    mutationFn: (pct?: string) => opportunityApi.create(profileId, pct),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: ["opportunity-latest", profileId] });
-      router.push(`/dashboard/${profileId}/recomendacoes/${created.analysis_id}`);
+    mutationFn: (pct?: string) => recommendationApi.detect(profileId, pct),
+    onSuccess: (surface) => {
+      queryClient.invalidateQueries({ queryKey: ["insight", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations", profileId] });
+      if (surface.recommendation) {
+        router.push(`/dashboard/${profileId}/recomendacoes/${surface.recommendation.id}`);
+      }
     },
   });
 
-  const analysis = query.data;
-  const result = analysis?.result;
+  const recommendation = query.data;
+  const result = recommendation?.payload;
 
   const scenarios = useMemo(() => {
+    // `?? []` não é defensividade à toa: uma recomendação salva da conversa
+    // não tem cenários, e este hook roda antes do desvio que trata esse caso.
     if (!result) return [];
-    return [...result.scenarios].sort(
+    return [...(result.scenarios ?? [])].sort(
       (a, b) => SCENARIO_ORDER.indexOf(a.key) - SCENARIO_ORDER.indexOf(b.key)
     );
   }, [result]);
@@ -108,7 +126,7 @@ export function RecommendationScreen({
     );
   }
 
-  if (query.isError || !analysis || !result) {
+  if (query.isError || !recommendation || !result) {
     return (
       <StatusPage
         tone="danger"
@@ -118,6 +136,23 @@ export function RecommendationScreen({
         action={
           <LinkButton variant="outline" nativeButton={false} render={<Link href={`/dashboard/${profileId}`}>Voltar ao dashboard</Link>} />
         }
+      />
+    );
+  }
+
+  /*
+   * Recomendação nascida na conversa: não tem cenários nem evidências porque
+   * o motor não rodou. Mostrar a maquinaria vazia seria pior que não mostrar —
+   * aqui vai o que a IA disse, de onde veio, e as mesmas ações de decisão.
+   */
+  if (recommendation.source === "conversation") {
+    return (
+      <ConversationRecommendation
+        profileId={profileId}
+        recommendation={recommendation}
+        onDecide={(decision) => decide.mutate(decision)}
+        busy={decide.isPending}
+        failed={decide.isError}
       />
     );
   }
@@ -141,7 +176,7 @@ export function RecommendationScreen({
     );
   }
 
-  const decided = analysis.decision !== "pending";
+  const decided = recommendation.status !== "pending";
 
   return (
     /* `pb-28` reserva a faixa da barra fixa: sem isso o último bloco fica
@@ -160,17 +195,17 @@ export function RecommendationScreen({
           <h1 className="m-0 text-[length:clamp(20px,4vw,28px)] leading-tight font-semibold">
             Recomendação do seu Gêmeo Financeiro
           </h1>
-          {analysis.stale && <Badge tone="warning">Desatualizada</Badge>}
-          {analysis.decision === "approved" && <Badge tone="success">Plano aprovado</Badge>}
-          {analysis.decision === "rejected" && <Badge tone="neutral">Rejeitada</Badge>}
+          {recommendation.stale && <Badge tone="warning">Desatualizada</Badge>}
+          {recommendation.status === "approved" && <Badge tone="success">Plano aprovado</Badge>}
+          {recommendation.status === "rejected" && <Badge tone="neutral">Rejeitada</Badge>}
         </div>
         <p className="m-0 text-[13px] text-[color:var(--ft-text-secondary)]">
-          Análise de {formatDateTime(analysis.generated_at)} · cenário {analysis.scenario === "probable" ? "provável" : analysis.scenario} ·
-          referência <code className="text-[12px]">{analysis.analysis_id.slice(0, 8)}</code>
+          Análise de {formatDateTime(recommendation.generated_at)} · cenário {recommendation.scenario === "probable" ? "provável" : recommendation.scenario} ·
+          referência <code className="text-[12px]">{recommendation.id.slice(0, 8)}</code>
         </p>
       </header>
 
-      {analysis.stale && (
+      {recommendation.stale && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[color:var(--ft-warning)] bg-[color:var(--ft-warning-soft)] px-4 py-3">
           <p className="m-0 text-[13px] text-[color:var(--ft-text-primary)]">
             Esta recomendação foi gerada com dados anteriores. Recalcule antes de aprovar.
@@ -389,7 +424,7 @@ export function RecommendationScreen({
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <p className="m-0 text-[12px] text-[color:var(--ft-text-secondary)]">
             {decided
-              ? `Decisão registrada em ${formatDateTime(analysis.decided_at!)}.`
+              ? `Decisão registrada em ${formatDateTime(recommendation.decided_at!)}.`
               : "Aprovar registra o plano no FinTwin. Nenhum dinheiro é movimentado."}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -544,6 +579,85 @@ function StatusPage({
           </ul>
         )}
         {action}
+      </div>
+    </div>
+  );
+}
+
+/** Detalhe de uma recomendação salva a partir da conversa com a IA. */
+function ConversationRecommendation({
+  profileId,
+  recommendation,
+  onDecide,
+  busy,
+  failed,
+}: {
+  profileId: string;
+  recommendation: RecommendationDto;
+  onDecide: (decision: "approved" | "rejected") => void;
+  busy: boolean;
+  failed: boolean;
+}) {
+  const decided = recommendation.status !== "pending";
+
+  return (
+    <div className="ft-section flex flex-col gap-6 pb-8">
+      <header className="flex flex-col gap-3">
+        <Link
+          href={`/dashboard/${profileId}/recomendacoes`}
+          className="flex w-fit items-center gap-2 text-[13px] text-[color:var(--ft-text-secondary)] hover:text-[color:var(--ft-text-primary)]"
+        >
+          <ArrowLeft size={15} />
+          Voltar ao registro
+        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="m-0 text-[length:clamp(20px,4vw,28px)] leading-tight font-semibold">
+            Recomendação da conversa
+          </h1>
+          <Badge tone={STATUS_TONES[recommendation.status]}>
+            {STATUS_LABELS[recommendation.status]}
+          </Badge>
+        </div>
+        <p className="m-0 text-[13px] text-[color:var(--ft-text-secondary)]">
+          Salva em {formatDateTime(recommendation.generated_at)} · conversa{" "}
+          <code className="text-[12px]">{recommendation.conversation_id?.slice(0, 8)}</code>
+        </p>
+      </header>
+
+      <Card.Root className="h-auto">
+        <Card.Content className="flex flex-none flex-col gap-3 py-6">
+          <p className="m-0 text-[length:clamp(15px,2.4vw,18px)] leading-relaxed">
+            {recommendation.payload.summary ?? "Sem conteúdo registrado."}
+          </p>
+          <p className="m-0 text-[13px] text-[color:var(--ft-text-secondary)]">
+            Esta recomendação veio da conversa, não do motor de cálculo. Por isso não traz cenários,
+            projeções nem evidências numéricas — o FinTwin não inventa números que não calculou.
+          </p>
+        </Card.Content>
+      </Card.Root>
+
+      {failed && (
+        <p className="m-0 text-[13px] text-[color:var(--ft-danger)]">
+          Não foi possível registrar sua decisão. Tente novamente.
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="m-0 text-[12px] text-[color:var(--ft-text-secondary)]">
+          {decided
+            ? `Decisão registrada em ${formatDateTime(recommendation.decided_at!)}.`
+            : "Aprovar registra o plano no FinTwin. Nenhum dinheiro é movimentado."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => onDecide("rejected")} disabled={busy || decided}>
+            <X size={16} />
+            Rejeitar
+          </Button>
+          <Button onClick={() => onDecide("approved")} disabled={busy || decided}>
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            Aprovar
+          </Button>
+        </div>
       </div>
     </div>
   );
