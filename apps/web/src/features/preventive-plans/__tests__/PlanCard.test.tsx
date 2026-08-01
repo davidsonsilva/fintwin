@@ -43,7 +43,23 @@ describe("PlanCard", () => {
     renderWithClient(<PlanCard plan={makePlan()} />);
     expect(screen.getByText("Reserva abaixo de três meses")).toBeInTheDocument();
     expect(screen.getByText(/Aumentar a reserva de emergência/)).toBeInTheDocument();
-    expect(screen.getByText(/Ganho de autonomia estimado: 1.0 meses/)).toBeInTheDocument();
+    // pt-BR com singular correto: "1.0 meses" era saída de desenvolvedor.
+    expect(screen.getByText("Ganho de autonomia estimado: 1 mês")).toBeInTheDocument();
+    // A data ISO do domínio não chega à tela.
+    expect(screen.getByText(/Prazo: 01\/10\/2026/)).toBeInTheDocument();
+  });
+
+  it("mostra o custo em autonomia quando a mudança é negativa", () => {
+    // Acelerar uma meta custa autonomia; chamar isso de "ganho" maquiava o
+    // preço da decisão.
+    renderWithClient(
+      <PlanCard
+        plan={makePlan({
+          expected_result: { deficit_avoided: true, autonomy_change_months: "-2.5" },
+        })}
+      />
+    );
+    expect(screen.getByText("Custo em autonomia: 2,5 meses a menos")).toBeInTheDocument();
   });
 
   it("approves a proposed plan when the button is clicked", async () => {

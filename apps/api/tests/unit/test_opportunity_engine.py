@@ -338,3 +338,35 @@ def test_autonomia_antes_e_depois_usam_a_mesma_base() -> None:
     # ...e num perfil com essa folga o cenário conservador não pode ser inseguro.
     assert conservative.safe
     assert conservative.risks == []
+
+
+def test_nenhum_texto_para_o_usuario_carrega_representacao_de_desenvolvedor() -> None:
+    """`Money.__str__` devolve "395.83 BRL" — isso nunca pode alcançar a tela.
+
+    Regressão do que o usuário viu em produção: valores em código ISO e datas
+    em ISO-8601 dentro de frases em português.
+    """
+    import re
+
+    event = FinancialEvent(
+        id="ev1",
+        profile_id="p1",
+        description="IPVA",
+        event_type="tax",
+        amount=_money("2400.00"),
+        date=date(2026, 10, 10),
+        recurrence=None,
+        direction=Direction.EXPENSE,
+    )
+    result = analyze_opportunity(
+        **_healthy(events=[event], incomes=[_income("9000.00", stability=IncomeStability.VARIABLE)])
+    )
+
+    textos = [*result.risks, *result.assumptions, result.reason or ""]
+    textos += [risk for scenario in result.scenarios for risk in scenario.risks]
+
+    for texto in textos:
+        assert " BRL" not in texto, texto
+        assert not re.search(r"\d{4}-\d{2}-\d{2}", texto), texto
+
+    assert any("R$ 2.400,00" in risk and "10/10/2026" in risk for risk in result.risks)

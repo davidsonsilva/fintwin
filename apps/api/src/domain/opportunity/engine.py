@@ -39,6 +39,7 @@ from src.domain.opportunity.entities import (
 from src.domain.projection.engine import project_cashflow
 from src.domain.projection.scenario import ScenarioParameters
 from src.domain.shared.enums import Direction, IncomeStability
+from src.domain.shared.formatting import format_date, format_money
 from src.domain.shared.money import Money
 from src.domain.shared.percentage import Percentage
 from src.domain.shared.recurrence import monthly_equivalent
@@ -566,7 +567,7 @@ def _build_risks(
             ],
         )
         risks.append(
-            f"{len(variable)} fonte(s) de renda variável somam {variable_total.amount} {currency} por mês. "
+            f"{len(variable)} fonte(s) de renda variável somam {format_money(variable_total)} por mês. "
             "Uma queda nelas reduz a sobra que sustenta o aporte."
         )
 
@@ -580,8 +581,8 @@ def _build_risks(
     ]
     for event in sorted(upcoming, key=lambda e: e.date)[:3]:
         risks.append(
-            f"Evento previsto: {event.description} em {event.date.isoformat()}, "
-            f"{event.amount.amount} {event.amount.currency} de saída."
+            f"Evento previsto: {event.description} em {format_date(event.date)}, "
+            f"{format_money(event.amount)} de saída."
         )
 
     if recommended.autonomy_months_after is not None and recommended.autonomy_months_after < Decimal("6"):

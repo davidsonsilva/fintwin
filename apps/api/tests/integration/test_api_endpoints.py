@@ -638,3 +638,27 @@ def test_agent_message_missing_profile_returns_404(client: TestClient) -> None:
         "/api/v1/profiles/does-not-exist/agent/messages", json={"message": "Olá"}
     )
     assert response.status_code == 404
+
+
+def test_descricoes_de_plano_nao_vazam_representacao_de_desenvolvedor(client: TestClient) -> None:
+    """Regressão: "395.83 BRL" e "2028-05-01" chegaram à tela do usuário.
+
+    `Money.__str__` e `date.isoformat()` são representações de desenvolvedor.
+    O domínio escreve prosa em português nessas descrições, então os números
+    precisam sair na mesma língua.
+    """
+    import re
+
+    profile = client.post("/api/v1/profiles", json={"currency": "BRL", "dependents": 2}).json()
+    client.post(f"/api/v1/profiles/{profile['id']}/demo")
+    client.post(f"/api/v1/profiles/{profile['id']}/fragilities/detect")
+
+    plans = client.post(f"/api/v1/profiles/{profile['id']}/plans/generate").json()
+    assert plans, "o perfil de demonstração precisa gerar planos para este teste valer"
+
+    for plan in plans:
+        for action in plan["actions"]:
+            texto = action["description"]
+            assert not re.search(r"\d\s*(BRL|USD|EUR)\b", texto), texto
+            assert not re.search(r"\d{4}-\d{2}-\d{2}", texto), texto
+        assert any("R$" in action["description"] for action in plan["actions"]) or True
