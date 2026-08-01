@@ -13,6 +13,7 @@ from typing import Any, Literal, Mapping, Optional
 from pydantic import BaseModel, Field
 
 from src.domain.opportunity.entities import OpportunityResult
+from src.domain.recommendations.entities import InsightSurface, Recommendation
 from src.interfaces.http.schemas.common import MoneySchema
 
 
@@ -152,41 +153,95 @@ class OpportunityResultResponse(BaseModel):
         return self.model_dump(mode="json")
 
 
-class OpportunityAnalysisResponse(BaseModel):
-    """Envelope versionado que a tela `/recomendacoes/:analysisId` consome."""
+class RecommendationResponse(BaseModel):
+    """Uma entrada do Registro de Recomendações."""
 
-    analysis_id: str
+    id: str
     profile_id: str
+    kind: str
+    source: str
+    status: str
     generated_at: datetime
     scenario: str
-    #: `stale` só existe aqui, nunca no snapshot: ele depende do agora.
-    stale: bool
-    decision: str
+    #: Depende do agora, então nunca entra no snapshot persistido.
+    stale: bool = False
     decided_at: Optional[datetime] = None
     selected_scenario: Optional[str] = None
-    result: OpportunityResultResponse
+    supersedes_id: Optional[str] = None
+    superseded_by_id: Optional[str] = None
+    plan_id: Optional[str] = None
+    conversation_id: Optional[str] = None
+    message_id: Optional[str] = None
+    payload: dict[str, Any]
 
     @classmethod
-    def from_domain(cls, loaded) -> "OpportunityAnalysisResponse":
-        analysis = loaded.analysis
+    def from_domain(cls, recommendation: Recommendation, stale: bool = False) -> "RecommendationResponse":
         return cls(
-            analysis_id=analysis.id,
-            profile_id=analysis.profile_id,
-            generated_at=analysis.generated_at,
-            scenario=analysis.scenario,
-            stale=loaded.stale,
-            decision=analysis.decision.value,
-            decided_at=analysis.decided_at,
-            selected_scenario=analysis.selected_scenario,
-            result=OpportunityResultResponse.model_validate(analysis.result),
+            id=recommendation.id,
+            profile_id=recommendation.profile_id,
+            kind=recommendation.kind.value,
+            source=recommendation.source.value,
+            status=recommendation.status.value,
+            generated_at=recommendation.generated_at,
+            scenario=recommendation.scenario,
+            stale=stale,
+            decided_at=recommendation.decided_at,
+            selected_scenario=recommendation.selected_scenario,
+            supersedes_id=recommendation.supersedes_id,
+            superseded_by_id=recommendation.superseded_by_id,
+            plan_id=recommendation.plan_id,
+            conversation_id=recommendation.conversation_id,
+            message_id=recommendation.message_id,
+            payload=dict(recommendation.payload),
         )
 
 
-class OpportunityAnalysisRequest(BaseModel):
-    #: "Simular outro valor": fração da renda (0.03 = 3%). Opcional.
+class InsightResponse(BaseModel):
+    """O que o card Insight consome.
+
+    Ou vem uma recomendação pendente, ou vem o diagnóstico corrente explicando
+    por que não há ação. Nunca as duas coisas.
+    """
+
+    recommendation: Optional[RecommendationResponse] = None
+    diagnosis: Optional[OpportunityResultResponse] = None
+    #: Plano em execução para o assunto — o card cita e segue monitorando.
+    active_plan_id: Optional[str] = None
+
+    @classmethod
+    def from_domain(cls, surface: InsightSurface) -> "InsightResponse":
+        return cls(
+            recommendation=(
+                RecommendationResponse.from_domain(surface.recommendation, surface.stale)
+                if surface.recommendation is not None
+                else None
+            ),
+            diagnosis=(
+                OpportunityResultResponse.model_validate(surface.diagnosis)
+                if surface.diagnosis is not None
+                else None
+            ),
+            active_plan_id=surface.active_plan_id,
+        )
+
+
+class DetectRequest(BaseModel):
+    #: "Simular outro valor": fração da renda (0.03 = 3%).
     custom_pct: Optional[Decimal] = Field(default=None, ge=0, le=1)
 
 
-class OpportunityDecisionRequest(BaseModel):
+class DecisionRequest(BaseModel):
     decision: Literal["approved", "rejected"]
     selected_scenario: Optional[str] = None
+
+
+class ConversationRecommendationRequest(BaseModel):
+    """Salvar como recomendação, a partir de uma resposta do agente.
+
+    Exige o vínculo com a mensagem: sem ele não dá para auditar de onde a
+    recomendação saiu.
+    """
+
+    conversation_id: str
+    message_id: str
+    payload: dict[str, Any]
