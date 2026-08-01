@@ -34,15 +34,11 @@ export type MetricCardProps = {
  * Segunda versão: a primeira colocava ícone, título e valor dentro do mesmo
  * bloco flexível — sem fronteira estrutural entre "cabeçalho" e "conteúdo", o
  * valor parecia mais uma continuação do título do que o dado em destaque.
- * Terceira versão: o header agora é uma grade de três colunas própria
- * (`grid grid-cols-[auto_minmax(0,1fr)_auto]`), não o `Card.Header`
- * compartilhado. Motivo: `Card.Header` põe ícone/título/help como irmãos num
- * `flex` — quando o título quebra em várias linhas (rótulos longos em card
- * estreito, ex. 220px), o tooltip é só mais um item nessa mesma linha flex e
- * pode ser empurrado para baixo/para o lado junto com a quebra. A grade fixa
- * a coluna do help em `auto` (largura do próprio ícone, nunca mais) e a do
- * título em `minmax(0,1fr)` — o título quebra sozinho, dentro da própria
- * coluna, sem arrastar o help.
+ * Terceira versão trocou por um `<header>` com grid de três colunas próprio,
+ * porque na época o `Card.Header` compartilhado ainda usava `flex` (o tooltip
+ * podia ser arrastado quando o título quebrava em várias linhas). Essa grade
+ * virou o padrão oficial do `Card.Header` — quarta versão volta a usá-lo, sem
+ * duplicar a estrutura aqui.
  *
  * O valor e a descrição opcional continuam no `Card.Content`, abaixo do
  * header, com espaçamento real entre os dois blocos (`mt-4`, maior que o
@@ -59,23 +55,13 @@ export type MetricCardProps = {
 export function MetricCard({ icon, tone, label, hint, value, helper }: MetricCardProps) {
   return (
     <Card.Root as="article" interactive className="min-h-[132px]">
-      {/*
-       * `pr-1`: sem essa folga, a coluna `1fr` do título consome literalmente
-       * 100% do espaço até a borda de padding do card, e o ícone de ajuda
-       * (coluna `auto`) fica com zero pixels de respiro antes do padding —
-       * tecnicamente dentro do card, mas visualmente colado na borda, como se
-       * estivesse cortado. 4px é suficiente para o olho perceber uma margem
-       * de verdade sem tirar espaço relevante do título.
-       */}
-      <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 pr-1">
-        <IconChip icon={icon} tone={tone} size="md" className="shrink-0" />
-
-        <h3 className="m-0 min-w-0 text-[13px] font-normal text-[color:var(--ft-text-secondary)] break-normal [overflow-wrap:normal] [word-break:normal]">
-          {label}
-        </h3>
-
-        <InfoTooltip label={hint} iconSize={12} className="mt-0.5 shrink-0 self-start" />
-      </header>
+      <Card.Header
+        icon={<IconChip icon={icon} tone={tone} size="md" />}
+        title={
+          <h3 className="m-0 text-[13px] font-normal text-[color:var(--ft-text-secondary)]">{label}</h3>
+        }
+        help={<InfoTooltip label={hint} iconSize={12} />}
+      />
 
       <Card.Content className="mt-4 flex flex-none flex-col">
         {/*

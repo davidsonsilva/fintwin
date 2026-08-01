@@ -133,24 +133,31 @@ export function BalanceHistoryChart({
         className="ft-card-header"
         title={
           /*
-           * O tooltip fica dentro do `<h3>` (via `ft-label-info`) e não no slot
-           * `help` de propósito: aqui ele é inline com a última palavra do
-           * título, e há um subtítulo embaixo. Usar o slot `help` colocaria o
-           * ícone centralizado ao lado do bloco inteiro, movendo-o de lugar.
+           * Tooltip movido para o slot `help` (grid, coluna própria) — antes
+           * ficava embutido no `<h3>` via `ft-label-info` (inline-flex), que é
+           * exatamente o padrão que o `Card.Header` agora proíbe: o help vira
+           * só mais um item na linha do título e pode ser arrastado quando o
+           * título quebra. Com o help numa coluna `auto` fixa e `self-start`,
+           * ele fica alinhado à primeira linha do título mesmo com o
+           * subtítulo embaixo — a preocupação original ("o ícone ficaria
+           * centralizado ao lado do bloco inteiro") não existe mais: isso era
+           * comportamento do `flex` antigo, não da grade.
            *
            * Sem `.ft-card-title`: a regra não-layered fixaria 16px e venceria o
            * clamp. Os valores dela estão reproduzidos aqui.
            */
           <div className="min-w-0">
-            <h3 className="ft-label-info m-0 text-[length:clamp(15px,4.18cqi,23px)] leading-[1.3] font-semibold break-normal [overflow-wrap:normal] [word-break:normal]">
+            <h3 className="m-0 text-[length:clamp(15px,4.18cqi,23px)] leading-[1.3] font-semibold">
               Evolução do saldo líquido
-              <InfoTooltip
-                label="Como o seu saldo líquido variou mês a mês. Uma linha subindo indica que você está acumulando reservas."
-                iconSize={13}
-              />
             </h3>
             <p className="ft-card-subtitle">Últimos {months} meses</p>
           </div>
+        }
+        help={
+          <InfoTooltip
+            label="Como o seu saldo líquido variou mês a mês. Uma linha subindo indica que você está acumulando reservas."
+            iconSize={13}
+          />
         }
       />
 

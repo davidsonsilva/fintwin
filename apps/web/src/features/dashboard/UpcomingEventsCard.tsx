@@ -88,21 +88,7 @@ export function UpcomingEventsCard({
   return (
     <Card.Root interactive className="ft-indicators-events">
       <Card.Header
-        className={cn(
-          "ft-card-header",
-          /*
-           * Ícone, título e tooltip ficam na mesma linha. A versão anterior
-           * empilhava o título abaixo do ícone em card estreito; isso saiu junto
-           * com a correção do grid, que é onde o problema realmente estava — o
-           * card não fica mais espremido a ponto de precisar empilhar.
-           *
-           * O `flex-wrap` de `Card.Header` continua como rede de segurança: se um
-           * dia o título não couber mesmo, ele desce para a linha de baixo em vez
-           * de espremer ou cortar. Mas não é mais o caminho normal.
-           */
-          // Gap ícone↔título fluido: 6px de base + margem do ícone = 8px..12px.
-          "[&_[data-slot=card-header-icon]]:me-[clamp(2px,3cqi,6px)]"
-        )}
+        className="ft-card-header"
         icon={
           /*
            * Chip fluido. `size-[38px]` da variante `sm` do IconChip é sobrescrito

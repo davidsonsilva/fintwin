@@ -76,18 +76,21 @@ export function IncomeCommitmentCard({
         className="ft-card-header"
         title={
           /*
-           * Tooltip dentro do `<h3>` (via `ft-label-info`), não no slot `help`:
-           * aqui ele é inline com o título e há um subtítulo embaixo.
+           * Tooltip no slot `help` (grid, coluna própria), não mais embutido no
+           * `<h3>` — `Card.Header` agora proíbe o padrão inline-flex antigo, que
+           * deixava o help sujeito a ser arrastado quando o título quebrava.
            * Sem `.ft-card-title` porque a regra não-layered fixaria 16px e
            * venceria o clamp; os valores dela estão reproduzidos.
            */
           <div className="min-w-0">
-            <h3 className="ft-label-info m-0 text-[length:clamp(15px,4.18cqi,23px)] leading-[1.3] font-semibold break-normal [overflow-wrap:normal] [word-break:normal]">
+            <h3 className="m-0 text-[length:clamp(15px,4.18cqi,23px)] leading-[1.3] font-semibold">
               Comprometimento da renda
-              <InfoTooltip label="Fatia da sua renda mensal comprometida com obrigações. Abaixo de 40% é saudável; acima de 60% pede atenção." iconSize={13} />
             </h3>
             <p className="ft-card-subtitle">Percentual da renda mensal comprometido com obrigações</p>
           </div>
+        }
+        help={
+          <InfoTooltip label="Fatia da sua renda mensal comprometida com obrigações. Abaixo de 40% é saudável; acima de 60% pede atenção." iconSize={13} />
         }
       />
 

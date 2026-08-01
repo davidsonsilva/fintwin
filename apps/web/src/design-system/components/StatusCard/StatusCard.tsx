@@ -50,25 +50,44 @@ export type StatusCardProps = {
  */
 export function StatusCard({ icon, tone, label, hint, value, loading, action }: StatusCardProps) {
   return (
-    <Card interactive className="flex min-h-[104px] items-start gap-[13px]">
-      <IconChip icon={icon} tone={tone} size="sm" />
+    <Card interactive className="min-h-[104px]">
+      {/*
+       * Grade de três colunas (ícone/título/help), o padrão oficial adotado
+       * por todo card com esse trio — ver `Card.Header` no design system.
+       * Este card usa o `Card` simples, não `Card.Root`/`Card.Header`, por
+       * decisão de quando foi migrado ("sem container query aqui, de
+       * propósito"): não depende da largura do próprio card, então não
+       * precisa de `@container`. A grade é aplicada localmente para manter
+       * essa decisão, só trocando o `ft-label-info` (inline-flex, que deixava
+       * o tooltip sujeito a ser arrastado quando o título quebrava) pela
+       * mesma estrutura de colunas fixas. `gap-x-3` (12px) substitui o
+       * `gap-[13px]` que a `Card` externa tinha antes — 1px de diferença,
+       * aceito para seguir o padrão oficial em vez de um valor específico
+       * deste card. `pr-1`: sem essa folga o tooltip fica com zero pixels de
+       * respiro antes do padding do card (achado testando em 220px) — não
+       * estoura, mas parece colado/cortado na borda.
+       */}
+      <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 pr-1">
+        <IconChip icon={icon} tone={tone} size="sm" className="shrink-0" />
 
-      <div>
-        <p className="ft-label-info mt-px mb-[6px] text-[14px] font-bold">
-          {label}
-          <InfoTooltip label={hint} iconSize={12} />
-        </p>
+        <div className="min-w-0">
+          <p className="mt-px mb-[6px] text-[14px] font-bold break-normal [overflow-wrap:normal] [word-break:normal]">
+            {label}
+          </p>
 
-        <p className="text-[13px] text-[color:var(--ft-text-secondary)]">
-          {loading ? "Calculando..." : value}
-        </p>
+          <p className="text-[13px] text-[color:var(--ft-text-secondary)]">
+            {loading ? "Calculando..." : value}
+          </p>
 
-        {action ? (
-          <Link href={action.href} className={badgeVariants({ tone: "link" })}>
-            {action.label}
-            <ArrowRight size={12} />
-          </Link>
-        ) : null}
+          {action ? (
+            <Link href={action.href} className={badgeVariants({ tone: "link" })}>
+              {action.label}
+              <ArrowRight size={12} />
+            </Link>
+          ) : null}
+        </div>
+
+        <InfoTooltip label={hint} iconSize={12} className="mt-0.5 shrink-0 self-start" />
       </div>
     </Card>
   );

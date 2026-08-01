@@ -210,14 +210,12 @@ export function ProjectionChart({ profileId }: { profileId: string }) {
           "@max-[460px]/card:flex-wrap",
           "@max-[460px]/card:[&_[data-slot=card-header-actions]]:w-full"
         )}
-        title={
-          <h3 className="ft-card-title ft-label-info min-w-0 break-normal [overflow-wrap:normal] [word-break:normal]">
-            Projeção de fluxo de caixa
-            <InfoTooltip
-              label="Estimativa de entradas, saídas e saldo acumulado nos próximos meses, conforme o cenário e o horizonte escolhidos."
-              iconSize={13}
-            />
-          </h3>
+        title={<h3 className="ft-card-title m-0">Projeção de fluxo de caixa</h3>}
+        help={
+          <InfoTooltip
+            label="Estimativa de entradas, saídas e saldo acumulado nos próximos meses, conforme o cenário e o horizonte escolhidos."
+            iconSize={13}
+          />
         }
         actions={
           <div
