@@ -128,7 +128,65 @@ html {
   color-scheme: dark;
 }
 
+/* Só a cor de base. Os brilhos saíram daqui: o background do `body` é
+   dimensionado pela altura do DOCUMENTO, então num dashboard de 2500px o clarão
+   de `92%` caía lá embaixo, mudava de lugar a cada página e escorria pela lateral
+   da sidebar. Quem desenha o fundo agora é `.ft-app::before`, uma única camada
+   fixa do tamanho do viewport (ver "BACKGROUND GLOBAL"). */
 body {
+  background: var(--ft-bg-page);
+}
+
+/* Trava o scroll de fundo enquanto o drawer da sidebar está aberto (só então). */
+body.ft-scroll-locked {
+  overflow: hidden;
+}
+
+/* =========================================================
+   APPLICATION SHELL
+   ========================================================= */
+
+/* =========================================================
+   BACKGROUND GLOBAL
+
+   Camadas, de baixo para cima:
+     1. `.ft-app::before`  brilhos + cor de base, uma vez só, fixo no viewport
+     2. `.ft-sidebar`      superfície própria, opaca
+     3. `.ft-main`         transparente, deixa a camada 1 aparecer
+     4. cards              superfícies próprias
+
+   Nenhum outro nível repete esses gradientes. Como a camada é `fixed` e mede o
+   viewport (não o documento), ela não recomeça a cada seção, não muda de escala
+   com a altura da página e não emenda durante o scroll.
+   ========================================================= */
+
+.ft-app {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--ft-sidebar-width) minmax(0, 1fr) var(--ft-agent-width);
+  min-height: 100dvh;
+
+  /* Contexto de empilhamento próprio: o `z-index: -1` do ::before fica atrás do
+     conteúdo do shell sem escapar para trás do `body`. */
+  isolation: isolate;
+}
+
+.ft-app::before {
+  content: "";
+
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+
+  width: 100%;
+  height: 100dvh;
+
+  pointer-events: none;
+
+  /* `width: 100%`, nunca `100vw`: `100vw` inclui a barra de rolagem e cria
+     scroll horizontal. O brilho da esquerda foi de 18% para 45% da largura —
+     antes ele nascia a 11px da borda da sidebar e vazava como uma faixa clara
+     no exato ponto em que a superfície opaca dela terminava. */
   background:
     radial-gradient(
       circle at 82% 12%,
@@ -136,21 +194,14 @@ body {
       transparent 30%
     ),
     radial-gradient(
-      circle at 18% 92%,
+      circle at 45% 96%,
       rgba(0, 200, 150, 0.08),
       transparent 30%
     ),
     var(--ft-bg-page);
-}
-
-/* =========================================================
-   APPLICATION SHELL
-   ========================================================= */
-
-.ft-app {
-  display: grid;
-  grid-template-columns: var(--ft-sidebar-width) minmax(0, 1fr) var(--ft-agent-width);
-  min-height: 100vh;
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
 }
 
 .ft-app--agent-closed {
@@ -182,22 +233,48 @@ body {
   background: rgba(2, 8, 16, 0.6);
 }
 
+/* Três faixas: marca fixa em cima, navegação rolável no meio, card da IA fixo
+   embaixo. Antes era um bloco único com `overflow-y: auto`: o conteúdo mede
+   1087px, então em qualquer viewport mais baixo que isso a marca subia junto com
+   o scroll e o card da IA ficava fora da tela. `minmax(0, 1fr)` + `min-height: 0`
+   no filho é o que permite a faixa do meio encolher e rolar sozinha — sem isso o
+   item de grid assume `min-height: auto` e estoura a altura. */
 .ft-sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100dvh;
   padding: 24px 18px;
 
-  overflow-y: auto;
+  /* Nada rola no elemento externo; só a faixa do meio. */
+  overflow: hidden;
 
-  background:
-    linear-gradient(
-      180deg,
-      rgba(7, 17, 30, 0.98),
-      rgba(4, 12, 22, 0.98)
-    );
+  /* Opaco de propósito: a 98% o brilho da camada global aparecia através da
+     superfície da sidebar. */
+  background: linear-gradient(180deg, #07111e, #040c16);
 
   border-right: 1px solid var(--ft-border);
+}
+
+.ft-sidebar-scroll {
+  min-height: 0;
+  overflow-y: auto;
+
+  /* O scroll para na sidebar em vez de encadear na página atrás. */
+  overscroll-behavior: contain;
+
+  /* Sem barra visível: a sidebar é superfície de navegação, não um painel de
+     conteúdo, e a barra no meio dela quebra a identidade visual. Rolar continua
+     funcionando por roda, trackpad, teclado e arrasto. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ft-sidebar-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .ft-brand {
@@ -292,6 +369,13 @@ body {
   height: 22px;
   flex: 0 0 auto;
   place-items: center;
+}
+
+/* O rótulo é quem cede largura, nunca o ícone. Quebra só entre palavras. */
+.ft-nav-label {
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .ft-nav-divider {
