@@ -21,7 +21,6 @@ import { useSidebarContext } from "@/components/shell/SidebarContext";
 import { Button as FtButton } from "@/design-system/components/Button";
 import { CompactStatCard } from "@/design-system/components/CompactStatCard";
 import { MetricCard } from "@/design-system/components/MetricCard";
-import { StatusCard } from "@/design-system/components/StatusCard";
 import { ApiError } from "@/lib/api-client";
 
 import { fragilityApi } from "@/features/fragility/api";
@@ -30,7 +29,9 @@ import { dashboardApi } from "./api";
 import { AutonomyPanel } from "./AutonomyPanel";
 import { BalanceHistoryChart } from "./BalanceHistoryChart";
 import { ExpenseBreakdownChart } from "./ExpenseBreakdownChart";
+import { FragilitiesSummaryCard } from "./FragilitiesSummaryCard";
 import { IncomeCommitmentCard } from "./IncomeCommitmentCard";
+import { NextDeficitCard } from "./NextDeficitCard";
 import { ProjectionChart } from "./ProjectionChart";
 import { UpcomingEventsCard } from "./UpcomingEventsCard";
 
@@ -187,29 +188,15 @@ export function DashboardView({ profileId }: { profileId: string }) {
               value={formatMonths(autonomyQuery.data?.income_loss_autonomy_months ?? null)}
             />
 
-            <StatusCard
-              icon={CalendarClock}
-              tone="info"
-              label="Próximo déficit previsto"
-              hint="Primeiro mês em que o saldo projetado ficaria negativo, se nada mudar (cenário provável, 12 meses)."
+            <NextDeficitCard
               loading={projectionQuery.isLoading}
-              value={
-                projectionQuery.data?.first_deficit_period ??
-                "Sem déficit projetado (12 meses, cenário provável)"
-              }
+              deficitPeriod={projectionQuery.data?.first_deficit_period}
             />
 
-            <StatusCard
-              icon={TrendingDown}
-              tone="warning"
-              label="Fragilidades detectadas"
-              hint="Riscos financeiros no seu perfil detectados por regras verificáveis — como renda concentrada em uma única fonte, reserva de emergência baixa ou endividamento alto."
+            <FragilitiesSummaryCard
+              profileId={profileId}
               loading={fragilitiesQuery.isLoading}
-              value={`${fragilitiesQuery.data?.length ?? 0} encontradas`}
-              action={{
-                href: `/dashboard/${profileId}/fragilities`,
-                label: "Ver radar de fragilidade",
-              }}
+              count={fragilitiesQuery.data?.length ?? 0}
             />
 
             <UpcomingEventsCard profileId={profileId} events={data.upcoming_events} />
