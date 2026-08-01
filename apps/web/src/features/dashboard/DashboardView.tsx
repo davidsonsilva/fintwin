@@ -16,12 +16,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { InfoTooltip } from "@/components/ui/tooltip";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { useSidebarContext } from "@/components/shell/SidebarContext";
 import { Button as FtButton } from "@/design-system/components/Button";
-import { Card as FtCard } from "@/design-system/components/Card";
-import { IconChip } from "@/design-system/components/IconChip";
+import { MetricCard } from "@/design-system/components/MetricCard";
 import { StatusCard } from "@/design-system/components/StatusCard";
 import { ApiError } from "@/lib/api-client";
 
@@ -116,69 +114,39 @@ export function DashboardView({ profileId }: { profileId: string }) {
       {data && (
         <>
           <section className="ft-grid ft-grid--metrics">
-            <FtCard as="article" interactive className="ft-metric-card">
-              <IconChip icon={Wallet} tone="primary" size="md" />
-              <div className="ft-metric-content">
-                <p className="ft-metric-label ft-label-info">
-                  Saldo líquido disponível
-                  <InfoTooltip
-                    label="Quanto você tem disponível somando as contas elegíveis, já descontado o que está comprometido."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-metric-value">{formatMoney(data.net_balance.amount, data.net_balance.currency)}</p>
-              </div>
-            </FtCard>
+            <MetricCard
+              icon={Wallet}
+              tone="primary"
+              label="Saldo líquido disponível"
+              hint="Quanto você tem disponível somando as contas elegíveis, já descontado o que está comprometido."
+              value={formatMoney(data.net_balance.amount, data.net_balance.currency)}
+            />
 
-            <FtCard as="article" interactive className="ft-metric-card">
-              <IconChip icon={CalendarClock} tone="warning" size="md" />
-              <div className="ft-metric-content">
-                <p className="ft-metric-label ft-label-info">
-                  Obrigações mensais
-                  <InfoTooltip
-                    label="Soma de tudo que você paga todo mês: contas fixas, dívidas e despesas recorrentes."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-metric-value">
-                  {formatMoney(data.monthly_obligations_total.amount, data.monthly_obligations_total.currency)}
-                </p>
-              </div>
-            </FtCard>
+            <MetricCard
+              icon={CalendarClock}
+              tone="warning"
+              label="Obrigações mensais"
+              hint="Soma de tudo que você paga todo mês: contas fixas, dívidas e despesas recorrentes."
+              value={formatMoney(data.monthly_obligations_total.amount, data.monthly_obligations_total.currency)}
+            />
 
-            <FtCard as="article" interactive className="ft-metric-card">
-              <IconChip icon={TrendingDown} tone="purple" size="md" />
-              <div className="ft-metric-content">
-                <p className="ft-metric-label ft-label-info">
-                  Comprometimento da renda
-                  <InfoTooltip
-                    label="Quanto da sua renda mensal já está comprometido com obrigações. Quanto menor, mais folga você tem."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-metric-value">
-                  {data.income_commitment_pct !== null ? formatPercent(data.income_commitment_pct) : "—"}
-                </p>
-                <p className="ft-metric-helper">
-                  {data.income_commitment_pct === null ? "Sem renda cadastrada" : "Da renda mensal"}
-                </p>
-              </div>
-            </FtCard>
+            <MetricCard
+              icon={TrendingDown}
+              tone="purple"
+              label="Comprometimento da renda"
+              hint="Quanto da sua renda mensal já está comprometido com obrigações. Quanto menor, mais folga você tem."
+              value={data.income_commitment_pct !== null ? formatPercent(data.income_commitment_pct) : "—"}
+              helper={data.income_commitment_pct === null ? "Sem renda cadastrada" : "Da renda mensal"}
+            />
 
-            <FtCard as="article" interactive className="ft-metric-card">
-              <IconChip icon={ShieldCheck} tone="info" size="md" />
-              <div className="ft-metric-content">
-                <p className="ft-metric-label ft-label-info">
-                  Progresso da meta principal
-                  <InfoTooltip
-                    label="Quanto você já juntou da sua meta prioritária em relação ao valor-alvo."
-                    iconSize={12}
-                  />
-                </p>
-                <p className="ft-metric-value">{data.main_goal ? formatPercent(data.main_goal.progress_pct) : "—"}</p>
-                <p className="ft-metric-helper">{data.main_goal?.description ?? "Nenhuma meta cadastrada"}</p>
-              </div>
-            </FtCard>
+            <MetricCard
+              icon={ShieldCheck}
+              tone="info"
+              label="Progresso da meta principal"
+              hint="Quanto você já juntou da sua meta prioritária em relação ao valor-alvo."
+              value={data.main_goal ? formatPercent(data.main_goal.progress_pct) : "—"}
+              helper={data.main_goal?.description ?? "Nenhuma meta cadastrada"}
+            />
           </section>
 
           <section className="ft-grid ft-grid--indicators">
