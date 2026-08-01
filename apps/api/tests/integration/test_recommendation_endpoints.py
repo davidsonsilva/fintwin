@@ -240,3 +240,12 @@ def test_recomendacao_inexistente_devolve_404(client: TestClient) -> None:
         ).status_code
         == 404
     )
+
+
+def test_dashboard_serve_a_classificacao_junto_do_numero(client: TestClient) -> None:
+    """A conversa e o gauge consomem este campo em vez de julgar por conta própria."""
+    profile_id = _profile_com_folga(client)
+    body = client.get(f"/api/v1/profiles/{profile_id}/dashboard").json()
+
+    assert body["income_commitment_status"]["tier"] == "healthy"
+    assert body["income_commitment_status"]["label"] == "Dentro do limite saudável"

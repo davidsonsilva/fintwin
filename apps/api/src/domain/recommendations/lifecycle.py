@@ -136,12 +136,15 @@ def build_plan_payload(
     reference = today or date.today()
     due_date = _period_to_date(completion) or reference.isoformat()
 
+    # A descrição não repete o valor: `expected_monthly_impact` já carrega o
+    # Money e a borda o formata em pt-BR. Interpolar aqui produziria "1085.70
+    # BRL" — número cru e código ISO, que não é como se escreve dinheiro em
+    # português.
     actions = [
         {
             "description": (
-                f"Direcionar {amount['amount']} {amount['currency']} adicionais por mês para "
-                f"“{goal}”"
-                + (f" durante {int(Decimal(str(months)))} meses." if months is not None else ".")
+                f"Aumentar o aporte mensal em “{goal}”"
+                + (f" pelos próximos {int(Decimal(str(months)))} meses." if months is not None else ".")
             ),
             "expected_monthly_impact": amount,
             "due_date": due_date,

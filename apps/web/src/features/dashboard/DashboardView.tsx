@@ -295,7 +295,11 @@ export function DashboardView({ profileId }: { profileId: string }) {
                   <BalanceHistoryChart profileId={profileId} />
                 </div>
                 <div className="min-w-0 @min-[760px]/analytics:flex-1">
-                  <IncomeCommitmentCard profileId={profileId} incomeCommitmentPct={data.income_commitment_pct} />
+                  <IncomeCommitmentCard
+                    profileId={profileId}
+                    incomeCommitmentPct={data.income_commitment_pct}
+                    commitmentStatus={data.income_commitment_status}
+                  />
                 </div>
               </div>
             </section>

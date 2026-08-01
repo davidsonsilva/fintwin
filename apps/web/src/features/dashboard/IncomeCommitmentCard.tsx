@@ -14,17 +14,31 @@ import Link from "next/link";
 import { Card } from "@/design-system/components/Card";
 import { InfoTooltip } from "@/components/ui/tooltip";
 
+import type { IndicatorAssessmentDto } from "./types";
+
 type RiskTier = {
   Icon: LucideIcon;
   color: string;
   text: string;
 };
 
-function riskTierFor(pct: number): RiskTier {
-  if (pct <= 40) return { Icon: CheckCircle2, color: "var(--ft-success)", text: "Dentro do limite saudável" };
-  if (pct <= 60) return { Icon: AlertCircle, color: "var(--ft-warning)", text: "Atenção ao comprometimento" };
-  if (pct <= 75) return { Icon: AlertTriangle, color: "var(--ft-purple)", text: "Comprometimento elevado" };
-  return { Icon: AlertOctagon, color: "var(--ft-danger)", text: "Comprometimento crítico" };
+/*
+ * O limiar não mora mais aqui. A classificação vem do domínio junto do número
+ * (`income_commitment_status`), para que gauge, card de insight e agente
+ * conversacional digam a mesma coisa sobre o mesmo valor — antes cada um
+ * tinha o seu, e 56% era "saudável" numa tela e "crítico" na conversa.
+ *
+ * Ícone e cor continuam sendo decisão de apresentação, mapeados pelo `tier`.
+ */
+const TIER_STYLE: Record<IndicatorAssessmentDto["tier"], Omit<RiskTier, "text">> = {
+  healthy: { Icon: CheckCircle2, color: "var(--ft-success)" },
+  attention: { Icon: AlertCircle, color: "var(--ft-warning)" },
+  high: { Icon: AlertTriangle, color: "var(--ft-purple)" },
+  critical: { Icon: AlertOctagon, color: "var(--ft-danger)" },
+};
+
+function riskTierFor(assessment: IndicatorAssessmentDto): RiskTier {
+  return { ...TIER_STYLE[assessment.tier], text: assessment.label };
 }
 
 // Geometria fixa do gauge (coordenadas do viewBox). Traço fino e raio grande,
@@ -50,13 +64,15 @@ const TRACK_PATH = `M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`;
 export function IncomeCommitmentCard({
   profileId,
   incomeCommitmentPct,
+  commitmentStatus,
 }: {
   profileId: string;
   incomeCommitmentPct: string | null;
+  commitmentStatus: IndicatorAssessmentDto | null;
 }) {
-  const hasData = incomeCommitmentPct !== null;
-  const commitmentPct = hasData ? Number(incomeCommitmentPct) * 100 : 0;
-  const tier = riskTierFor(commitmentPct);
+  const hasData = incomeCommitmentPct !== null && commitmentStatus !== null;
+  const commitmentPct = incomeCommitmentPct !== null ? Number(incomeCommitmentPct) * 100 : 0;
+  const tier = riskTierFor(commitmentStatus ?? { tier: "healthy", label: "" });
   const formatted = `${commitmentPct.toFixed(1).replace(".", ",")}%`;
 
   return (

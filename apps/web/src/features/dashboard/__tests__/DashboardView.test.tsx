@@ -94,6 +94,7 @@ describe("DashboardView", () => {
       net_balance: { amount: "12500.00", currency: "BRL" },
       monthly_obligations_total: { amount: "4950.00", currency: "BRL" },
       income_commitment_pct: "0.5",
+      income_commitment_status: { tier: "attention" as const, label: "Atenção ao comprometimento" },
       main_goal: { description: "Entrada de imóvel próprio", progress_pct: "0.15" },
       upcoming_events: [
         {

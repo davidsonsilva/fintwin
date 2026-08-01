@@ -16,6 +16,7 @@ from src.application.use_cases.dashboard_use_cases import DashboardSummary
 from src.application.use_cases.expense_breakdown_use_cases import CategoryBreakdown
 from src.domain.balance_history.entities import BalanceSnapshot
 from src.domain.cashflow.entities import FinancialEvent
+from src.domain.shared.indicators import classify_income_commitment
 from src.interfaces.http.schemas.common import MoneySchema
 
 
@@ -44,16 +45,36 @@ class UpcomingEventResponse(BaseModel):
         )
 
 
+class IndicatorAssessmentResponse(BaseModel):
+    """Veredito do domínio sobre um indicador, servido junto do número.
+
+    Existe para que gauge, card de insight e agente conversacional digam a
+    mesma coisa sobre o mesmo valor.
+    """
+
+    tier: str
+    label: str
+
+
 class DashboardSummaryResponse(BaseModel):
     net_balance: MoneySchema
     monthly_obligations_total: MoneySchema
     income_commitment_pct: Optional[Decimal]
+    #: Classificação do comprometimento pelos limiares do domínio.
+    income_commitment_status: Optional[IndicatorAssessmentResponse]
     main_goal: Optional[MainGoalSummaryResponse]
     upcoming_events: list[UpcomingEventResponse]
 
     @classmethod
     def from_domain(cls, summary: DashboardSummary) -> "DashboardSummaryResponse":
+        commitment = summary.income_commitment_pct
+        assessment = classify_income_commitment(commitment.as_fraction()) if commitment else None
         return cls(
+            income_commitment_status=(
+                IndicatorAssessmentResponse(tier=assessment.tier.value, label=assessment.label)
+                if assessment is not None
+                else None
+            ),
             net_balance=MoneySchema.from_domain(summary.net_balance),
             monthly_obligations_total=MoneySchema.from_domain(summary.monthly_obligations_total),
             income_commitment_pct=(

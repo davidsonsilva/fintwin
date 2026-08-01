@@ -99,10 +99,13 @@ export function InsightCard({ profileId }: { profileId: string }) {
         {!analyzing && !insight.isError && pending && scenario && (
           <>
             <p className="ft-ai-text">
+              {/* Sem adjetivo sobre o comprometimento: quem classifica é o
+                  domínio, e o gauge já mostra o veredito. Repetir aqui abriria
+                  a porta para um quarto classificador divergente. */}
               Seu comprometimento está em{" "}
-              <strong>{formatPercent(pending.payload.income_commitment, 1)}</strong> da renda, dentro do
-              limite saudável, e sobra <strong>{formatMoney(pending.payload.recurring_surplus)}</strong> por
-              mês sem destino. Que tal direcionar{" "}
+              <strong>{formatPercent(pending.payload.income_commitment, 1)}</strong> da renda e sobra{" "}
+              <strong>{formatMoney(pending.payload.recurring_surplus)}</strong> por mês sem destino. Que
+              tal direcionar{" "}
               <strong>
                 {formatPercent(scenario.additional_pct)} a mais — {formatMoney(scenario.additional_amount)}
               </strong>{" "}
