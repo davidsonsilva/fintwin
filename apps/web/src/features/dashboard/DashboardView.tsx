@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { useSidebarContext } from "@/components/shell/SidebarContext";
 import { Button as FtButton } from "@/design-system/components/Button";
+import { CompactStatCard } from "@/design-system/components/CompactStatCard";
 import { MetricCard } from "@/design-system/components/MetricCard";
 import { StatusCard } from "@/design-system/components/StatusCard";
 import { ApiError } from "@/lib/api-client";
@@ -150,7 +151,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
           </section>
 
           <section className="ft-grid ft-grid--indicators">
-            <StatusCard
+            <CompactStatCard
               icon={ShieldCheck}
               tone="primary"
               label="Autonomia básica"
@@ -159,7 +160,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               value={formatMonths(autonomyQuery.data?.basic_autonomy_months ?? null)}
             />
 
-            <StatusCard
+            <CompactStatCard
               icon={ShieldCheck}
               tone="info"
               label="Autonomia provável"
@@ -168,7 +169,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               value={formatMonths(autonomyQuery.data?.probable_autonomy_months ?? null)}
             />
 
-            <StatusCard
+            <CompactStatCard
               icon={ShieldAlert}
               tone="purple"
               label="Autonomia adversa"
@@ -177,7 +178,7 @@ export function DashboardView({ profileId }: { profileId: string }) {
               value={formatMonths(autonomyQuery.data?.adverse_autonomy_months ?? null)}
             />
 
-            <StatusCard
+            <CompactStatCard
               icon={ShieldAlert}
               tone="warning"
               label="Perda de renda"
