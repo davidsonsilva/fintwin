@@ -166,3 +166,19 @@ def test_analise_inexistente_devolve_404(client: TestClient) -> None:
         ).status_code
         == 404
     )
+
+
+def test_latest_devolve_null_antes_da_primeira_analise(client: TestClient) -> None:
+    profile_id = _profile(client)
+    response = client.get(f"/api/v1/profiles/{profile_id}/opportunity-analyses/latest")
+    assert response.status_code == 200
+    assert response.json() is None
+
+
+def test_latest_devolve_a_analise_mais_recente(client: TestClient) -> None:
+    profile_id = _profile_com_folga(client)
+    client.post(f"/api/v1/profiles/{profile_id}/opportunity-analyses")
+    segunda = client.post(f"/api/v1/profiles/{profile_id}/opportunity-analyses").json()
+
+    latest = client.get(f"/api/v1/profiles/{profile_id}/opportunity-analyses/latest").json()
+    assert latest["analysis_id"] == segunda["analysis_id"]

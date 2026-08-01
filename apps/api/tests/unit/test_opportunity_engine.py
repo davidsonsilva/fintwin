@@ -317,3 +317,24 @@ def test_debts_entram_na_sobra_recorrente() -> None:
     )
     result = analyze_opportunity(**_healthy(debts=[debt]))
     assert result.recurring_surplus == _money("3300.00")
+
+
+def test_autonomia_antes_e_depois_usam_a_mesma_base() -> None:
+    """Regressão: as duas medidas precisam ser comparáveis.
+
+    Antes elas usavam denominadores diferentes (essenciais x queima total
+    projetada), então até o cenário conservador aparecia como inseguro num
+    perfil folgado.
+    """
+    result = analyze_opportunity(**_healthy())
+
+    # Base de hoje: reserva elegível (20.000) sobre essenciais (3.000).
+    assert result.reserve_months == Decimal("6.7")
+
+    conservative = next(s for s in result.scenarios if s.key is ScenarioKey.CONSERVATIVE)
+    # O aporte custa reserva, mas não derruba a autonomia abaixo do piso...
+    assert conservative.autonomy_months_after < result.reserve_months
+    assert conservative.autonomy_months_after >= Decimal("3")
+    # ...e num perfil com essa folga o cenário conservador não pode ser inseguro.
+    assert conservative.safe
+    assert conservative.risks == []

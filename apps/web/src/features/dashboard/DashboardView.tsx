@@ -9,7 +9,7 @@
  */
 
 
-import { CalendarClock, ShieldAlert, ShieldCheck, Sparkles, TrendingDown, Wallet } from "lucide-react";
+import { CalendarClock, Loader2, ShieldAlert, ShieldCheck, Sparkles, TrendingDown, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +25,8 @@ import { MetricCard } from "@/design-system/components/MetricCard";
 import { ApiError } from "@/lib/api-client";
 
 import { fragilityApi } from "@/features/fragility/api";
+import { OpportunityCard } from "@/features/opportunity/OpportunityCard";
+import { useAnalyzeOpportunity } from "@/features/opportunity/useAnalyzeOpportunity";
 
 import { dashboardApi } from "./api";
 import { AdaptiveDashboardSection } from "./AdaptiveDashboardSection";
@@ -66,6 +68,7 @@ function getLayoutDebugServerSnapshot() {
 
 export function DashboardView({ profileId }: { profileId: string }) {
   const { openAgent } = useSidebarContext();
+  const analyze = useAnalyzeOpportunity(profileId);
 
   // `useSyncExternalStore`, não `useEffect`+`setState`: a URL é estado externo ao
   // React, e este é o jeito de ler estado externo sem o padrão "efeito que só
@@ -306,6 +309,16 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
           <ProjectionChart profileId={profileId} />
 
+          {/*
+           * Recomendação proativa. Fica em seção própria, de largura inteira:
+           * ela é a única parte do dashboard que propõe uma ação, e entrar
+           * numa fileira ao lado de cards de leitura a nivelaria com eles.
+           * O grid das seções existentes não muda.
+           */}
+          <section className="@container/opportunity">
+            <OpportunityCard profileId={profileId} />
+          </section>
+
           <div className="ft-ai-insight">
             <div className="ft-ai-avatar">
               <Image src="/agent-icon.png" alt="" width={76} height={76} className="rounded-full object-cover" />
@@ -317,9 +330,16 @@ export function DashboardView({ profileId }: { profileId: string }) {
                 do seu perfil.
               </p>
             </div>
-            <FtButton onClick={openAgent} className="[@media(max-width:1024px)]:col-[1/-1]">
-              <Sparkles size={16} />
-              Ver recomendações
+            {/* Este botão dispara a análise e abre a tela da recomendação —
+                é o gatilho descrito no documento do produto. Conversar com o
+                agente continua acessível pela sidebar. */}
+            <FtButton
+              onClick={() => analyze.run()}
+              disabled={analyze.analyzing}
+              className="[@media(max-width:1024px)]:col-[1/-1]"
+            >
+              {analyze.analyzing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              {analyze.analyzing ? "Analisando seus dados…" : "Ver recomendações"}
             </FtButton>
           </div>
         </>

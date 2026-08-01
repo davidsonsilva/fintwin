@@ -118,6 +118,13 @@ def _quantize_months(value: Optional[Decimal]) -> Optional[Decimal]:
     return None if value is None else value.quantize(_MONTHS_QUANTUM)
 
 
+def _months_pt(value: Decimal) -> str:
+    """"1.0" -> "1 mês"; "2.5" -> "2,5 meses". Estas strings vão direto para a tela."""
+    rounded = value.quantize(_MONTHS_QUANTUM)
+    text = (str(rounded).rstrip("0").rstrip(".") or "0").replace(".", ",")
+    return f"{text} {'mês' if rounded == 1 else 'meses'}"
+
+
 def _insufficient(currency: str, now: datetime, missing: list[str]) -> OpportunityResult:
     return OpportunityResult(
         status=OpportunityStatus.INSUFFICIENT_DATA,
@@ -254,8 +261,8 @@ def analyze_opportunity(
     if reserve_months < RESERVE_FLOOR_MONTHS:
         return _partial(
             OpportunityStatus.NO_ACTION,
-            f"Sua reserva cobre {reserve_months.quantize(_MONTHS_QUANTUM)} meses de despesas essenciais, "
-            f"abaixo do piso de {RESERVE_FLOOR_MONTHS} meses. Reforçar a reserva vem antes de acelerar metas.",
+            f"Sua reserva cobre {_months_pt(reserve_months)} de despesas essenciais, abaixo do piso de "
+            f"{_months_pt(RESERVE_FLOOR_MONTHS)}. Reforçar a reserva vem antes de acelerar metas.",
         )
     if essential_ratio > ESSENTIAL_RATIO_CEILING:
         return _partial(
@@ -308,8 +315,6 @@ def analyze_opportunity(
     if custom_pct is not None:
         plan_pcts[ScenarioKey.CUSTOM] = _floor_to_step(custom_pct)
 
-    baseline_burn = baseline.periods[0].expense_total
-
     scenarios = [
         _build_scenario(
             key=key,
@@ -320,7 +325,7 @@ def analyze_opportunity(
             baseline_months=baseline_months,
             recurring_surplus=recurring_surplus,
             eligible_assets=eligible_assets,
-            baseline_burn=baseline_burn,
+            essential_monthly=essential_monthly,
             accounts=accounts,
             incomes=incomes,
             obligations=obligations,
@@ -384,7 +389,7 @@ def _build_scenario(
     baseline_months: Optional[Decimal],
     recurring_surplus: Money,
     eligible_assets: Money,
-    baseline_burn: Money,
+    essential_monthly: Money,
     accounts: list[FinancialAccount],
     incomes: list[IncomeSource],
     obligations: list[FinancialObligation],
@@ -431,7 +436,16 @@ def _build_scenario(
         months_saved = baseline_months - months
 
     surplus_after = recurring_surplus.subtract(additional)
-    burn_after = baseline_burn.add(additional)
+
+    # Autonomia depois, na MESMA base da autonomia de hoje: reserva elegível
+    # dividida pelo compromisso mensal. A única diferença é que o aporte novo
+    # entra no denominador — a pergunta é "se a renda parar e eu mantiver este
+    # aporte, por quantos meses eu me sustento?".
+    #
+    # Medir "antes" contra despesa essencial e "depois" contra a queima total
+    # projetada não é comparação, é troca de régua: fazia até o cenário
+    # conservador de um perfil folgado aparecer como inseguro.
+    burn_after = essential_monthly.add(additional)
     autonomy_after = (
         eligible_assets.amount / burn_after.amount if burn_after.amount > 0 else None
     )
@@ -443,8 +457,8 @@ def _build_scenario(
         risks.append("O aporte ultrapassa a sobra recorrente e o mês fecha negativo.")
     if autonomy_after is not None and autonomy_after < RESERVE_FLOOR_MONTHS:
         risks.append(
-            f"A autonomia provável cai para {autonomy_after.quantize(_MONTHS_QUANTUM)} meses, "
-            f"abaixo do piso de {RESERVE_FLOOR_MONTHS} meses."
+            f"A autonomia cai para {_months_pt(autonomy_after)}, abaixo do piso de "
+            f"{_months_pt(RESERVE_FLOOR_MONTHS)}."
         )
     if simulated.lowest_balance.is_negative():
         risks.append("O saldo projetado fica negativo em algum mês do horizonte.")
@@ -572,8 +586,8 @@ def _build_risks(
 
     if recommended.autonomy_months_after is not None and recommended.autonomy_months_after < Decimal("6"):
         risks.append(
-            f"Com o aporte recomendado a autonomia provável fica em "
-            f"{recommended.autonomy_months_after} meses."
+            f"Com o aporte recomendado a autonomia fica em "
+            f"{_months_pt(recommended.autonomy_months_after)}."
         )
 
     risks.append(
@@ -596,6 +610,8 @@ def _build_assumptions() -> list[str]:
         f"{ESSENTIAL_RATIO_CEILING * 100:.0f}% da renda (regra ESSENTIAL_EXPENSE_RATIO).",
         f"O efeito de cada cenário vem de reexecutar o motor de projeção por "
         f"{PROJECTION_HORIZON_MONTHS} meses no cenário provável, com o aporte alterado.",
+        "Autonomia após a ação = reserva elegível dividida por (despesa essencial + aporte novo): "
+        "responde \"se a renda parar e eu mantiver este aporte, por quantos meses me sustento?\".",
         "Meta principal = a de menor `priority`. Rendimento sobre o valor aportado não é considerado.",
         "Nenhuma despesa essencial é usada como origem do dinheiro.",
     ]

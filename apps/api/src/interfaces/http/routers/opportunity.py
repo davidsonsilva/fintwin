@@ -13,6 +13,8 @@ sempre os mesmos números.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -83,6 +85,29 @@ def create_opportunity_analysis(
         custom_pct=payload.custom_pct if payload else None,
     )
     return OpportunityAnalysisResponse.from_domain(loaded)
+
+
+@profiles_router.get(
+    "/{profile_id}/opportunity-analyses/latest",
+    response_model=Optional[OpportunityAnalysisResponse],
+)
+def get_latest_opportunity_analysis(
+    profile_id: str, session: Session = Depends(get_session)
+) -> Optional[OpportunityAnalysisResponse]:
+    """Resumo do card no dashboard, sem criar registro.
+
+    Devolve `null` quando o perfil nunca foi analisado — é o estado inicial do
+    card, não um erro.
+    """
+    profile = _get_profile_or_404(profile_id, session)
+
+    repo = SqlAlchemyOpportunityAnalysisRepository(session)
+    latest = repo.get_latest_for_profile(profile_id)
+    if latest is None:
+        return None
+
+    use_case = GetOpportunityAnalysisUseCase(analysis_repo=repo, **_repos(session))
+    return OpportunityAnalysisResponse.from_domain(use_case.execute(latest.id, profile.currency))
 
 
 @analyses_router.get("/{analysis_id}", response_model=OpportunityAnalysisResponse)
