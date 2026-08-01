@@ -83,10 +83,10 @@ export function IncomeCommitmentCard({
            * venceria o clamp; os valores dela estão reproduzidos.
            */
           <div className="min-w-0">
-            <h3 className="m-0 text-[length:clamp(15px,4.18cqi,23px)] leading-[1.3] font-semibold">
+            <h3 className="m-0 text-[length:clamp(15px,3.6cqi,20px)] leading-[1.3] font-semibold">
               Comprometimento da renda
             </h3>
-            <p className="ft-card-subtitle">Percentual da renda mensal comprometido com obrigações</p>
+            <p className="m-0 mt-1.5 text-[length:clamp(12px,2.8cqi,14px)] text-[color:var(--ft-text-secondary)]">Percentual da renda mensal comprometido com obrigações</p>
           </div>
         }
         help={
@@ -145,7 +145,7 @@ export function IncomeCommitmentCard({
       <Card.Footer className="mt-0">
         <Link
           href={`/dashboard/${profileId}/resources/obligations`}
-          className="flex min-w-0 items-center justify-between gap-2 border-t border-[color:var(--ft-border)] pt-4 text-[#b49cff]"
+          className="flex min-w-0 items-center justify-between gap-2 border-t border-[color:var(--ft-border)] pt-4 text-[length:clamp(13px,3cqi,16px)] text-[#b49cff]"
         >
           Ver obrigações
           <ArrowRight size={16} className="flex-none" />

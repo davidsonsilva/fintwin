@@ -582,9 +582,9 @@ body {
   border-bottom: none;
 }
 
-.ft-grid--analytics {
-  grid-template-columns: 1.05fr 1.05fr 1fr;
-}
+/* `.ft-grid--analytics` saiu daqui: a fileira de analytics agora é Tailwind direto
+   em `DashboardView.tsx` (duas colunas flex de altura independente), pelo mesmo
+   motivo da fileira de indicadores. */
 
 .ft-col-span-2 {
   grid-column: span 2;
@@ -713,12 +713,17 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: clamp(8px, 2.5cqi, 16px);
 }
 
+/* O gauge é proporcional por natureza (viewBox + `width: 74%`), inclusive os
+   textos internos, que estão em unidades do viewBox. O teto era 320px, que o card
+   já atingia em ~484px de largura: entre 484px e o widescreen o gauge ficava
+   idêntico. Subiu para 360px, acima do que o card mais largo pede, para o
+   percentual continuar acompanhando a largura em toda a faixa. */
 .ft-gauge-svg {
   width: 74%;
-  max-width: 320px;
+  max-width: 360px;
   height: auto;
   overflow: visible;
 }
@@ -741,9 +746,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: clamp(4px, 1.6cqi, 8px);
 
-  font-size: 14px;
+  font-size: clamp(11px, 2.5cqi, 14px);
   font-weight: var(--ft-font-weight-medium);
 }
 
@@ -841,12 +846,17 @@ body {
    grid vive na LISTA, não na linha. Com um grid por linha as colunas `auto` são
    dimensionadas isoladamente e "950,00" empurra a coluna para longe de
    "2.200,00"; aqui todas as linhas dividem as mesmas trilhas. */
+/* Tudo aqui é fluido no `@container/card`: fonte, gaps e as trilhas numéricas.
+   A coluna do percentual era fixa em 48px — largura de widescreen que sobrava em
+   card estreito e roubava espaço do nome. Agora as três colunas de conteúdo são
+   `minmax(0,1fr) auto auto`: nome elástico, percentual e valor no tamanho exato
+   do texto. */
 .ft-chart-legend {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) 48px auto;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto;
   align-items: center;
-  column-gap: 8px;
-  row-gap: 14px;
+  column-gap: clamp(4px, 1.4cqi, 8px);
+  row-gap: clamp(8px, 2cqi, 14px);
 
   /* Cabe confortavelmente ~8 categorias em uma linha cada; só rola se passar disso. */
   max-height: 230px;
@@ -854,7 +864,7 @@ body {
   padding-right: 6px;
 
   color: var(--ft-text-secondary);
-  font-size: 13px;
+  font-size: clamp(11px, 2.5cqi, 14px);
 }
 
 /* Dissolve o wrapper para que as células caiam direto nas trilhas da lista. */
@@ -869,15 +879,16 @@ body {
 }
 
 /* Peso regular de propósito: em negrito o nome fica largo demais e rouba
-   espaço das colunas numéricas em cards estreitos. */
+   espaço das colunas numéricas em cards estreitos.
+
+   Sem `text-overflow: ellipsis`: cortar "Moradia" em "Mor..." é esconder falta de
+   espaço, não resolver. Falta de largura agora vira quebra de linha. */
 .ft-legend-name {
   min-width: 0;
-  overflow: hidden;
   color: var(--ft-text-primary);
   font-weight: var(--ft-font-weight-regular);
   text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 .ft-legend-percent {
@@ -925,13 +936,13 @@ body {
 
 .ft-donut-total-currency {
   color: var(--ft-text-secondary);
-  font-size: 12px;
+  font-size: clamp(9px, 2.2cqi, 12px);
   line-height: 1.2;
 }
 
 .ft-donut-total-label {
   color: var(--ft-text-secondary);
-  font-size: 11px;
+  font-size: clamp(8px, 2cqi, 11px);
   line-height: 1.2;
 }
 
@@ -1545,14 +1556,6 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .ft-grid--analytics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ft-grid--analytics > :last-child {
-    grid-column: 1 / -1;
-  }
-
   /* O breakpoint da fileira de indicadores (abaixo de 1280px o card de eventos
      cai para linha própria e os 6 compactos vão de 3 para 2 colunas) agora é
      Tailwind (`max-[1280px]:`) direto em `DashboardView.tsx`, não mais regra
@@ -1616,7 +1619,6 @@ body {
   }
 
   .ft-grid--metrics,
-  .ft-grid--analytics,
   .ft-form-grid,
   .ft-review-grid {
     grid-template-columns: 1fr;

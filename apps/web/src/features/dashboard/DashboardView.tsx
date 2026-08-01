@@ -259,11 +259,50 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
           <AutonomyPanel profileId={profileId} />
 
-          <section className="ft-grid ft-grid--analytics">
-            <ExpenseBreakdownChart profileId={profileId} />
-            <BalanceHistoryChart profileId={profileId} />
-            <IncomeCommitmentCard profileId={profileId} incomeCommitmentPct={data.income_commitment_pct} />
-          </section>
+          {/*
+           * Analytics: três composições determinísticas, escolhidas por container
+           * query sobre a largura real da seção (não da viewport — a sidebar entra
+           * em 1024px e desloca tudo). Nada de ResizeObserver ou score aqui: são
+           * três cards fixos, a decisão cabe no CSS.
+           *
+           *   >= 1112px  [Distribuição] [Evolução] [Comprometimento]
+           *   >=  760px  [Distribuição              ]
+           *              [Evolução] [Comprometimento]
+           *    <  760px  uma coluna
+           *
+           * Os limites saem da menor largura de card já validada nesta fileira
+           * (~360px de área útil, com o gap de 16px entre colunas):
+           * 3 x 360 + 2 x 16 = 1112 e 2 x 372 + 16 = 760.
+           *
+           * Na faixa intermediária o donut é o card principal e fica sozinho na
+           * linha de cima, com a largura toda; os outros dois são secundários e
+           * dividem a linha de baixo. É hierarquia declarada, não equilíbrio de
+           * alturas — nenhuma altura entra nessa decisão.
+           *
+           * Em widescreen o wrapper dos dois secundários vira `display: contents`,
+           * então eles passam a ser itens diretos da seção — três colunas `flex-1`
+           * iguais, ninguém ocupando duas linhas.
+           *
+           * Cada card vai dentro de um `<div>` porque os três trazem `self-start`
+           * (para não esticarem no grid antigo) e, num pai flex-column, `self-start`
+           * age no eixo horizontal — encolheria a largura. O wrapper block neutraliza
+           * isso sem tocar em nenhum dos cards.
+           */}
+          <div className="@container/analytics">
+            <section className="flex flex-col gap-4 @min-[1112px]/analytics:flex-row @min-[1112px]/analytics:items-start">
+              <div className="min-w-0 @min-[1112px]/analytics:flex-1">
+                <ExpenseBreakdownChart profileId={profileId} />
+              </div>
+              <div className="flex min-w-0 flex-col gap-4 @min-[760px]/analytics:flex-row @min-[760px]/analytics:items-start @min-[1112px]/analytics:contents">
+                <div className="min-w-0 @min-[760px]/analytics:flex-1">
+                  <BalanceHistoryChart profileId={profileId} />
+                </div>
+                <div className="min-w-0 @min-[760px]/analytics:flex-1">
+                  <IncomeCommitmentCard profileId={profileId} incomeCommitmentPct={data.income_commitment_pct} />
+                </div>
+              </div>
+            </section>
+          </div>
 
           <ProjectionChart profileId={profileId} />
 

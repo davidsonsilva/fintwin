@@ -128,10 +128,10 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
           /* Sem `.ft-card-title`: a regra não-layered fixaria 16px e venceria o
              clamp. Valores reproduzidos. */
           <div className="min-w-0">
-            <h3 className="m-0 text-[length:clamp(15px,4.18cqi,23px)] leading-[1.3] font-semibold break-normal [overflow-wrap:normal] [word-break:normal]">
+            <h3 className="m-0 text-[length:clamp(15px,3.6cqi,20px)] leading-[1.3] font-semibold break-normal [overflow-wrap:normal] [word-break:normal]">
               Distribuição das despesas
             </h3>
-            <p className="ft-card-subtitle">Visão geral por categoria</p>
+            <p className="m-0 mt-1.5 text-[length:clamp(12px,2.8cqi,14px)] text-[color:var(--ft-text-secondary)]">Visão geral por categoria</p>
           </div>
         }
       />
@@ -144,15 +144,24 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
 
         {data && data.length > 0 && (
           /*
-           * `.ft-expense-layout` reproduzido aqui. A legenda tem três colunas
-           * (nome, %, valor) e precisa de espaço: se o donut come demais, a coluna
-           * do nome colapsa e os nomes somem. Abaixo de 440px de content box
-           * empilha e devolve a largura toda à legenda.
+           * `.ft-expense-layout` reproduzido aqui.
+           *
+           * A coluna do donut era `minmax(120px,246px)`: ou 246px cheios, ou nada
+           * entre isso e o mínimo. Num card de 484px sobravam ~190px para a legenda
+           * e o nome da categoria virava "Mor...". Agora o diâmetro é fluido
+           * (`clamp(118px, 44cqi, 246px)` — os mesmos 246px a partir de ~560px de
+           * content box, encolhendo proporcionalmente daí para baixo), e a fonte da
+           * legenda encolhe junto (ver `.ft-chart-legend`). Nome nenhum é truncado.
+           *
+           * O empilhamento caiu de 440px para 330px de content box porque agora é
+           * o ponto onde a legenda deixa de caber de fato, não onde ela perderia o
+           * tamanho de widescreen. Abaixo disso a redução acabou e a saída é
+           * reorganizar: donut em cima, legenda com a largura toda.
            */
           <div
             className={cn(
-              "grid grid-cols-[minmax(120px,246px)_minmax(0,1fr)] items-center gap-4",
-              "@max-[440px]/card:grid-cols-[minmax(0,1fr)] @max-[440px]/card:justify-items-center"
+              "grid grid-cols-[clamp(118px,44cqi,246px)_minmax(0,1fr)] items-center gap-[clamp(8px,2.4cqi,16px)]",
+              "@max-[330px]/card:grid-cols-[minmax(0,1fr)] @max-[330px]/card:justify-items-center"
             )}
           >
             {/*
@@ -162,7 +171,7 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
              * container cai para 220x220 em vez de 220x246, cortando 26px de vazio
              * vertical sem mudar o diâmetro do donut.
              */}
-            <div className="relative aspect-square w-full min-w-0 @max-[440px]/card:max-w-[220px]">
+            <div className="relative aspect-square w-full min-w-0 @max-[330px]/card:max-w-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <defs>
@@ -198,7 +207,7 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
             </div>
 
             {/* `w-full` no empilhado vinha da mesma container query. */}
-            <div className="ft-chart-legend @max-[440px]/card:w-full">
+            <div className="ft-chart-legend @max-[330px]/card:w-full">
               {data.map((item, index) => (
                 <div key={item.category} className="ft-legend-item">
                   <span className="ft-legend-dot" style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }} />
@@ -217,7 +226,7 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
       <Card.Footer className="mt-0">
         <Link
           href={`/dashboard/${profileId}/resources/obligations`}
-          className="flex min-w-0 items-center justify-between gap-2 border-t border-[color:var(--ft-border)] pt-4 text-[#b49cff]"
+          className="flex min-w-0 items-center justify-between gap-2 border-t border-[color:var(--ft-border)] pt-4 text-[length:clamp(13px,3cqi,16px)] text-[#b49cff]"
         >
           Ver detalhes das despesas
           <ArrowRight size={16} className="flex-none" />

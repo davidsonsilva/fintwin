@@ -147,10 +147,10 @@ export function BalanceHistoryChart({
            * clamp. Os valores dela estão reproduzidos aqui.
            */
           <div className="min-w-0">
-            <h3 className="m-0 text-[length:clamp(15px,4.18cqi,23px)] leading-[1.3] font-semibold">
+            <h3 className="m-0 text-[length:clamp(15px,3.6cqi,20px)] leading-[1.3] font-semibold">
               Evolução do saldo líquido
             </h3>
-            <p className="ft-card-subtitle">Últimos {months} meses</p>
+            <p className="m-0 mt-1.5 text-[length:clamp(12px,2.8cqi,14px)] text-[color:var(--ft-text-secondary)]">Últimos {months} meses</p>
           </div>
         }
         help={
@@ -182,7 +182,11 @@ export function BalanceHistoryChart({
            * a outra coisa que ela dava e está reproduzido.
            */
           <div
-            className="relative aspect-[22/10] w-full min-w-0 min-h-[170px]"
+            /* Os rótulos dos eixos saíram do prop `tick` (número fixo em px, escala
+               de widescreen) para cá: como atributo de apresentação do SVG, qualquer
+               regra CSS os vence, então o `clamp()` em `cqi` manda. O gráfico segue
+               com 100% da largura; só os rótulos encolhem. */
+            className="relative aspect-[22/10] w-full min-w-0 min-h-[170px] [&_.recharts-cartesian-axis-tick-value]:text-[length:clamp(9px,2.5cqi,12px)]"
             style={minChartHeight ? { minHeight: minChartHeight } : undefined}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -209,7 +213,7 @@ export function BalanceHistoryChart({
                  */}
                 <XAxis
                   dataKey="period"
-                  tick={{ fontSize: 11, fill: "var(--ft-text-secondary)" }}
+                  tick={{ fill: "var(--ft-text-secondary)" }}
                   axisLine={false}
                   tickLine={false}
                   interval="preserveStartEnd"
@@ -217,7 +221,7 @@ export function BalanceHistoryChart({
                   height={20}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: "var(--ft-text-secondary)" }}
+                  tick={{ fill: "var(--ft-text-secondary)" }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={formatAxisTick}
@@ -261,7 +265,7 @@ export function BalanceHistoryChart({
         <Card.Footer className="mt-0">
           <Link
             href={`/dashboard/${profileId}/balance-history`}
-            className="flex min-w-0 items-center justify-between gap-2 border-t border-[color:var(--ft-border)] pt-4 text-[#b49cff]"
+            className="flex min-w-0 items-center justify-between gap-2 border-t border-[color:var(--ft-border)] pt-4 text-[length:clamp(13px,3cqi,16px)] text-[#b49cff]"
           >
             Ver histórico completo
             <ArrowRight size={16} className="flex-none" />
