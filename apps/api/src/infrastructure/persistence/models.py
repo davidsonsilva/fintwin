@@ -59,6 +59,9 @@ class ProfileModel(Base):
     conversations: Mapped[list["ConversationModel"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan"
     )
+    opportunity_analyses: Mapped[list["OpportunityAnalysisModel"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan"
+    )
 
 
 class AccountModel(Base):
@@ -216,6 +219,35 @@ class PreventivePlanModel(Base):
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     profile: Mapped[ProfileModel] = relationship(back_populates="preventive_plans")
+
+
+class OpportunityAnalysisModel(Base):
+    """Snapshot imutável de uma análise de oportunidade.
+
+    O `result` guarda a resposta inteira do motor no momento em que ela foi
+    gerada. A tela de recomendação não recalcula: ela lê este registro, para
+    que a decisão do usuário possa ser auditada contra exatamente os números
+    que ele viu.
+
+    `input_fingerprint` é a impressão digital dos dados financeiros usados.
+    Comparada com a impressão atual, é o que revela que a análise ficou
+    defasada (`stale`) sem precisar rodar o motor de novo.
+    """
+
+    __tablename__ = "opportunity_analyses"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(36), ForeignKey("profiles.id"), nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    scenario: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    decision: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    selected_scenario: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+
+    profile: Mapped[ProfileModel] = relationship(back_populates="opportunity_analyses")
 
 
 class ConversationModel(Base):

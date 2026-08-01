@@ -22,6 +22,7 @@ from src.interfaces.http.routers import (
     goal,
     income,
     obligation,
+    opportunity,
     preventive_plan,
     profile,
     simulation,
@@ -71,4 +72,6 @@ app.include_router(simulation.profiles_router)
 app.include_router(simulation.simulations_router)
 app.include_router(preventive_plan.profiles_router)
 app.include_router(preventive_plan.plans_router)
+app.include_router(opportunity.profiles_router)
+app.include_router(opportunity.analyses_router)
 app.include_router(agent.router)
