@@ -582,14 +582,6 @@ body {
   border-bottom: none;
 }
 
-/* `.ft-grid--analytics` saiu daqui: a fileira de analytics agora é Tailwind direto
-   em `DashboardView.tsx` (duas colunas flex de altura independente), pelo mesmo
-   motivo da fileira de indicadores. */
-
-.ft-col-span-2 {
-  grid-column: span 2;
-}
-
 .ft-section {
   margin-top: 0;
 }
@@ -623,85 +615,11 @@ body {
   font-size: 13px;
 }
 
-.ft-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  margin-top: 20px;
-  padding-top: 16px;
-
-  color: #b49cff;
-  border-top: 1px solid var(--ft-border);
-}
-
-/* Usado pelos 3 cards da linha de analytics (despesas/saldo/comprometimento):
-   altura igual + rodapé fixo no fundo, para os links ficarem alinhados
-   independente de quanto conteúdo cada gráfico usa por cima. */
-.ft-analytics-card {
-  min-height: 420px;
-  padding-bottom: 64px;
-
-  /* Permite que o conteúdo reaja à largura do card (ver .ft-expense-layout). */
-  container: ft-card / inline-size;
-}
-
 /* Medido na referência: o título ocupa ~4,2% da largura do card (≈22px num card
    de 530px), bem maior que os 16px do padrão. Escala com o card. */
 .ft-analytics-card .ft-card-title {
   font-size: clamp(15px, 4.18cqi, 23px);
   line-height: 1.3;
-}
-
-.ft-analytics-card .ft-card-footer {
-  position: absolute;
-  right: 20px;
-  bottom: 20px;
-  left: 20px;
-  margin-top: 0;
-}
-
-/* =========================================================
-   METRIC CARDS
-   ========================================================= */
-
-.ft-metric-card {
-  display: flex;
-  min-height: 132px;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-/* `.ft-metric-icon` e seus 4 modificadores viraram o componente IconChip
-   (design-system/components/IconChip), variante `size="md"`. */
-
-.ft-metric-content {
-  min-width: 0;
-}
-
-.ft-metric-label {
-  margin: 3px 0 10px;
-  color: var(--ft-text-secondary);
-  font-size: 13px;
-}
-
-.ft-metric-value {
-  margin: 0;
-  font-size: 24px;
-  font-weight: var(--ft-font-weight-bold);
-  line-height: 32px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.ft-metric-unit {
-  margin-left: 5px;
-  font-size: var(--ft-font-size-body-md);
-  font-weight: var(--ft-font-weight-semibold);
-}
-
-.ft-gauge-container {
-  position: relative;
 }
 
 /* Medidor de comprometimento da renda: gauge em SVG à mão (geometria fixa,
@@ -750,96 +668,6 @@ body {
 
   font-size: clamp(11px, 2.5cqi, 14px);
   font-weight: var(--ft-font-weight-medium);
-}
-
-.ft-metric-helper {
-  margin: 8px 0 0;
-  color: var(--ft-text-secondary);
-  font-size: 13px;
-}
-
-/* =========================================================
-   STATUS CARDS
-   ========================================================= */
-
-/* `.ft-badge` e seus modificadores viraram o componente Badge
-   (design-system/components/Badge). O tom `link` mora lá também. */
-
-/* =========================================================
-   FINANCIAL EVENTS
-   ========================================================= */
-
-.ft-event-list {
-  display: grid;
-  gap: 12px;
-}
-
-.ft-event-item {
-  display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-
-  padding: 14px 16px;
-
-  background: rgba(17, 38, 56, 0.75);
-  border: 1px solid var(--ft-border);
-  border-radius: 12px;
-}
-
-.ft-event-date {
-  display: grid;
-  width: 44px;
-  height: 50px;
-
-  place-items: center;
-
-  color: var(--ft-primary);
-  font-weight: var(--ft-font-weight-bold);
-  line-height: 1;
-
-  background: var(--ft-primary-soft);
-  border-radius: 10px;
-}
-
-.ft-event-date small {
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.ft-event-title {
-  margin: 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  font-size: var(--ft-font-size-body-md);
-  font-weight: var(--ft-font-weight-semibold);
-}
-
-.ft-event-description {
-  margin: 5px 0 0;
-  color: var(--ft-text-secondary);
-  font-size: var(--ft-font-size-body-sm);
-}
-
-.ft-event-amount {
-  color: var(--ft-success);
-  font-size: var(--ft-font-size-body-md);
-  font-weight: var(--ft-font-weight-bold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  text-align: right;
-}
-
-/* =========================================================
-   CHART AREAS
-   ========================================================= */
-
-.ft-chart-container {
-  position: relative;
-  min-height: 250px;
 }
 
 /* Três colunas de dados — nome à esquerda, % centralizada, valor à direita — e o
@@ -946,62 +774,13 @@ body {
   line-height: 1.2;
 }
 
-/* A legenda tem 3 colunas (nome, %, valor) e precisa de espaço: se o donut come
-   demais, a coluna do nome colapsa para zero e os nomes somem. O que manda aqui
-   é a largura do CARD, não a da tela — daí a container query abaixo. */
-/* Medido na referência: diâmetro do donut ≈ 0,446 da largura do card. */
-.ft-expense-layout {
-  display: grid;
-  grid-template-columns: minmax(120px, 246px) minmax(0, 1fr);
-  align-items: center;
-  gap: 16px;
-}
-
 /* Card estreito (dashboard em telas menores): lado a lado não cabe sem truncar
    os nomes das categorias, então empilha e devolve a largura toda à legenda. */
 @container ft-card (max-width: 440px) {
-  .ft-expense-layout {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-  }
-
-  .ft-chart-container {
-    width: 100%;
-    max-width: 220px;
-  }
 
   .ft-chart-legend {
     width: 100%;
   }
-}
-
-@media (max-width: 640px) {
-  .ft-expense-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-.ft-evidence-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.ft-evidence-item {
-  display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-
-  color: var(--ft-text-secondary);
-  font-size: 13px;
-}
-
-.ft-evidence-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ft-border-hover);
 }
 
 .ft-assumptions-list {
@@ -1135,7 +914,6 @@ body {
   align-items: center;
   gap: 6px;
 }
-
 
 /* =========================================================
    SELECT (dropdown de período/cenário/severidade)
@@ -1420,44 +1198,6 @@ body {
   font-weight: var(--ft-font-weight-semibold);
 }
 
-.ft-input,
-.ft-select,
-.ft-textarea {
-  width: 100%;
-  min-height: 46px;
-  padding: 0 14px;
-
-  color: var(--ft-text-primary);
-  background: rgba(3, 12, 22, 0.58);
-  border: 1px solid var(--ft-border);
-  border-radius: 11px;
-  outline: none;
-
-  transition:
-    border-color var(--ft-transition-fast),
-    box-shadow var(--ft-transition-fast),
-    background var(--ft-transition-fast);
-}
-
-.ft-textarea {
-  min-height: 110px;
-  padding-top: 13px;
-  resize: vertical;
-}
-
-.ft-input::placeholder,
-.ft-textarea::placeholder {
-  color: var(--ft-text-disabled);
-}
-
-.ft-input:focus,
-.ft-select:focus,
-.ft-textarea:focus {
-  background: rgba(3, 12, 22, 0.82);
-  border-color: var(--ft-primary);
-  box-shadow: 0 0 0 4px rgba(34, 230, 177, 0.1);
-}
-
 .ft-form-actions {
   display: flex;
   justify-content: space-between;
@@ -1624,10 +1364,6 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .ft-col-span-2 {
-    grid-column: auto;
-  }
-
   .ft-stepper {
     display: flex;
     overflow-x: auto;
@@ -1644,27 +1380,6 @@ body {
 
   .ft-form-actions {
     flex-direction: column-reverse;
-  }
-
-  .ft-event-item {
-    grid-template-columns: 48px minmax(0, 1fr);
-    grid-template-areas:
-      "date content"
-      "date value";
-    row-gap: 4px;
-  }
-
-  .ft-event-date {
-    grid-area: date;
-  }
-
-  .ft-event-content {
-    grid-area: content;
-  }
-
-  .ft-event-amount {
-    grid-area: value;
-    text-align: left;
   }
 
   .ft-ai-insight {
