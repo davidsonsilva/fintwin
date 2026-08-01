@@ -96,6 +96,13 @@ export function Sidebar({ profileId }: { profileId: string }) {
     }
   }, [isMobileOpen]);
 
+  // Trava o scroll da página atrás do drawer, e só enquanto ele estiver aberto.
+  useEffect(() => {
+    if (!isMobileOpen) return;
+    document.body.classList.add("ft-scroll-locked");
+    return () => document.body.classList.remove("ft-scroll-locked");
+  }, [isMobileOpen]);
+
   return (
     <>
       {isMobileOpen && <div className="ft-sidebar-overlay" onClick={closeMobileSidebar} />}
@@ -112,6 +119,8 @@ export function Sidebar({ profileId }: { profileId: string }) {
           </div>
         </div>
 
+        {/* Faixa do meio: a única que rola. Marca e card da IA ficam fora dela. */}
+        <div className="ft-sidebar-scroll">
         <nav className="ft-nav">
           {navItems.map((item, index) => {
             const isActive =
@@ -128,7 +137,7 @@ export function Sidebar({ profileId }: { profileId: string }) {
                 <span className="ft-nav-icon">
                   <Icon size={20} />
                 </span>
-                {item.label}
+                <span className="ft-nav-label">{item.label}</span>
               </Link>
             );
           })}
@@ -145,7 +154,7 @@ export function Sidebar({ profileId }: { profileId: string }) {
                 <span className="ft-nav-icon">
                   <Icon size={20} />
                 </span>
-                {item.label}
+                <span className="ft-nav-label">{item.label}</span>
               </Link>
             );
           })}
@@ -158,9 +167,10 @@ export function Sidebar({ profileId }: { profileId: string }) {
             <span className="ft-nav-icon">
               <Wand2 size={20} />
             </span>
-            Onboarding guiado
+            <span className="ft-nav-label">Onboarding guiado</span>
           </Link>
         </nav>
+        </div>
 
         <div className="ft-sidebar-panel ft-sidebar-panel--ai">
           <div className="ft-sidebar-panel-header">

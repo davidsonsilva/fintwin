@@ -6,4 +6,4 @@
  * by the Free Software Foundation, version 3 of the License.
  */
 
-export { StatusCard, type StatusCardProps } from "./StatusCard";
+export { CompactStatCard, type CompactStatCardProps } from "./CompactStatCard";

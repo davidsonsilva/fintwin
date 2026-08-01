@@ -24,7 +24,7 @@ export default async function BalanceHistoryPage({
         description="Evolução completa do saldo líquido, mês a mês."
         info="Série completa do seu saldo líquido ao longo dos meses registrados. Ajuda a ver a tendência: você está acumulando ou consumindo reservas?"
       />
-      <BalanceHistoryChart profileId={profileId} months={24} height={380} showFooterLink={false} />
+      <BalanceHistoryChart profileId={profileId} months={24} minChartHeight={380} showFooterLink={false} />
       <BalanceHistoryTable profileId={profileId} months={24} />
     </div>
   );

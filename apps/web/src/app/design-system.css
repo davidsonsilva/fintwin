@@ -128,7 +128,65 @@ html {
   color-scheme: dark;
 }
 
+/* Só a cor de base. Os brilhos saíram daqui: o background do `body` é
+   dimensionado pela altura do DOCUMENTO, então num dashboard de 2500px o clarão
+   de `92%` caía lá embaixo, mudava de lugar a cada página e escorria pela lateral
+   da sidebar. Quem desenha o fundo agora é `.ft-app::before`, uma única camada
+   fixa do tamanho do viewport (ver "BACKGROUND GLOBAL"). */
 body {
+  background: var(--ft-bg-page);
+}
+
+/* Trava o scroll de fundo enquanto o drawer da sidebar está aberto (só então). */
+body.ft-scroll-locked {
+  overflow: hidden;
+}
+
+/* =========================================================
+   APPLICATION SHELL
+   ========================================================= */
+
+/* =========================================================
+   BACKGROUND GLOBAL
+
+   Camadas, de baixo para cima:
+     1. `.ft-app::before`  brilhos + cor de base, uma vez só, fixo no viewport
+     2. `.ft-sidebar`      superfície própria, opaca
+     3. `.ft-main`         transparente, deixa a camada 1 aparecer
+     4. cards              superfícies próprias
+
+   Nenhum outro nível repete esses gradientes. Como a camada é `fixed` e mede o
+   viewport (não o documento), ela não recomeça a cada seção, não muda de escala
+   com a altura da página e não emenda durante o scroll.
+   ========================================================= */
+
+.ft-app {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--ft-sidebar-width) minmax(0, 1fr) var(--ft-agent-width);
+  min-height: 100dvh;
+
+  /* Contexto de empilhamento próprio: o `z-index: -1` do ::before fica atrás do
+     conteúdo do shell sem escapar para trás do `body`. */
+  isolation: isolate;
+}
+
+.ft-app::before {
+  content: "";
+
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+
+  width: 100%;
+  height: 100dvh;
+
+  pointer-events: none;
+
+  /* `width: 100%`, nunca `100vw`: `100vw` inclui a barra de rolagem e cria
+     scroll horizontal. O brilho da esquerda foi de 18% para 45% da largura —
+     antes ele nascia a 11px da borda da sidebar e vazava como uma faixa clara
+     no exato ponto em que a superfície opaca dela terminava. */
   background:
     radial-gradient(
       circle at 82% 12%,
@@ -136,21 +194,14 @@ body {
       transparent 30%
     ),
     radial-gradient(
-      circle at 18% 92%,
+      circle at 45% 96%,
       rgba(0, 200, 150, 0.08),
       transparent 30%
     ),
     var(--ft-bg-page);
-}
-
-/* =========================================================
-   APPLICATION SHELL
-   ========================================================= */
-
-.ft-app {
-  display: grid;
-  grid-template-columns: var(--ft-sidebar-width) minmax(0, 1fr) var(--ft-agent-width);
-  min-height: 100vh;
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
 }
 
 .ft-app--agent-closed {
@@ -182,22 +233,48 @@ body {
   background: rgba(2, 8, 16, 0.6);
 }
 
+/* Três faixas: marca fixa em cima, navegação rolável no meio, card da IA fixo
+   embaixo. Antes era um bloco único com `overflow-y: auto`: o conteúdo mede
+   1087px, então em qualquer viewport mais baixo que isso a marca subia junto com
+   o scroll e o card da IA ficava fora da tela. `minmax(0, 1fr)` + `min-height: 0`
+   no filho é o que permite a faixa do meio encolher e rolar sozinha — sem isso o
+   item de grid assume `min-height: auto` e estoura a altura. */
 .ft-sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100dvh;
   padding: 24px 18px;
 
-  overflow-y: auto;
+  /* Nada rola no elemento externo; só a faixa do meio. */
+  overflow: hidden;
 
-  background:
-    linear-gradient(
-      180deg,
-      rgba(7, 17, 30, 0.98),
-      rgba(4, 12, 22, 0.98)
-    );
+  /* Opaco de propósito: a 98% o brilho da camada global aparecia através da
+     superfície da sidebar. */
+  background: linear-gradient(180deg, #07111e, #040c16);
 
   border-right: 1px solid var(--ft-border);
+}
+
+.ft-sidebar-scroll {
+  min-height: 0;
+  overflow-y: auto;
+
+  /* O scroll para na sidebar em vez de encadear na página atrás. */
+  overscroll-behavior: contain;
+
+  /* Sem barra visível: a sidebar é superfície de navegação, não um painel de
+     conteúdo, e a barra no meio dela quebra a identidade visual. Rolar continua
+     funcionando por roda, trackpad, teclado e arrasto. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ft-sidebar-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .ft-brand {
@@ -292,6 +369,13 @@ body {
   height: 22px;
   flex: 0 0 auto;
   place-items: center;
+}
+
+/* O rótulo é quem cede largura, nunca o ícone. Quebra só entre palavras. */
+.ft-nav-label {
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .ft-nav-divider {
@@ -569,38 +653,17 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-/* Sem `grid-auto-rows`: linha dimensionada pelo próprio conteúdo. Com `1fr` todas as
-   linhas ficavam iguais à mais alta, então o card de eventos (alto, e cuja altura depende
-   de quantos eventos o usuário tem) esticava os seis cards de status junto. Quem define a
-   própria altura agora é cada card — ver StatusCard. */
-.ft-grid--indicators {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 1.1fr;
-}
-
-.ft-indicators-events {
-  display: flex;
-  flex-direction: column;
-  grid-column: 4;
-  grid-row: 1 / span 2;
-}
-
-/* Card compacto de indicador — sem a linha divisória dos cards de análise. */
+/* `.ft-grid--indicators` (grid único de 4 colunas com o card de eventos em
+   `grid-row: 1 / span 2`) foi removida: o `stretch` padrão do CSS Grid esticava os
+   seis cards compactos até a altura do card de eventos, sempre mais alto. A
+   composição da fileira de indicadores agora é Tailwind direto em
+   `DashboardView.tsx` — duas regiões independentes (`items-start`, nunca stretch),
+   não mais uma classe global. `.ft-indicators-events` continua existindo só para o
+   ajuste de cabeçalho abaixo; `UpcomingEventsCard` é quem decide seu próprio
+   posicionamento/layout externo agora. */
 .ft-indicators-events .ft-card-header {
   padding-bottom: 0;
   border-bottom: none;
-}
-
-.ft-indicators-events .ft-event-list {
-  flex: 1 1 auto;
-  overflow-y: auto;
-}
-
-.ft-grid--analytics {
-  grid-template-columns: 1.05fr 1.05fr 1fr;
-}
-
-.ft-col-span-2 {
-  grid-column: span 2;
 }
 
 .ft-section {
@@ -636,85 +699,11 @@ body {
   font-size: 13px;
 }
 
-.ft-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  margin-top: 20px;
-  padding-top: 16px;
-
-  color: #b49cff;
-  border-top: 1px solid var(--ft-border);
-}
-
-/* Usado pelos 3 cards da linha de analytics (despesas/saldo/comprometimento):
-   altura igual + rodapé fixo no fundo, para os links ficarem alinhados
-   independente de quanto conteúdo cada gráfico usa por cima. */
-.ft-analytics-card {
-  min-height: 420px;
-  padding-bottom: 64px;
-
-  /* Permite que o conteúdo reaja à largura do card (ver .ft-expense-layout). */
-  container: ft-card / inline-size;
-}
-
 /* Medido na referência: o título ocupa ~4,2% da largura do card (≈22px num card
    de 530px), bem maior que os 16px do padrão. Escala com o card. */
 .ft-analytics-card .ft-card-title {
   font-size: clamp(15px, 4.18cqi, 23px);
   line-height: 1.3;
-}
-
-.ft-analytics-card .ft-card-footer {
-  position: absolute;
-  right: 20px;
-  bottom: 20px;
-  left: 20px;
-  margin-top: 0;
-}
-
-/* =========================================================
-   METRIC CARDS
-   ========================================================= */
-
-.ft-metric-card {
-  display: flex;
-  min-height: 132px;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-/* `.ft-metric-icon` e seus 4 modificadores viraram o componente IconChip
-   (design-system/components/IconChip), variante `size="md"`. */
-
-.ft-metric-content {
-  min-width: 0;
-}
-
-.ft-metric-label {
-  margin: 3px 0 10px;
-  color: var(--ft-text-secondary);
-  font-size: 13px;
-}
-
-.ft-metric-value {
-  margin: 0;
-  font-size: 24px;
-  font-weight: var(--ft-font-weight-bold);
-  line-height: 32px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.ft-metric-unit {
-  margin-left: 5px;
-  font-size: var(--ft-font-size-body-md);
-  font-weight: var(--ft-font-weight-semibold);
-}
-
-.ft-gauge-container {
-  position: relative;
 }
 
 /* Medidor de comprometimento da renda: gauge em SVG à mão (geometria fixa,
@@ -726,12 +715,17 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: clamp(8px, 2.5cqi, 16px);
 }
 
+/* O gauge é proporcional por natureza (viewBox + `width: 74%`), inclusive os
+   textos internos, que estão em unidades do viewBox. O teto era 320px, que o card
+   já atingia em ~484px de largura: entre 484px e o widescreen o gauge ficava
+   idêntico. Subiu para 360px, acima do que o card mais largo pede, para o
+   percentual continuar acompanhando a largura em toda a faixa. */
 .ft-gauge-svg {
   width: 74%;
-  max-width: 320px;
+  max-width: 360px;
   height: auto;
   overflow: visible;
 }
@@ -754,112 +748,27 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: clamp(4px, 1.6cqi, 8px);
 
-  font-size: 14px;
+  font-size: clamp(11px, 2.5cqi, 14px);
   font-weight: var(--ft-font-weight-medium);
-}
-
-.ft-metric-helper {
-  margin: 8px 0 0;
-  color: var(--ft-text-secondary);
-  font-size: 13px;
-}
-
-/* =========================================================
-   STATUS CARDS
-   ========================================================= */
-
-/* `.ft-badge` e seus modificadores viraram o componente Badge
-   (design-system/components/Badge). O tom `link` mora lá também. */
-
-/* =========================================================
-   FINANCIAL EVENTS
-   ========================================================= */
-
-.ft-event-list {
-  display: grid;
-  gap: 12px;
-}
-
-.ft-event-item {
-  display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-
-  padding: 14px 16px;
-
-  background: rgba(17, 38, 56, 0.75);
-  border: 1px solid var(--ft-border);
-  border-radius: 12px;
-}
-
-.ft-event-date {
-  display: grid;
-  width: 44px;
-  height: 50px;
-
-  place-items: center;
-
-  color: var(--ft-primary);
-  font-weight: var(--ft-font-weight-bold);
-  line-height: 1;
-
-  background: var(--ft-primary-soft);
-  border-radius: 10px;
-}
-
-.ft-event-date small {
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.ft-event-title {
-  margin: 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  font-size: var(--ft-font-size-body-md);
-  font-weight: var(--ft-font-weight-semibold);
-}
-
-.ft-event-description {
-  margin: 5px 0 0;
-  color: var(--ft-text-secondary);
-  font-size: var(--ft-font-size-body-sm);
-}
-
-.ft-event-amount {
-  color: var(--ft-success);
-  font-size: var(--ft-font-size-body-md);
-  font-weight: var(--ft-font-weight-bold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  text-align: right;
-}
-
-/* =========================================================
-   CHART AREAS
-   ========================================================= */
-
-.ft-chart-container {
-  position: relative;
-  min-height: 250px;
 }
 
 /* Três colunas de dados — nome à esquerda, % centralizada, valor à direita — e o
    grid vive na LISTA, não na linha. Com um grid por linha as colunas `auto` são
    dimensionadas isoladamente e "950,00" empurra a coluna para longe de
    "2.200,00"; aqui todas as linhas dividem as mesmas trilhas. */
+/* Tudo aqui é fluido no `@container/card`: fonte, gaps e as trilhas numéricas.
+   A coluna do percentual era fixa em 48px — largura de widescreen que sobrava em
+   card estreito e roubava espaço do nome. Agora as três colunas de conteúdo são
+   `minmax(0,1fr) auto auto`: nome elástico, percentual e valor no tamanho exato
+   do texto. */
 .ft-chart-legend {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) 48px auto;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto;
   align-items: center;
-  column-gap: 8px;
-  row-gap: 14px;
+  column-gap: clamp(4px, 1.4cqi, 8px);
+  row-gap: clamp(8px, 2cqi, 14px);
 
   /* Cabe confortavelmente ~8 categorias em uma linha cada; só rola se passar disso. */
   max-height: 230px;
@@ -867,7 +776,7 @@ body {
   padding-right: 6px;
 
   color: var(--ft-text-secondary);
-  font-size: 13px;
+  font-size: clamp(11px, 2.5cqi, 14px);
 }
 
 /* Dissolve o wrapper para que as células caiam direto nas trilhas da lista. */
@@ -882,15 +791,16 @@ body {
 }
 
 /* Peso regular de propósito: em negrito o nome fica largo demais e rouba
-   espaço das colunas numéricas em cards estreitos. */
+   espaço das colunas numéricas em cards estreitos.
+
+   Sem `text-overflow: ellipsis`: cortar "Moradia" em "Mor..." é esconder falta de
+   espaço, não resolver. Falta de largura agora vira quebra de linha. */
 .ft-legend-name {
   min-width: 0;
-  overflow: hidden;
   color: var(--ft-text-primary);
   font-weight: var(--ft-font-weight-regular);
   text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 .ft-legend-percent {
@@ -938,72 +848,23 @@ body {
 
 .ft-donut-total-currency {
   color: var(--ft-text-secondary);
-  font-size: 12px;
+  font-size: clamp(9px, 2.2cqi, 12px);
   line-height: 1.2;
 }
 
 .ft-donut-total-label {
   color: var(--ft-text-secondary);
-  font-size: 11px;
+  font-size: clamp(8px, 2cqi, 11px);
   line-height: 1.2;
-}
-
-/* A legenda tem 3 colunas (nome, %, valor) e precisa de espaço: se o donut come
-   demais, a coluna do nome colapsa para zero e os nomes somem. O que manda aqui
-   é a largura do CARD, não a da tela — daí a container query abaixo. */
-/* Medido na referência: diâmetro do donut ≈ 0,446 da largura do card. */
-.ft-expense-layout {
-  display: grid;
-  grid-template-columns: minmax(120px, 246px) minmax(0, 1fr);
-  align-items: center;
-  gap: 16px;
 }
 
 /* Card estreito (dashboard em telas menores): lado a lado não cabe sem truncar
    os nomes das categorias, então empilha e devolve a largura toda à legenda. */
 @container ft-card (max-width: 440px) {
-  .ft-expense-layout {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-  }
-
-  .ft-chart-container {
-    width: 100%;
-    max-width: 220px;
-  }
 
   .ft-chart-legend {
     width: 100%;
   }
-}
-
-@media (max-width: 640px) {
-  .ft-expense-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-.ft-evidence-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.ft-evidence-item {
-  display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-
-  color: var(--ft-text-secondary);
-  font-size: 13px;
-}
-
-.ft-evidence-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ft-border-hover);
 }
 
 .ft-assumptions-list {
@@ -1137,7 +998,6 @@ body {
   align-items: center;
   gap: 6px;
 }
-
 
 /* =========================================================
    SELECT (dropdown de período/cenário/severidade)
@@ -1422,44 +1282,6 @@ body {
   font-weight: var(--ft-font-weight-semibold);
 }
 
-.ft-input,
-.ft-select,
-.ft-textarea {
-  width: 100%;
-  min-height: 46px;
-  padding: 0 14px;
-
-  color: var(--ft-text-primary);
-  background: rgba(3, 12, 22, 0.58);
-  border: 1px solid var(--ft-border);
-  border-radius: 11px;
-  outline: none;
-
-  transition:
-    border-color var(--ft-transition-fast),
-    box-shadow var(--ft-transition-fast),
-    background var(--ft-transition-fast);
-}
-
-.ft-textarea {
-  min-height: 110px;
-  padding-top: 13px;
-  resize: vertical;
-}
-
-.ft-input::placeholder,
-.ft-textarea::placeholder {
-  color: var(--ft-text-disabled);
-}
-
-.ft-input:focus,
-.ft-select:focus,
-.ft-textarea:focus {
-  background: rgba(3, 12, 22, 0.82);
-  border-color: var(--ft-primary);
-  box-shadow: 0 0 0 4px rgba(34, 230, 177, 0.1);
-}
-
 .ft-form-actions {
   display: flex;
   justify-content: space-between;
@@ -1558,13 +1380,12 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .ft-grid--analytics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ft-grid--analytics > :last-child {
-    grid-column: 1 / -1;
-  }
+  /* O breakpoint da fileira de indicadores (abaixo de 1280px o card de eventos
+     cai para linha própria e os 6 compactos vão de 3 para 2 colunas) agora é
+     Tailwind (`max-[1280px]:`) direto em `DashboardView.tsx`, não mais regra
+     global aqui — o motivo histórico da escolha de 1280px (card de eventos
+     ficava abaixo de ~245px, título quebrando no meio da palavra) segue válido
+     e está documentado lá. */
 }
 
 @media (max-width: 1024px) {
@@ -1606,15 +1427,6 @@ body {
     padding-inline: 20px;
   }
 
-  .ft-grid--indicators {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ft-indicators-events {
-    grid-column: 1 / -1;
-    grid-row: auto;
-  }
-
   .ft-ai-insight {
     grid-template-columns: 72px minmax(0, 1fr);
   }
@@ -1631,15 +1443,9 @@ body {
   }
 
   .ft-grid--metrics,
-  .ft-grid--indicators,
-  .ft-grid--analytics,
   .ft-form-grid,
   .ft-review-grid {
     grid-template-columns: 1fr;
-  }
-
-  .ft-col-span-2 {
-    grid-column: auto;
   }
 
   .ft-stepper {
@@ -1658,27 +1464,6 @@ body {
 
   .ft-form-actions {
     flex-direction: column-reverse;
-  }
-
-  .ft-event-item {
-    grid-template-columns: 48px minmax(0, 1fr);
-    grid-template-areas:
-      "date content"
-      "date value";
-    row-gap: 4px;
-  }
-
-  .ft-event-date {
-    grid-area: date;
-  }
-
-  .ft-event-content {
-    grid-area: content;
-  }
-
-  .ft-event-amount {
-    grid-area: value;
-    text-align: left;
   }
 
   .ft-ai-insight {
