@@ -40,10 +40,16 @@ export const recommendationApi = {
       selected_scenario: selectedScenario ?? null,
     }),
 
-  /** "Salvar como recomendação" — só por gesto explícito na conversa. */
+  /**
+   * "Salvar como recomendação" — só por gesto explícito na conversa.
+   *
+   * O cliente aponta qual bloco foi clicado; nada mais. Título, diagnóstico,
+   * ações e evidências vêm do snapshot que o backend já gravou, para o que
+   * fica no registro ser o que a pessoa viu, e não o que o cliente reenviou.
+   */
   saveFromConversation: (
     profileId: string,
-    payload: { conversation_id: string; message_id: string; payload: Record<string, unknown> }
+    payload: { conversation_id: string; message_id: string; opportunity_id: string }
   ) =>
     apiClient.post<RecommendationDto>(
       `/api/v1/profiles/${profileId}/recommendations/from-conversation`,

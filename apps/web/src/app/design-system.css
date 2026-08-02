@@ -1476,6 +1476,63 @@ body.ft-scroll-locked {
   }
 }
 
+/* Bloco acionável dentro da resposta — um por oportunidade. */
+.ft-opportunity {
+  margin-top: 10px;
+  padding: 12px 14px;
+
+  background: var(--ft-bg-surface);
+  border: 1px solid var(--ft-border);
+  border-radius: var(--ft-radius-md);
+  /* A bolha usa pre-wrap para preservar o texto da IA; o card é conteúdo
+     estruturado e não deve herdar a quebra literal. */
+  white-space: normal;
+}
+
+.ft-opportunity-title {
+  margin: 0;
+  color: var(--ft-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ft-opportunity-diagnosis {
+  margin: 6px 0 0;
+  color: var(--ft-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ft-opportunity-steps {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--ft-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ft-opportunity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ft-opportunity-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #b49cff;
+  font-size: 12px;
+}
+
+.ft-opportunity-note {
+  margin: 8px 0 0;
+  color: var(--ft-text-muted);
+  font-size: 12px;
+}
+
 /* Salvar uma resposta da IA no registro de recomendações. */
 .ft-agent-save {
   display: flex;

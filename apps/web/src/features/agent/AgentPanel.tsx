@@ -18,8 +18,8 @@ import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api-client";
 
 import { AGENT_COMPONENT_QUERY_KEYS, agentApi } from "./api";
-import { SaveFromConversation } from "@/features/recommendations/SaveFromConversation";
 
+import { OpportunityCard } from "./OpportunityCard";
 import { PendingActionCard } from "./PendingActionCard";
 import type { ChatMessage } from "./types";
 
@@ -45,6 +45,7 @@ export function AgentPanel({ profileId, onClose }: { profileId: string; onClose:
           content: data.reply,
           pendingAction: data.pending_action,
           pendingQuestions: data.pending_questions,
+          opportunities: data.opportunities ?? [],
         },
       ]);
       setInput("");
@@ -133,16 +134,22 @@ export function AgentPanel({ profileId, onClose }: { profileId: string; onClose:
                 )}
               </>
             )}
-            {/* Resposta da IA não vira recomendação sozinha: o registro só
-                recebe por um gesto explícito de quem está conversando. */}
-            {message.role === "assistant" && conversationId && !message.pendingAction && (
-              <SaveFromConversation
-                profileId={profileId}
-                conversationId={conversationId}
-                messageId={message.id}
-                content={message.content}
-              />
-            )}
+            {/* O que é acionável vem estruturado do backend, um bloco por
+                oportunidade. Nada aqui lê o texto da resposta em busca de
+                ação, e nenhum bloco vira registro sozinho: cada um espera um
+                gesto explícito de quem está conversando. Mensagens sem
+                oportunidade — inclusive as gravadas antes deste contrato —
+                seguem sendo só o texto. */}
+            {conversationId &&
+              message.opportunities?.map((opportunity) => (
+                <OpportunityCard
+                  key={opportunity.id}
+                  profileId={profileId}
+                  conversationId={conversationId}
+                  messageId={message.id}
+                  opportunity={opportunity}
+                />
+              ))}
           </div>
         ))}
         {sendMessage.isError && <p className="ft-agent-bubble ft-agent-bubble--assistant">Não consegui responder agora. Tente novamente.</p>}
