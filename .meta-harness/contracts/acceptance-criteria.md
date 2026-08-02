@@ -119,7 +119,7 @@ entre 2 e 3 colunas passa a ser decidida só pelo desequilíbrio entre colunas �
 sensível a variação de altura. Isso exige seção entre ~1148px e ~1209px, ou seja viewport
 ~1480-1600px.
 
-Medição, viewport parado, sem interação, 40 amostras em 4,8s por largura:
+Medição, viewport parado, sem interação, 50 amostras em 5,5s por largura:
 
 | viewport | antes (`37b75f5^`) | depois (`37b75f5`) |
 |---|---|---|

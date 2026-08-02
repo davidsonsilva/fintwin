@@ -75,18 +75,21 @@ test("a fileira de indicadores não se reorganiza sozinha", async ({ page }) => 
  * com viewport parado. Com a composição derivada só da largura: sempre 1.
  */
 test("não oscila na banda em que o card de eventos domina a decisão", async ({ page }) => {
+  test.setTimeout(180_000);
   await page.setViewportSize({ width: 1490, height: 900 });
   await openDashboard(page);
   await waitForStableLayout(page);
 
   for (const width of [1490, 1520, 1550, 1580]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.waitForTimeout(1_200);
+    await waitForStableLayout(page);
 
+    // Pelo menos 5s de observação por largura: uma reorganização que só comece
+    // depois da janela amostrada continuaria passando despercebida.
     const estados = new Set<string>();
-    for (let sample = 0; sample < 25; sample += 1) {
+    for (let sample = 0; sample < 50; sample += 1) {
       estados.add(await captureLayout(page));
-      await page.waitForTimeout(120);
+      await page.waitForTimeout(110);
     }
     expect([...estados], `layouts distintos com o viewport parado em ${width}px`).toHaveLength(1);
   }
