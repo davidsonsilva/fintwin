@@ -19,6 +19,10 @@
 - `900ad81` — frontend: o AgentPanel renderiza um bloco por oportunidade e para de salvar a
   mensagem inteira.
 - `44fc674` — correção do `MainGoalSummary`, encontrada na validação integrada (ver abaixo).
+- `37b75f5` — fim da oscilação da fileira de indicadores no dashboard (ver seção própria em
+  `acceptance-criteria.md`, critérios 17-23). Bug reportado pelo usuário em vídeo: os seis cards
+  compactos alternando entre linhas e colunas sozinhos, sem redimensionar, interagir ou mudar
+  dados.
 
 ## Commit `44fc674`: o resumo carrega a identidade da meta
 

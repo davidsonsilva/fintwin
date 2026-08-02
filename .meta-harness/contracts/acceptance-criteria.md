@@ -69,3 +69,49 @@
 
 16. **Escopo respeitado**: nenhuma migração aplicada no Postgres em execução, catálogo de
     assuntos não ampliado, ciclo de vida da recomendação intocado.
+
+## Oscilação da fileira de indicadores (`37b75f5`)
+
+Pedido do usuário (verbatim, 2026-08-02): "Para a mesma largura do container e o mesmo conjunto
+de cards, o resultado do layout deve ser sempre idêntico. Prefira determinar a composição apenas
+pela largura do container e por breakpoints determinísticos. Não use a altura resultante dos
+próprios cards como entrada de um algoritmo que depois altera a largura deles." E: "Não faça uma
+correção cosmética removendo animações ou transitions."
+
+17. **O laço foi cortado, não amortecido.** Nenhuma altura renderizada alimenta a decisão de
+    composição. Não vale resolver com debounce, epsilon maior, `requestAnimationFrame`, flag de
+    "já decidiu" ou guarda de igualdade sobre o mesmo algoritmo realimentado — a dependência
+    saída→entrada tem que ter deixado de existir.
+
+18. **A composição é função pura da largura da seção.** `composeLayout(w)` não lê estado, ref,
+    data, relógio nem aleatoriedade. Mesma largura ⇒ mesmo resultado, sempre, independente do
+    caminho percorrido até aquela largura.
+
+19. **A distribuição em colunas também é determinística.** Qual card entra em qual coluna não
+    pode depender de medição. O revisor deve julgar se trocar o balanceamento por altura pelo
+    rodízio é perda aceitável — a justificativa alegada é que as colunas são `flex-1` de mesma
+    largura e que, para 6 cards em 3 colunas, o rodízio reproduz a distribuição antiga.
+
+20. **Nada foi corrigido por cosmética.** Nenhuma animação, `transition` ou `will-change` foi
+    removida para esconder o sintoma.
+
+21. **Keys por identidade.** Os cards continuam keyados por `card.key`; trocar de coluna não
+    remonta o card.
+
+22. **As restrições de legibilidade sobreviveram.** `MIN_COMPACT_WIDTH` e `MIN_EVENTS_WIDTH`
+    continuam filtrando composições inviáveis; a simplificação não pode ter passado a permitir
+    card compacto abaixo do mínimo.
+
+23. **Teste de regressão no navegador existe e mede o que promete.** Carrega o dashboard, espera
+    estabilizar, captura os bounding boxes dos seis cards, espera ≥5s sem interação e confirma
+    que nada mudou; e verifica que a mesma largura, alcançada descendo e subindo, produz a mesma
+    composição.
+
+### Limitação que o revisor deve pesar
+
+A oscilação **não foi reproduzida** em Chromium headless com os dados de demonstração nem com o
+perfil real: nas larguras varridas o algoritmo antigo convergia. O diagnóstico é estrutural (o
+laço existe no código e não tinha ponto fixo garantido), não empírico. Consequência honesta: o
+teste de regressão adicionado passava **também antes** da correção. Ele é uma guarda contra o
+retorno do padrão, não a prova de que este bug específico foi eliminado. O revisor deve dizer se
+aceita essa base de evidência ou se considera que faltou reproduzir o sintoma antes de corrigir.
