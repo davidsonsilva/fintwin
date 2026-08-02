@@ -107,11 +107,40 @@ correção cosmética removendo animações ou transitions."
     que nada mudou; e verifica que a mesma largura, alcançada descendo e subindo, produz a mesma
     composição.
 
-### Limitação que o revisor deve pesar
+### Reprodução do sintoma (`39fa802`)
 
-A oscilação **não foi reproduzida** em Chromium headless com os dados de demonstração nem com o
-perfil real: nas larguras varridas o algoritmo antigo convergia. O diagnóstico é estrutural (o
-laço existe no código e não tinha ponto fixo garantido), não empírico. Consequência honesta: o
-teste de regressão adicionado passava **também antes** da correção. Ele é uma guarda contra o
-retorno do padrão, não a prova de que este bug específico foi eliminado. O revisor deve dizer se
-aceita essa base de evidência ou se considera que faltou reproduzir o sintoma antes de corrigir.
+A primeira versão deste contrato registrava que a oscilação não tinha sido reproduzida. Isso foi
+corrigido: ela **foi** reproduzida no perfil real, com o código anterior restaurado no container.
+
+A banda estava fora de todas as larguras varridas antes. Ela existe porque o card de eventos
+precisa estar **ao lado** e ser **mais alto que a grade**: aí `max(gridHeight, eventsHeight)`
+vale `eventsHeight` para todos os candidatos, o termo dominante do score se anula, e a escolha
+entre 2 e 3 colunas passa a ser decidida só pelo desequilíbrio entre colunas — o termo mais
+sensível a variação de altura. Isso exige seção entre ~1148px e ~1209px, ou seja viewport
+~1480-1600px.
+
+Medição, viewport parado, sem interação, 40 amostras em 4,8s por largura:
+
+| viewport | antes (`37b75f5^`) | depois (`37b75f5`) |
+|---|---|---|
+| 1480 | 4 layouts distintos | 1 |
+| 1490 | 4 | 1 |
+| 1500 | 4 | 1 |
+| 1510 | 4 | 1 |
+| 1520 | 4 | 1 |
+| 1530 | 3 | 1 |
+| 1540 | 3 | 1 |
+| 1550 | 4 | 1 |
+| 1560 | 3 | 1 |
+| 1570 | 4 | 1 |
+| 1580 | 4 | 1 |
+| 1590 | 3 | 1 |
+| 1600 | 3 | 1 |
+
+Antes, a contagem de colunas na banda também era errática (2 em 1480, 3 em 1490-1510, 2 em 1520,
+3 em 1530...). Depois, 3 colunas em toda a banda, com a largura do card crescendo monotonicamente
+de 262px a 296px.
+
+24. **O teste de regressão cobre a banda que reproduz o bug.** O terceiro caso de
+    `dashboard-layout-stability.spec.ts` afirma um único layout distinto com o viewport parado em
+    1490/1520/1550/1580px — larguras em que o código anterior media 4 layouts distintos.
