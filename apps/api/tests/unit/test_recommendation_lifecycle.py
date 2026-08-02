@@ -18,11 +18,15 @@ from src.application.use_cases.recommendation_use_cases import (
     DetectRecommendationUseCase,
     GetInsightUseCase,
     ListRecommendationsUseCase,
+    OpportunityActionOutdatedError,
+    OpportunityNotFoundError,
     RegisterConversationRecommendationUseCase,
 )
+from src.domain.agent.entities import AgentMessage, Conversation
 from src.domain.decisions.entities import FinancialGoal
 from src.domain.financial_profile.entities import FinancialAccount
 from src.domain.obligations.entities import FinancialObligation, IncomeSource
+from src.domain.preventive_plans.entities import PreventivePlan
 from src.domain.recommendations import lifecycle
 from src.domain.recommendations.entities import (
     Recommendation,
@@ -30,7 +34,13 @@ from src.domain.recommendations.entities import (
     RecommendationSource,
     RecommendationStatus,
 )
-from src.domain.shared.enums import IncomeStability, LiquidityType, PlanStatus, Recurrence
+from src.domain.shared.enums import (
+    IncomeStability,
+    LiquidityType,
+    MessageRole,
+    PlanStatus,
+    Recurrence,
+)
 from src.domain.shared.money import Money
 from src.interfaces.http.schemas.recommendation import OpportunityResultResponse
 
@@ -93,6 +103,9 @@ class FakeRecommendationRepo:
             rows = [r for r in rows if r.status is status]
         return sorted(rows, key=lambda r: r.generated_at, reverse=True)
 
+    def list_pending(self, profile_id: str):
+        return self.list_by_profile(profile_id, RecommendationStatus.PENDING)
+
 
 class FakePlanRepo:
     def __init__(self) -> None:
@@ -103,6 +116,33 @@ class FakePlanRepo:
 
     def get(self, plan_id):
         return next((p for p in self.plans if p.id == plan_id), None)
+
+    def list_by_profile(self, profile_id: str):
+        return [p for p in self.plans if p.profile_id == profile_id]
+
+
+class FakeAgentMessageRepo:
+    def __init__(self) -> None:
+        self.rows = {}
+
+    def add(self, message):
+        self.rows[message.id] = message
+        return message
+
+    def get(self, message_id: str):
+        return self.rows.get(message_id)
+
+
+class FakeConversationRepo:
+    def __init__(self) -> None:
+        self.rows = {}
+
+    def add(self, conversation):
+        self.rows[conversation.id] = conversation
+        return conversation
+
+    def get(self, conversation_id: str):
+        return self.rows.get(conversation_id)
 
 
 # --- Cenário base -----------------------------------------------------------
@@ -171,6 +211,8 @@ class World:
     def __init__(self, **overrides) -> None:
         self.recommendations = FakeRecommendationRepo()
         self.plans = FakePlanRepo()
+        self.conversations = FakeConversationRepo()
+        self.messages = FakeAgentMessageRepo()
         data = dict(
             accounts=[_account("20000.00")],
             incomes=[_income("9000.00")],
@@ -198,6 +240,52 @@ class World:
 
     def insight(self):
         return GetInsightUseCase(serializer=_serializer, **self.repos).execute(PROFILE, CURRENCY)
+
+    def answer_with_opportunity(self, topic="income_commitment", subject_key=None):
+        """Uma resposta do agente já gravada, com um bloco acionável."""
+        self.conversations.add(
+            Conversation(
+                id="conv-1", profile_id=PROFILE, created_at=datetime(2026, 8, 1), updated_at=datetime(2026, 8, 1)
+            )
+        )
+        self.messages.add(
+            AgentMessage(
+                id="msg-9",
+                conversation_id="conv-1",
+                role=MessageRole.ASSISTANT,
+                content="Dá para antecipar a meta com a sobra do 13º.",
+                opportunities=[
+                    {
+                        "id": "msg-9-op1",
+                        "topic": topic,
+                        "subject_key": subject_key,
+                        "title": "Antecipar a meta com a sobra do 13º",
+                        "diagnosis": "A sobra do 13º pode ir para a meta.",
+                        "suggested_actions": ["Direcionar a sobra do 13º para a meta"],
+                        "evidence_references": ["ev1"],
+                        "assessment": None,
+                        "requires_simulation": False,
+                        "simulation_status": "not_required",
+                        "related_recommendation_id": None,
+                        "related_plan_id": None,
+                        "available_actions": ["save"],
+                    }
+                ],
+                created_at=datetime(2026, 8, 1),
+            )
+        )
+        return "msg-9-op1"
+
+    def save_opportunity(self, opportunity_id="msg-9-op1"):
+        return RegisterConversationRecommendationUseCase(
+            agent_message_repo=self.messages, conversation_repo=self.conversations, **self.repos
+        ).execute(
+            profile_id=PROFILE,
+            currency=CURRENCY,
+            conversation_id="conv-1",
+            message_id="msg-9",
+            opportunity_id=opportunity_id,
+        )
 
     def decide(self, rec_id, approve, scenario=None):
         return DecideRecommendationUseCase(**self.repos).execute(
@@ -350,18 +438,77 @@ def test_conversa_so_vira_registro_por_gesto_explicito() -> None:
     world.detect()
     assert all(r.source is RecommendationSource.ENGINE for r in world.registry())
 
-    saved = RegisterConversationRecommendationUseCase(**world.repos).execute(
-        profile_id=PROFILE,
-        currency=CURRENCY,
-        conversation_id="conv-1",
-        message_id="msg-9",
-        payload={"status": "available", "summary": "Antecipar a meta com a sobra do 13º"},
-    )
+    world.answer_with_opportunity()
+    saved = world.save_opportunity()
+
     assert saved.source is RecommendationSource.CONVERSATION
     assert saved.conversation_id == "conv-1"
     assert saved.message_id == "msg-9"
     assert saved.status is RecommendationStatus.PENDING
     assert saved.kind is RecommendationKind.CONVERSATION_ADVICE
+    # O conteúdo veio do bloco gravado, não de nada que o cliente enviou.
+    assert saved.payload["topic"] == "income_commitment"
+    assert saved.payload["opportunity_id"] == "msg-9-op1"
+    assert saved.payload["diagnosis"] == "A sobra do 13º pode ir para a meta."
+
+
+def test_salvar_oportunidade_ignora_conteudo_do_cliente() -> None:
+    """O cliente manda referências; o registro sai do snapshot da mensagem."""
+    world = World()
+    world.answer_with_opportunity(topic="debt_service", subject_key=None)
+
+    saved = world.save_opportunity()
+
+    assert saved.payload["topic"] == "debt_service"
+    assert saved.payload["suggested_actions"] == ["Direcionar a sobra do 13º para a meta"]
+    assert saved.payload["evidence_references"] == ["ev1"]
+
+
+def test_oportunidade_inexistente_na_mensagem_nao_vira_registro() -> None:
+    world = World()
+    world.answer_with_opportunity()
+
+    with pytest.raises(OpportunityNotFoundError):
+        world.save_opportunity("msg-9-op7")
+    assert world.registry() == []
+
+
+def test_salvar_revalida_e_devolve_o_plano_que_surgiu_depois() -> None:
+    """`available_actions` é o retrato do que foi exibido, não autorização."""
+    world = World()
+    world.answer_with_opportunity(topic="goal_acceleration")
+    world.plans.add(
+        PreventivePlan(
+            id="plan-1",
+            profile_id=PROFILE,
+            risk_code="GOAL_ACCELERATION_OPPORTUNITY",
+            status=PlanStatus.APPROVED,
+            actions=[{"description": "Aumentar o aporte mensal."}],
+            expected_result={},
+            created_at=datetime(2026, 8, 2),
+            approved_at=datetime(2026, 8, 2),
+        )
+    )
+
+    with pytest.raises(OpportunityActionOutdatedError) as exc:
+        world.save_opportunity()
+
+    assert exc.value.current_action == "view_plan"
+    assert exc.value.plan_id == "plan-1"
+    assert world.registry() == []
+
+
+def test_salvar_duas_vezes_devolve_a_recomendacao_ja_registrada() -> None:
+    world = World()
+    world.answer_with_opportunity()
+    primeira = world.save_opportunity()
+
+    with pytest.raises(OpportunityActionOutdatedError) as exc:
+        world.save_opportunity()
+
+    assert exc.value.current_action == "view_recommendation"
+    assert exc.value.recommendation_id == primeira.id
+    assert len(world.registry()) == 1
 
 
 def test_plano_registra_o_compromisso_do_cenario_escolhido() -> None:
@@ -435,13 +582,8 @@ def test_aprovar_recomendacao_da_conversa_nao_cria_plano() -> None:
     Forçar um plano aqui exigiria inventar números que o motor nunca produziu.
     """
     world = World()
-    saved = RegisterConversationRecommendationUseCase(**world.repos).execute(
-        profile_id=PROFILE,
-        currency=CURRENCY,
-        conversation_id="conv-1",
-        message_id="msg-9",
-        payload={"status": "available", "summary": "Usar o 13º para antecipar a meta"},
-    )
+    world.answer_with_opportunity()
+    saved = world.save_opportunity()
 
     approved = world.decide(saved.id, approve=True)
     assert approved.status is RecommendationStatus.APPROVED

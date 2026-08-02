@@ -74,8 +74,25 @@ class ActionableOpportunity:
     simulation_status: SimulationStatus
     available_actions: tuple[OpportunityAction, ...]
     assessment: Optional[OpportunityAssessment] = None
+    #: Entidade específica do assunto ("goal:123"). `None` = assunto único.
+    subject_key: Optional[str] = None
     related_recommendation_id: Optional[str] = None
     related_plan_id: Optional[str] = None
+
+    @property
+    def identity(self) -> tuple[str, Optional[str]]:
+        """O que faz duas oportunidades serem a mesma. Ver `identity_of`."""
+        return (self.topic, self.subject_key)
+
+
+def identity_of(topic_code: str, subject_key: Optional[str]) -> tuple[str, Optional[str]]:
+    """Identidade de uma oportunidade: assunto mais a entidade que ela aponta.
+
+    Só o assunto seria amplo demais — duas dívidas diferentes viram um bloco
+    só, e a pessoa perde uma delas. Quando o assunto não tem entidade própria,
+    a identidade é só o assunto.
+    """
+    return (topic_code, subject_key)
 
 
 def available_actions(
@@ -113,10 +130,12 @@ def build_opportunity(
     assessment: Optional[OpportunityAssessment],
     related_plan_id: Optional[str],
     related_recommendation_id: Optional[str],
+    subject_key: Optional[str] = None,
 ) -> ActionableOpportunity:
     return ActionableOpportunity(
         id=opportunity_id,
         topic=topic.code,
+        subject_key=subject_key,
         title=title,
         diagnosis=diagnosis,
         suggested_actions=tuple(suggested_actions),
@@ -140,6 +159,7 @@ def to_dict(opportunity: ActionableOpportunity) -> dict[str, Any]:
     return {
         "id": opportunity.id,
         "topic": opportunity.topic,
+        "subject_key": opportunity.subject_key,
         "title": opportunity.title,
         "diagnosis": opportunity.diagnosis,
         "suggested_actions": list(opportunity.suggested_actions),
@@ -168,6 +188,8 @@ def from_dict(data: Mapping[str, Any]) -> ActionableOpportunity:
     return ActionableOpportunity(
         id=data["id"],
         topic=data["topic"],
+        # Bloco gravado antes de `subject_key` existir: identidade só por assunto.
+        subject_key=data.get("subject_key"),
         title=data["title"],
         diagnosis=data["diagnosis"],
         suggested_actions=tuple(data.get("suggested_actions") or ()),

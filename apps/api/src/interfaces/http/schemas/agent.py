@@ -45,10 +45,17 @@ class OpportunityAssessmentSchema(BaseModel):
 
 
 class ActionableOpportunitySchema(BaseModel):
-    """Bloco estruturado independente. O cliente não interpreta Markdown."""
+    """Bloco estruturado independente. O cliente não interpreta Markdown.
+
+    `available_actions` é o que foi exibido naquele momento — é o que a
+    interface desenha, não uma autorização. Toda ação é revalidada no clique,
+    contra o estado atual do perfil.
+    """
 
     id: str
     topic: str
+    #: Entidade específica ("goal:123"). Ausente em blocos gravados antes dela.
+    subject_key: Optional[str] = None
     title: str
     diagnosis: str
     suggested_actions: list[str]

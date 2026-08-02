@@ -1,4 +1,16 @@
+from datetime import datetime
+
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from src.domain.agent.entities import AgentMessage, Conversation
+from src.domain.shared.enums import MessageRole
+from src.infrastructure.repositories.agent_message_repository import (
+    SqlAlchemyAgentMessageRepository,
+)
+from src.infrastructure.repositories.conversation_repository import (
+    SqlAlchemyConversationRepository,
+)
 
 
 def _profile(client: TestClient) -> str:
@@ -210,16 +222,53 @@ def test_registro_filtra_por_status(client: TestClient) -> None:
     assert len(client.get(base).json()) == 2
 
 
-def test_recomendacao_da_conversa_exige_gesto_explicito(client: TestClient) -> None:
+def _resposta_com_oportunidade(session: Session, profile_id: str, topic: str = "debt_service") -> None:
+    """Uma resposta do agente já gravada, com um bloco acionável."""
+    SqlAlchemyConversationRepository(session).add(
+        Conversation(
+            id="conv-1",
+            profile_id=profile_id,
+            created_at=datetime(2026, 8, 1),
+            updated_at=datetime(2026, 8, 1),
+        )
+    )
+    SqlAlchemyAgentMessageRepository(session).add(
+        AgentMessage(
+            id="msg-9",
+            conversation_id="conv-1",
+            role=MessageRole.ASSISTANT,
+            content="Vale olhar o custo das suas dívidas.",
+            opportunities=[
+                {
+                    "id": "msg-9-op1",
+                    "topic": topic,
+                    "subject_key": None,
+                    "title": "Custo das dívidas",
+                    "diagnosis": "Suas dívidas têm parcelas mensais em aberto.",
+                    "suggested_actions": ["Listar as parcelas por taxa"],
+                    "evidence_references": [],
+                    "assessment": None,
+                    "requires_simulation": False,
+                    "simulation_status": "not_required",
+                    "related_recommendation_id": None,
+                    "related_plan_id": None,
+                    "available_actions": ["save"],
+                }
+            ],
+            created_at=datetime(2026, 8, 1),
+        )
+    )
+
+
+def test_recomendacao_da_conversa_exige_gesto_explicito(
+    client: TestClient, session: Session
+) -> None:
     profile_id = _profile_com_folga(client)
+    _resposta_com_oportunidade(session, profile_id)
 
     saved = client.post(
         f"/api/v1/profiles/{profile_id}/recommendations/from-conversation",
-        json={
-            "conversation_id": "conv-1",
-            "message_id": "msg-9",
-            "payload": {"status": "available", "summary": "Usar o 13º para antecipar a meta"},
-        },
+        json={"conversation_id": "conv-1", "message_id": "msg-9", "opportunity_id": "msg-9-op1"},
     )
     assert saved.status_code == 201
     body = saved.json()
@@ -227,9 +276,42 @@ def test_recomendacao_da_conversa_exige_gesto_explicito(client: TestClient) -> N
     assert body["conversation_id"] == "conv-1"
     assert body["message_id"] == "msg-9"
     assert body["status"] == "pending"
+    # O conteúdo saiu do bloco persistido, não do corpo da requisição.
+    assert body["payload"]["topic"] == "debt_service"
+    assert body["payload"]["diagnosis"] == "Suas dívidas têm parcelas mensais em aberto."
 
     registro = client.get(f"/api/v1/profiles/{profile_id}/recommendations").json()
     assert [r["source"] for r in registro] == ["conversation"]
+
+
+def test_salvar_a_mesma_oportunidade_de_novo_devolve_o_estado_atual(
+    client: TestClient, session: Session
+) -> None:
+    """O botão exibido não autoriza: a ação é revalidada no clique."""
+    profile_id = _profile_com_folga(client)
+    _resposta_com_oportunidade(session, profile_id)
+    url = f"/api/v1/profiles/{profile_id}/recommendations/from-conversation"
+    corpo = {"conversation_id": "conv-1", "message_id": "msg-9", "opportunity_id": "msg-9-op1"}
+
+    primeira = client.post(url, json=corpo)
+    segunda = client.post(url, json=corpo)
+
+    assert segunda.status_code == 409
+    detail = segunda.json()["detail"]
+    assert detail["current_action"] == "view_recommendation"
+    assert detail["related_recommendation_id"] == primeira.json()["id"]
+    assert len(client.get(f"/api/v1/profiles/{profile_id}/recommendations").json()) == 1
+
+
+def test_oportunidade_inexistente_devolve_404(client: TestClient, session: Session) -> None:
+    profile_id = _profile_com_folga(client)
+    _resposta_com_oportunidade(session, profile_id)
+
+    resposta = client.post(
+        f"/api/v1/profiles/{profile_id}/recommendations/from-conversation",
+        json={"conversation_id": "conv-1", "message_id": "msg-9", "opportunity_id": "msg-9-op7"},
+    )
+    assert resposta.status_code == 404
 
 
 def test_recomendacao_inexistente_devolve_404(client: TestClient) -> None:

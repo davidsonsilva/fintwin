@@ -31,6 +31,8 @@ from src.application.use_cases.recommendation_use_cases import (
     GetInsightUseCase,
     GetRecommendationUseCase,
     ListRecommendationsUseCase,
+    OpportunityActionOutdatedError,
+    OpportunityNotFoundError,
     RegisterConversationRecommendationUseCase,
 )
 from src.domain.recommendations.entities import RecommendationStatus
@@ -40,6 +42,12 @@ from src.domain.recommendations.lifecycle import (
 )
 from src.infrastructure.persistence.session import get_session
 from src.infrastructure.repositories.account_repository import SqlAlchemyAccountRepository
+from src.infrastructure.repositories.agent_message_repository import (
+    SqlAlchemyAgentMessageRepository,
+)
+from src.infrastructure.repositories.conversation_repository import (
+    SqlAlchemyConversationRepository,
+)
 from src.infrastructure.repositories.debt_repository import SqlAlchemyDebtRepository
 from src.infrastructure.repositories.event_repository import SqlAlchemyEventRepository
 from src.infrastructure.repositories.goal_repository import SqlAlchemyGoalRepository
@@ -58,6 +66,7 @@ from src.interfaces.http.schemas.recommendation import (
     DetectRequest,
     InsightResponse,
     OpportunityResultResponse,
+    OutdatedActionResponse,
     RecommendationResponse,
 )
 
@@ -136,16 +145,37 @@ def register_from_conversation(
 ) -> RecommendationResponse:
     """Só é chamado por um gesto explícito do usuário no chat.
 
-    Nenhuma resposta do agente vira recomendação automaticamente.
+    Nenhuma resposta do agente vira recomendação automaticamente. O botão que
+    o cliente exibiu não autoriza nada: a ação é revalidada aqui, contra o
+    estado atual do perfil.
     """
     profile = _get_profile_or_404(profile_id, session)
-    saved = RegisterConversationRecommendationUseCase(**_repos(session)).execute(
-        profile_id=profile_id,
-        currency=profile.currency,
-        conversation_id=payload.conversation_id,
-        message_id=payload.message_id,
-        payload=payload.payload,
+    use_case = RegisterConversationRecommendationUseCase(
+        agent_message_repo=SqlAlchemyAgentMessageRepository(session),
+        conversation_repo=SqlAlchemyConversationRepository(session),
+        **_repos(session),
     )
+    try:
+        saved = use_case.execute(
+            profile_id=profile_id,
+            currency=profile.currency,
+            conversation_id=payload.conversation_id,
+            message_id=payload.message_id,
+            opportunity_id=payload.opportunity_id,
+        )
+    except OpportunityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except OpportunityActionOutdatedError as exc:
+        # 409, não 400: o pedido estava correto quando a ação foi exibida. O
+        # corpo diz para onde a interface deve levar a pessoa agora.
+        raise HTTPException(
+            status_code=409,
+            detail=OutdatedActionResponse(
+                current_action=exc.current_action,
+                related_plan_id=exc.plan_id,
+                related_recommendation_id=exc.recommendation_id,
+            ).model_dump(),
+        ) from exc
     return RecommendationResponse.from_domain(saved)
 
 

@@ -13,6 +13,7 @@ nunca a IA:
 - existe motor capaz de simular este assunto? (`decision_type`)
 - que plano preventivo já o endereça? (`plan_risk_codes`)
 - de onde sai a classificação oficial, quando ela existe? (`assessment`)
+- que entidade o assunto pode apontar? (`subject_kind`)
 
 Assunto fora do catálogo não vira bloco estruturado: continua sendo conversa.
 Isso é deliberado — um bloco com botão de ação promete uma capacidade, e o
@@ -26,6 +27,20 @@ from enum import Enum
 from typing import Optional
 
 from src.domain.recommendations.entities import RecommendationKind
+
+
+class SubjectKind(str, Enum):
+    """Tipo de entidade que um assunto pode apontar em `subject_key`.
+
+    Existe porque "assunto" sozinho é amplo demais: duas dívidas diferentes são
+    duas oportunidades diferentes, não uma repetição. A chave completa é
+    `topic + subject_key`; quando o assunto não tem entidade específica (a
+    reserva de emergência é uma só), a identidade é só o `topic`.
+    """
+
+    GOAL = "goal"
+    DEBT = "debt"
+    INCOME_SOURCE = "source"
 
 
 class AssessmentSource(str, Enum):
@@ -50,6 +65,9 @@ class AgentTopic:
     assessment: Optional[AssessmentSource] = None
     #: Assunto correspondente no registro de recomendações.
     recommendation_kind: RecommendationKind = RecommendationKind.CONVERSATION_ADVICE
+    #: Entidade que refina a identidade do assunto. `None` = assunto único no
+    #: perfil, identificado só pelo `code`.
+    subject_kind: Optional[SubjectKind] = None
 
     @property
     def requires_simulation(self) -> bool:
@@ -65,6 +83,7 @@ AGENT_TOPICS: dict[str, AgentTopic] = {
         # decisão do simulador que o represente.
         plan_risk_codes=("GOAL_ACCELERATION_OPPORTUNITY",),
         recommendation_kind=RecommendationKind.GOAL_ACCELERATION,
+        subject_kind=SubjectKind.GOAL,
     ),
     "emergency_reserve": AgentTopic(
         code="emergency_reserve",
@@ -87,6 +106,7 @@ AGENT_TOPICS: dict[str, AgentTopic] = {
         plan_risk_codes=("INCOME_CONCENTRATION",),
         fragility_codes=("INCOME_CONCENTRATION",),
         assessment=AssessmentSource.FRAGILITY_FINDING,
+        subject_kind=SubjectKind.INCOME_SOURCE,
     ),
     "debt_service": AgentTopic(
         code="debt_service",
@@ -94,6 +114,7 @@ AGENT_TOPICS: dict[str, AgentTopic] = {
         plan_risk_codes=("DEBT_SERVICE_RATIO",),
         fragility_codes=("DEBT_SERVICE_RATIO",),
         assessment=AssessmentSource.FRAGILITY_FINDING,
+        subject_kind=SubjectKind.DEBT,
     ),
     "annual_expense_provision": AgentTopic(
         code="annual_expense_provision",
@@ -101,6 +122,15 @@ AGENT_TOPICS: dict[str, AgentTopic] = {
         decision_type="NEW_RECURRING_EXPENSE",
         plan_risk_codes=("UNPROVISIONED_ANNUAL_EXPENSE",),
         fragility_codes=("UNPROVISIONED_ANNUAL_EXPENSE",),
+        assessment=AssessmentSource.FRAGILITY_FINDING,
+    ),
+    "due_date_concentration": AgentTopic(
+        code="due_date_concentration",
+        label="Vencimentos concentrados",
+        # Não há decisão simulável: reorganizar datas não é uma decisão que o
+        # motor saiba aplicar. O assunto é diagnóstico e plano, não simulação.
+        plan_risk_codes=("CONCENTRATED_DUE_DATES",),
+        fragility_codes=("CONCENTRATED_DUE_DATES",),
         assessment=AssessmentSource.FRAGILITY_FINDING,
     ),
     "projected_deficit": AgentTopic(

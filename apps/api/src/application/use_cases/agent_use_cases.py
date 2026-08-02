@@ -30,16 +30,22 @@ from uuid import uuid4
 from src.application.use_cases.autonomy_use_cases import GetAutonomyUseCase
 from src.application.use_cases.dashboard_use_cases import GetDashboardSummaryUseCase
 from src.application.use_cases.fragility_use_cases import ListFragilitiesUseCase
+from src.application.use_cases.opportunity_links import related_plan_id, related_recommendation_id
 from src.domain.agent import opportunities as opportunity_blocks
 from src.domain.agent.entities import AgentMessage, Conversation
+from src.domain.agent.language import supported_level, unsupported_judgment_terms
 from src.domain.agent.opportunities import ActionableOpportunity, OpportunityAssessment
-from src.domain.agent.topics import AGENT_TOPICS, TOPIC_CODES, AgentTopic, AssessmentSource
+from src.domain.agent.topics import (
+    AGENT_TOPICS,
+    TOPIC_CODES,
+    AgentTopic,
+    AssessmentSource,
+    SubjectKind,
+)
 from src.domain.decisions.entities import Simulation
 from src.domain.decisions.types import DECISION_TYPES
 from src.domain.decisions.validation import InvalidDecisionParametersError, validate_decision_parameters
 from src.domain.fragility.rules import RULES_VERSION
-from src.domain.preventive_plans.entities import ACTIVE_PLAN_STATUSES
-from src.domain.recommendations.entities import RecommendationKind
 from src.domain.shared.enums import MessageRole, Severity
 from src.domain.shared.indicators import (
     INCOME_COMMITMENT_POLICY_ID,
@@ -75,6 +81,8 @@ Oportunidades acionáveis:
 - Em raise_opportunity você NÃO informa valores, percentuais, classificações, severidades, limiares nem prioridade de risco. O backend anexa a classificação oficial quando ela existe; quando não existe, a oportunidade sai sem classificação — e você também não a inventa no texto.
 - Cite em evidence_refs os identificadores `evidence_id` devolvidos pelas tools de leitura que sustentam aquela oportunidade específica.
 - Só existe oportunidade para os assuntos do catálogo (campo topic). Assunto fora do catálogo é explicado no texto e não vira bloco.
+- Quando a oportunidade for sobre uma entidade específica devolvida por uma tool (uma meta, uma dívida, uma fonte de renda), informe subject_key no formato "goal:<id>", "debt:<id>" ou "source:<id>", usando o identificador exato que a tool devolveu. Nunca invente um identificador: se você não recebeu o id, omita subject_key.
+- Em title, diagnosis e suggested_actions descreva o que foi observado sem emitir julgamento próprio. Adjetivos de veredito — saudável, seguro, elevado, alto, excessivo, crítico, grave — e intensificadores como "bastante" ou "muito" só podem aparecer se a classificação oficial do assunto os sustentar. Sem classificação oficial, escreva de forma factual e neutra. Uma chamada rejeitada por isso deve ser refeita com o texto neutro, não abandonada.
 """
 
 _MAX_TOOL_ITERATIONS = 3
@@ -151,10 +159,24 @@ def _tool_definitions() -> list[dict[str, Any]]:
                 "type": "object",
                 "properties": {
                     "topic": {"type": "string", "enum": list(TOPIC_CODES)},
-                    "title": {"type": "string", "description": "Título curto da oportunidade, em português."},
+                    "subject_key": {
+                        "type": "string",
+                        "description": (
+                            "Entidade específica do assunto, no formato 'goal:<id>', 'debt:<id>' ou "
+                            "'source:<id>', com o id exato devolvido por uma tool. Omita quando o "
+                            "assunto não apontar uma entidade."
+                        ),
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Título curto da oportunidade, em português, sem julgamento próprio.",
+                    },
                     "diagnosis": {
                         "type": "string",
-                        "description": "O que foi observado, em uma ou duas frases, sem números inventados.",
+                        "description": (
+                            "O que foi observado, em uma ou duas frases, sem números inventados e sem "
+                            "adjetivos de veredito que a classificação oficial não sustente."
+                        ),
                     },
                     "suggested_actions": {
                         "type": "array",
@@ -245,6 +267,9 @@ class SendAgentMessageUseCase:
                     {"tier": assessment.tier.value, "label": assessment.label} if assessment is not None else None
                 ),
                 "main_goal": summary.main_goal.description if summary.main_goal else None,
+                # O id acompanha a meta para o agente poder apontar a entidade
+                # em `subject_key` sem inventar um identificador.
+                "main_goal_id": summary.main_goal.id if summary.main_goal else None,
                 "upcoming_events_count": len(summary.upcoming_events),
             }
         if tool_name == "get_autonomy":
@@ -331,27 +356,62 @@ class SendAgentMessageUseCase:
                         )
         return None
 
-    def _related_plan_id(self, profile_id: str, topic: AgentTopic) -> Optional[str]:
-        """Plano ainda em execução que já endereça este assunto."""
-        for plan in self._plan_repo.list_by_profile(profile_id):
-            if plan.risk_code in topic.plan_risk_codes and plan.status in ACTIVE_PLAN_STATUSES:
-                return plan.id
-        return None
+    def _resolve_subject_key(
+        self, raw: Any, topic: AgentTopic, profile_id: str
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Valida `subject_key` contra as entidades reais do perfil.
 
-    def _related_recommendation_id(self, profile_id: str, topic: AgentTopic) -> Optional[str]:
-        """Recomendação equivalente aguardando decisão.
-
-        Equivalência é por assunto. O motor identifica o dele pelo `kind`; a
-        recomendação nascida da conversa carrega o `topic` no payload, porque
-        todas compartilham o mesmo `kind`.
+        Devolve `(chave, erro)`. Uma identidade que não aponta para nada é pior
+        que identidade nenhuma: ela separaria dois blocos do mesmo assunto sem
+        que exista diferença real entre eles.
         """
-        by_kind = topic.recommendation_kind is not RecommendationKind.CONVERSATION_ADVICE
-        for recommendation in self._recommendation_repo.list_pending(profile_id):
-            if by_kind and recommendation.kind is topic.recommendation_kind:
-                return recommendation.id
-            if not by_kind and (recommendation.payload or {}).get("topic") == topic.code:
-                return recommendation.id
-        return None
+        if raw in (None, ""):
+            return None, None
+        if topic.subject_kind is None:
+            return None, f"O assunto {topic.code!r} não aponta uma entidade específica."
+
+        subject_key = str(raw).strip()
+        kind, _, entity_id = subject_key.partition(":")
+        if kind != topic.subject_kind.value or not entity_id:
+            return None, (
+                f"subject_key deve ter o formato '{topic.subject_kind.value}:<id>' para o assunto {topic.code!r}."
+            )
+
+        repo = {
+            SubjectKind.GOAL: self._goal_repo,
+            SubjectKind.DEBT: self._debt_repo,
+            SubjectKind.INCOME_SOURCE: self._income_repo,
+        }[topic.subject_kind]
+        if not any(entity.id == entity_id for entity in repo.list_by_profile(profile_id)):
+            return None, f"Entidade não encontrada neste perfil: {subject_key!r}."
+        return subject_key, None
+
+    def _judgment_error(
+        self, tool_input: Mapping[str, Any], assessment: Optional[OpportunityAssessment]
+    ) -> Optional[str]:
+        """Julgamento no texto que a classificação oficial não sustenta."""
+        level = (
+            supported_level(assessment.tier, assessment.severity) if assessment is not None else None
+        )
+        text = " ".join(
+            [
+                str(tool_input.get("title") or ""),
+                str(tool_input.get("diagnosis") or ""),
+                *[str(action) for action in tool_input.get("suggested_actions") or []],
+            ]
+        )
+        terms = unsupported_judgment_terms(text, level)
+        if not terms:
+            return None
+        if level is None:
+            return (
+                "Este assunto não tem classificação oficial, então o texto não pode julgar. "
+                f"Reescreva de forma factual, sem: {', '.join(terms)}."
+            )
+        return (
+            "O texto usa um julgamento mais forte do que a classificação oficial do assunto "
+            f"sustenta. Reescreva sem: {', '.join(terms)}."
+        )
 
     def _raise_opportunity(
         self,
@@ -364,15 +424,31 @@ class SendAgentMessageUseCase:
         topic = AGENT_TOPICS.get(tool_input.get("topic"))
         if topic is None:
             return {"status": "error", "error": f"Assunto fora do catálogo: {tool_input.get('topic')!r}"}
-        if any(existing.topic == topic.code for existing in raised):
-            # Um assunto é um bloco. Duas chamadas para o mesmo assunto
-            # produziriam dois cards competindo pelas mesmas ações.
-            return {"status": "already_raised", "topic": topic.code}
+
+        subject_key, subject_error = self._resolve_subject_key(
+            tool_input.get("subject_key"), topic, profile_id
+        )
+        if subject_error is not None:
+            return {"status": "error", "error": subject_error}
+
+        identity = opportunity_blocks.identity_of(topic.code, subject_key)
+        if any(existing.identity == identity for existing in raised):
+            # Mesma identidade é a mesma oportunidade. Dois blocos idênticos
+            # competiriam pelas mesmas ações; duas dívidas diferentes, não —
+            # por isso a identidade inclui a entidade.
+            return {"status": "already_raised", "topic": topic.code, "subject_key": subject_key}
 
         title = (tool_input.get("title") or "").strip() or topic.label
         diagnosis = (tool_input.get("diagnosis") or "").strip()
         if not diagnosis:
             return {"status": "error", "error": "Uma oportunidade precisa de diagnosis."}
+
+        assessment = self._assessment_for(topic, evidence)
+        judgment_error = self._judgment_error(tool_input, assessment)
+        if judgment_error is not None:
+            # A chamada é recusada, não corrigida: o backend não reescreve o
+            # texto da IA, só se recusa a exibir um veredito sem lastro.
+            return {"status": "error", "error": judgment_error}
 
         known_evidence = {item["id"] for item in evidence}
         # Referência a evidência inexistente é descartada em silêncio para o
@@ -380,18 +456,21 @@ class SendAgentMessageUseCase:
         # colou, e a interface não pode exibir um lastro que não existe.
         refs = [ref for ref in (tool_input.get("evidence_refs") or []) if ref in known_evidence]
 
-        related_plan_id = self._related_plan_id(profile_id, topic)
+        plan_id = related_plan_id(self._plan_repo, profile_id, topic)
         opportunity = opportunity_blocks.build_opportunity(
             opportunity_id=f"{message_id}-op{len(raised) + 1}",
             topic=topic,
+            subject_key=subject_key,
             title=title,
             diagnosis=diagnosis,
             suggested_actions=[str(action) for action in tool_input.get("suggested_actions") or []],
             evidence_references=refs,
-            assessment=self._assessment_for(topic, evidence),
-            related_plan_id=related_plan_id,
+            assessment=assessment,
+            related_plan_id=plan_id,
             related_recommendation_id=(
-                None if related_plan_id is not None else self._related_recommendation_id(profile_id, topic)
+                None
+                if plan_id is not None
+                else related_recommendation_id(self._recommendation_repo, profile_id, topic, subject_key)
             ),
         )
         raised.append(opportunity)

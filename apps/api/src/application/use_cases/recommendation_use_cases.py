@@ -25,6 +25,12 @@ from decimal import Decimal
 from typing import Any, Callable, Mapping, Optional
 from uuid import uuid4
 
+from src.application.use_cases.opportunity_links import (
+    related_plan_id,
+    related_recommendation_id,
+)
+from src.domain.agent import opportunities as opportunity_blocks
+from src.domain.agent.topics import get_topic
 from src.domain.opportunity.engine import analyze_opportunity
 from src.domain.opportunity.entities import OpportunityResult, OpportunityStatus
 from src.domain.opportunity.fingerprint import compute_input_fingerprint
@@ -285,12 +291,45 @@ class ListRecommendationsUseCase:
         return self._repo.list_by_profile(profile_id, status)
 
 
+class OpportunityNotFoundError(ValueError):
+    """A oportunidade citada não existe na mensagem indicada."""
+
+
+class OpportunityActionOutdatedError(Exception):
+    """A ação exibida não vale mais; o estado atual é outro.
+
+    Não é erro do cliente: o botão estava certo quando foi desenhado. A resposta
+    carrega para onde a interface deve levar a pessoa agora.
+    """
+
+    def __init__(
+        self,
+        current_action: str,
+        plan_id: Optional[str] = None,
+        recommendation_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(f"Esta oportunidade já tem um registro: {current_action}.")
+        self.current_action = current_action
+        self.plan_id = plan_id
+        self.recommendation_id = recommendation_id
+
+
 class RegisterConversationRecommendationUseCase(_EngineBackedUseCase):
     """Registra uma recomendação nascida da conversa com a IA.
 
     Só é chamado por um gesto explícito do usuário ("Salvar como recomendação").
     Nenhuma resposta do agente vira registro sozinha.
+
+    O cliente envia apenas as referências (conversa, mensagem, oportunidade): o
+    conteúdo sai do bloco persistido. Aceitar assunto, diagnóstico ou evidências
+    vindos do cliente deixaria o registro auditável à mercê de quem chama a
+    rota — o snapshot gravado é a única versão que a IA de fato produziu.
     """
+
+    def __init__(self, agent_message_repo: Any = None, conversation_repo: Any = None, **repos: Any) -> None:
+        super().__init__(**repos)
+        self._agent_message_repo = agent_message_repo
+        self._conversation_repo = conversation_repo
 
     def execute(
         self,
@@ -298,9 +337,27 @@ class RegisterConversationRecommendationUseCase(_EngineBackedUseCase):
         currency: str,
         conversation_id: str,
         message_id: str,
-        payload: Mapping[str, Any],
+        opportunity_id: str,
         now: Optional[datetime] = None,
     ) -> Recommendation:
+        block = self._load_opportunity(profile_id, conversation_id, message_id, opportunity_id)
+        topic = get_topic(block.topic)
+        if topic is None:
+            raise OpportunityNotFoundError(f"Assunto fora do catálogo: {block.topic!r}")
+
+        # Revalidação no clique. `available_actions` do bloco é o retrato do que
+        # foi exibido; entre a resposta e o clique pode ter surgido plano ou
+        # recomendação para o mesmo assunto.
+        plan_id = related_plan_id(self._plan_repo, profile_id, topic)
+        if plan_id is not None:
+            raise OpportunityActionOutdatedError("view_plan", plan_id=plan_id)
+
+        existing_id = related_recommendation_id(
+            self._repo, profile_id, topic, block.subject_key
+        )
+        if existing_id is not None:
+            raise OpportunityActionOutdatedError("view_recommendation", recommendation_id=existing_id)
+
         return self._repo.add(
             Recommendation(
                 id=str(uuid4()),
@@ -309,10 +366,56 @@ class RegisterConversationRecommendationUseCase(_EngineBackedUseCase):
                 source=RecommendationSource.CONVERSATION,
                 status=RecommendationStatus.PENDING,
                 generated_at=now or datetime.utcnow(),
-                payload=payload,
+                payload=self._payload_from(block),
                 input_fingerprint=self._fingerprint(profile_id, currency),
                 scenario=ANALYSIS_SCENARIO,
                 conversation_id=conversation_id,
                 message_id=message_id,
             )
         )
+
+    def _load_opportunity(
+        self, profile_id: str, conversation_id: str, message_id: str, opportunity_id: str
+    ):
+        message = self._agent_message_repo.get(message_id)
+        if message is None or message.conversation_id != conversation_id:
+            raise OpportunityNotFoundError(f"Mensagem não encontrada: {message_id!r}")
+
+        conversation = self._conversation_repo.get(conversation_id)
+        if conversation is None or conversation.profile_id != profile_id:
+            raise OpportunityNotFoundError(f"Conversa não encontrada: {conversation_id!r}")
+
+        for raw in message.opportunities:
+            if raw.get("id") == opportunity_id:
+                return opportunity_blocks.from_dict(raw)
+        raise OpportunityNotFoundError(f"Oportunidade não encontrada: {opportunity_id!r}")
+
+    @staticmethod
+    def _payload_from(block) -> dict[str, Any]:
+        """O registro guarda o bloco como ele foi exibido.
+
+        `topic` e `subject_key` ficam no payload porque é por eles que a próxima
+        resposta reconhece que este assunto já está registrado.
+        """
+        assessment = block.assessment
+        return {
+            "status": "available",
+            "topic": block.topic,
+            "subject_key": block.subject_key,
+            "opportunity_id": block.id,
+            "summary": block.title,
+            "diagnosis": block.diagnosis,
+            "suggested_actions": list(block.suggested_actions),
+            "evidence_references": list(block.evidence_references),
+            "assessment": (
+                {
+                    "value": str(assessment.value) if assessment.value is not None else None,
+                    "tier": assessment.tier,
+                    "severity": assessment.severity,
+                    "policy_id": assessment.policy_id,
+                    "policy_version": assessment.policy_version,
+                }
+                if assessment is not None
+                else None
+            ),
+        }

@@ -13,6 +13,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from src.application.use_cases.agent_use_cases import SendAgentMessageUseCase
+from src.application.use_cases.debt_use_cases import CreateDebtUseCase
 from src.application.use_cases.income_use_cases import CreateIncomeSourceUseCase
 from src.application.use_cases.obligation_use_cases import CreateObligationUseCase
 from src.application.use_cases.profile_use_cases import CreateProfileUseCase
@@ -132,6 +133,19 @@ def _add_finding(session: Session, profile_id: str, code: str, severity: Severit
     )
 
 
+def _add_debt(session: Session, profile_id: str, description: str) -> str:
+    debt = CreateDebtUseCase(SqlAlchemyDebtRepository(session)).execute(
+        profile_id=profile_id,
+        description=description,
+        outstanding_balance=Money(Decimal("8000.00"), "BRL"),
+        installment_amount=Money(Decimal("400.00"), "BRL"),
+        remaining_installments=20,
+        interest_rate_optional=None,
+        due_day=10,
+    )
+    return debt.id
+
+
 def _add_active_plan(session: Session, profile_id: str, risk_code: str) -> str:
     plan = PreventivePlan(
         id=str(uuid4()),
@@ -163,19 +177,24 @@ def _add_pending_conversation_recommendation(session: Session, profile_id: str, 
     return recommendation.id
 
 
-def _raise(topic: str, refs: Optional[list[str]] = None, block_id: str = "t") -> FakeBlock:
-    return FakeBlock(
-        type="tool_use",
-        name="raise_opportunity",
-        id=block_id,
-        input={
-            "topic": topic,
-            "title": f"Título de {topic}",
-            "diagnosis": f"Diagnóstico de {topic}.",
-            "suggested_actions": [f"Ação para {topic}"],
-            "evidence_refs": refs or [],
-        },
-    )
+def _raise(
+    topic: str,
+    refs: Optional[list[str]] = None,
+    block_id: str = "t",
+    subject_key: Optional[str] = None,
+    title: Optional[str] = None,
+    diagnosis: Optional[str] = None,
+) -> FakeBlock:
+    payload: dict = {
+        "topic": topic,
+        "title": title or f"Título de {topic}",
+        "diagnosis": diagnosis or f"Diagnóstico de {topic}.",
+        "suggested_actions": [f"Ação para {topic}"],
+        "evidence_refs": refs or [],
+    }
+    if subject_key is not None:
+        payload["subject_key"] = subject_key
+    return FakeBlock(type="tool_use", name="raise_opportunity", id=block_id, input=payload)
 
 
 def _read_blocks() -> list[FakeBlock]:
@@ -359,6 +378,181 @@ def test_o_mesmo_assunto_nao_vira_dois_blocos(session: Session) -> None:
     )
 
     assert len(reply.opportunities) == 1
+
+
+def test_duas_dividas_diferentes_viram_dois_blocos(session: Session) -> None:
+    """Identidade é assunto + entidade. Só o assunto juntaria as duas em uma."""
+    profile = _make_profile(session)
+    cartao = _add_debt(session, profile.id, "Cartão")
+    carro = _add_debt(session, profile.id, "Financiamento do carro")
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise("debt_service", block_id="o1", subject_key=f"debt:{cartao}"),
+                    _raise("debt_service", block_id="o2", subject_key=f"debt:{carro}"),
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="São duas dívidas distintas.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E minhas dívidas?"
+    )
+
+    assert [item.subject_key for item in reply.opportunities] == [f"debt:{cartao}", f"debt:{carro}"]
+    assert len({item.id for item in reply.opportunities}) == 2
+
+
+def test_a_mesma_entidade_nao_vira_dois_blocos(session: Session) -> None:
+    profile = _make_profile(session)
+    cartao = _add_debt(session, profile.id, "Cartão")
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise("debt_service", block_id="o1", subject_key=f"debt:{cartao}"),
+                    _raise("debt_service", block_id="o2", subject_key=f"debt:{cartao}"),
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Sobre o cartão.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E o cartão?"
+    )
+
+    assert len(reply.opportunities) == 1
+
+
+def test_entidade_inexistente_nao_vira_bloco(session: Session) -> None:
+    """Identidade que não aponta para nada é pior que identidade nenhuma."""
+    profile = _make_profile(session)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(content=[_raise("debt_service", subject_key="debt:inventada")]),
+            FakeResponse(content=[FakeBlock(type="text", text="Sobre dívidas.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E minhas dívidas?"
+    )
+
+    assert reply.opportunities == []
+
+
+def test_vencimentos_concentrados_viram_bloco(session: Session) -> None:
+    profile = _make_profile(session)
+    _add_finding(session, profile.id, "CONCENTRATED_DUE_DATES", Severity.MEDIUM)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(content=[FakeBlock(type="tool_use", name="list_fragilities", input={}, id="r1")]),
+            FakeResponse(content=[_raise("due_date_concentration", ["ev1"])]),
+            FakeResponse(content=[FakeBlock(type="text", text="Seus vencimentos se acumulam numa semana.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="Quando vencem minhas contas?"
+    )
+
+    opportunity = reply.opportunities[0]
+    assert opportunity.topic == "due_date_concentration"
+    assert opportunity.assessment.severity == "medium"
+    assert opportunity.assessment.policy_id == "CONCENTRATED_DUE_DATES"
+    # Não há motor que simule reorganizar datas de vencimento.
+    assert "simulate" not in opportunity.available_actions
+
+
+def test_julgamento_sem_classificacao_oficial_nao_vira_bloco(session: Session) -> None:
+    """Adjetivo é veredito. Sem régua oficial, o texto descreve e não julga."""
+    profile = _make_profile(session)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise(
+                        "debt_service",
+                        title="Suas dívidas estão em nível crítico",
+                        diagnosis="O peso das parcelas é excessivo.",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Vamos olhar as parcelas.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E minhas dívidas?"
+    )
+
+    assert reply.opportunities == []
+
+
+def test_julgamento_mais_forte_que_a_classificacao_nao_vira_bloco(session: Session) -> None:
+    """Comprometimento em "atenção" não sustenta "bastante comprometida"."""
+    profile = _make_profile(session)
+    _with_income_and_obligation(session, profile.id)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(content=[FakeBlock(type="tool_use", name="get_dashboard_summary", input={}, id="r1")]),
+            FakeResponse(
+                content=[
+                    _raise(
+                        "income_commitment",
+                        ["ev1"],
+                        title="Sua renda está bastante comprometida",
+                        diagnosis="Boa parte da renda já está comprometida com obrigações fixas.",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Segue o panorama.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="Panorama?"
+    )
+
+    assert reply.opportunities == []
+
+
+def test_julgamento_dentro_da_classificacao_e_aceito(session: Session) -> None:
+    profile = _make_profile(session)
+    _with_income_and_obligation(session, profile.id)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(content=[FakeBlock(type="tool_use", name="get_dashboard_summary", input={}, id="r1")]),
+            FakeResponse(
+                content=[
+                    _raise(
+                        "income_commitment",
+                        ["ev1"],
+                        title="Comprometimento da renda merece atenção",
+                        diagnosis="As obrigações fixas ocupam parte relevante da renda mensal.",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Segue o panorama.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="Panorama?"
+    )
+
+    assert reply.opportunities[0].title == "Comprometimento da renda merece atenção"
+    assert reply.opportunities[0].assessment.tier == "attention"
 
 
 def test_blocos_sao_persistidos_e_devolvidos_no_historico(session: Session) -> None:

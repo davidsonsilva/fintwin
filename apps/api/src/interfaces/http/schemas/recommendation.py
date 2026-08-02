@@ -236,12 +236,23 @@ class DecisionRequest(BaseModel):
 
 
 class ConversationRecommendationRequest(BaseModel):
-    """Salvar como recomendação, a partir de uma resposta do agente.
+    """Salvar como recomendação, a partir de uma oportunidade da conversa.
 
-    Exige o vínculo com a mensagem: sem ele não dá para auditar de onde a
-    recomendação saiu.
+    Só referências. O conteúdo vem do bloco persistido: assunto, diagnóstico,
+    ações e evidências são lidos do snapshot que a IA produziu, nunca do que o
+    cliente enviar. Sem o vínculo não dá para auditar de onde a recomendação
+    saiu; com conteúdo vindo do cliente, a auditoria não valeria nada.
     """
 
     conversation_id: str
     message_id: str
-    payload: dict[str, Any]
+    opportunity_id: str
+
+
+class OutdatedActionResponse(BaseModel):
+    """A ação exibida não vale mais — para onde a interface deve levar agora."""
+
+    error: Literal["action_outdated"] = "action_outdated"
+    current_action: Literal["view_plan", "view_recommendation"]
+    related_plan_id: Optional[str] = None
+    related_recommendation_id: Optional[str] = None
