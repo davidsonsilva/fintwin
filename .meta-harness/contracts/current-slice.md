@@ -1,110 +1,90 @@
-# Slice atual: Oportunidades acionáveis na resposta do agente (contrato do backend)
+# Slice atual: entidades reais no `subject_key` + AgentPanel consome os blocos
 
 > Plano registrado em `planning/oportunidades-estruturadas-na-conversa_20260801` (Serena).
 >
 > **Aviso de procedência**: este contrato foi redigido pelo mesmo agente que implementou a
-> slice, a partir dos pedidos verbatim do usuário (2026-08-01 e 2026-08-02). Não é um contrato
-> escrito antes da implementação por um terceiro. Divergência entre este texto e o pedido
-> original é falha do contrato, não do revisor.
+> etapa, a partir do pedido verbatim do usuário (2026-08-02). Não é um contrato escrito antes
+> da implementação por um terceiro. Divergência entre este texto e o pedido original é falha
+> do contrato, não do revisor.
+>
+> **Etapa anterior encerrada.** O contrato do backend (blocos estruturados, guards de número e
+> de julgamento, revalidação no clique, unicidade por `opportunity_id`) foi revisado e aprovado
+> em `b9a41f1`. O texto daquele contrato está no histórico do git; este arquivo cobre **apenas**
+> os dois commits desta etapa. Não reavalie o que já foi aprovado, exceto para apontar regressão.
 
-## Contexto
+## Commits sob revisão
 
-Slice **puramente backend**. Nenhuma mudança em `apps/web` — pedido explícito do usuário:
-"Pare após concluir o contrato do backend. Não altere o AgentPanel ainda."
+- `4952512` — backend complementar: as leituras devolvem os identificadores das dívidas e das
+  fontes de renda.
+- `900ad81` — frontend: o AgentPanel renderiza um bloco por oportunidade e para de salvar a
+  mensagem inteira.
 
-O problema: uma resposta da IA pode conter várias oportunidades financeiras, e elas viviam
-soltas no texto. O frontend teria que interpretar Markdown e procurar trechos como "O que
-fazer" para saber o que era acionável. Cada oportunidade precisa sair como bloco estruturado
-independente.
+## O problema desta etapa
 
-A slice tem **dois commits**, revisados separadamente:
+`subject_key` já aceitava `debt:<id>` e `source:<id>` e já era validado contra as entidades
+reais do perfil. Mas nenhuma tool de leitura devolvia esses identificadores — só a meta
+principal tinha `id` exposto. Na prática o agente só conseguia produzir `goal:<id>`: para
+apontar uma dívida ou uma fonte de renda, teria que inventar um identificador, e a validação
+(corretamente) recusa. O suporte existia no papel e não no uso.
 
-- `ed789c2` — o contrato do backend.
-- `2167564` — seis ajustes pedidos pelo usuário ao aprovar o contrato.
+Do lado do cliente, o painel salvava a **mensagem inteira** como recomendação, com o texto
+corrido no `payload`. Uma resposta com três assuntos virava um registro só. Esse caminho foi
+deliberadamente quebrado no commit anterior (o campo livre `payload` deixou de existir na
+rota) e é aqui que ele é substituído.
 
-## Escopo entregue — commit `ed789c2` (contrato)
+## O que o usuário pediu (verbatim, 2026-08-02)
 
-### Como as oportunidades nascem
+Backend complementar:
 
-Tool nova `raise_opportunity` no loop de tool calling, uma chamada por oportunidade. **Nada é
-extraído do Markdown depois da resposta** — regra 2 do pedido.
+1. "Exponha os identificadores estáveis das dívidas e fontes de renda nas tools de leitura já
+   existentes. Evite criar uma tool nova se for possível estender com segurança."
+2. "A IA precisa receber apenas os campos necessários: id; nome ou descrição; valor/contexto
+   relevante; tipo da entidade."
+3. "Permita gerar e validar: `debt:<debtId>`; `source:<incomeSourceId>`. Mantenha a validação no
+   backend contra as entidades reais do profileId. Não aceite IDs livres produzidos pelo modelo
+   sem validação."
+4. Testes garantindo: duas dívidas diferentes geram dois blocos; duas fontes diferentes geram
+   dois blocos; a mesma entidade não gera duplicata; entidade de outro perfil ou inexistente é
+   recusada.
 
-Divisão rígida de responsabilidade: a IA descreve (`title`, `diagnosis`, `suggested_actions`) e
-aponta `evidence_refs`; o **backend** classifica (`assessment`) e decide `available_actions`,
-`requires_simulation`, `simulation_status`, `related_plan_id`, `related_recommendation_id`.
+AgentPanel:
 
-### Domínio novo
+5. "Preserve o texto natural em `reply`."
+6. "Renderize um bloco para cada item de `opportunities`."
+7. "Use apenas `available_actions` para mostrar os botões."
+8. "Remova o `SaveFromConversation` antigo que salvava a mensagem inteira."
+9. "Ao salvar, envie somente `conversation_id`, `message_id` e `opportunity_id`."
+10. "Trate 409 atualizando a ação para `view_plan` ou `view_recommendation`."
+11. "Não inferir classificação, simulação ou ações no frontend."
+12. "Mensagens antigas sem `opportunities` continuam apenas com o texto normal."
+13. "Não aplique ainda a migração no Postgres em execução."
 
-- `domain/agent/topics.py` — catálogo de assuntos. Por assunto: é simulável
-  (`decision_type`)? que planos o endereçam (`plan_risk_codes`)? que fragilidades o classificam
-  (`fragility_codes`)? de onde vem o assessment? **Assunto fora do catálogo não vira bloco** —
-  continua sendo conversa, porque um bloco com botão promete uma capacidade que o domínio
-  precisa sustentar.
-- `domain/agent/opportunities.py` — entidades, `available_actions()` puro, `to_dict`/`from_dict`.
+## Decisões de implementação que o revisor deve julgar
 
-### Persistência e compatibilidade
+- **Onde os identificadores foram expostos**: em `get_dashboard_summary`, junto do
+  `main_goal_id` que já existia. Não foi criada tool nova. O revisor deve julgar se estender o
+  "resumo" com duas listas de entidades é seguro (não vaza dado de outro perfil, não infla a
+  resposta a ponto de atrapalhar) ou se seria mais correto uma leitura separada.
+- **`entity_type` usa o mesmo vocabulário de `SubjectKind`** (`debt`, `source`, `goal`), para o
+  agente montar a chave sem traduzir nada.
+- **Badge de classificação não é renderizado.** `assessment` traz `tier`/`severity` em
+  representação interna (`attention`, `medium`) e o domínio não expõe rótulo em pt-BR para eles.
+  Traduzir no cliente seria o cliente classificando. Optou-se por não exibir.
+- **`simulate` é renderizado desabilitado.** O backend oferece a ação, mas não existe caminho de
+  uma oportunidade até uma simulação: os parâmetros nascem da proposta do agente
+  (`propose_simulation` → `pending_action`) e o bloco não os carrega. Botão morto é ruim;
+  inventar os parâmetros no cliente seria pior. O revisor deve dizer se concorda.
+- **`view_plan` leva à lista de planos** (`/dashboard/{profileId}/plans`), porque não existe
+  rota por plano individual.
+- **O corpo do 409 é lido de `ApiError.message`**, que carrega o texto bruto da resposta. O
+  parse é defensivo (`try/catch`, checa `error === "action_outdated"`); se falhar, o card cai no
+  erro genérico em vez de quebrar.
 
-Coluna `opportunities` (JSON, **nullable**) em `agent_messages`, migração `a9c2e5f70b31`,
-idempotente via `sa.inspect`. **Sem backfill**: mensagem gravada antes da coluna é lida como
-resposta sem blocos (`None → []`). Nada é migrado nem reescrito.
+## Fora de escopo desta etapa
 
-### Guard de evidência
-
-`_READ_TOOLS` separa o que conta como evidência. `propose_simulation` e `raise_opportunity` não
-leem nada do perfil e **não contam** — manter isso fechado é o que preserva a correção do guard
-anti-valor-inventado achada na VS-09. Evidências ganharam id (`ev1`, `ev2`…), devolvido ao
-modelo dentro do `tool_result`; referência a evidência inexistente é descartada.
-
-## Escopo entregue — commit `2167564` (seis ajustes)
-
-1. **Salvar não aceita conteúdo do cliente.** `POST /profiles/{id}/recommendations/from-conversation`
-   passa a receber só `conversation_id`, `message_id`, `opportunity_id`. O campo livre `payload`
-   **saiu da rota**. O backend carrega o bloco persistido e tira dele topic, diagnóstico, ações,
-   evidências e assessment.
-2. **`due_date_concentration` entrou no catálogo** (8 assuntos). Fragilidade
-   `CONCENTRATED_DUE_DATES`, não simulável. Catálogo **não cresce além disso**.
-3. **`available_actions` continua snapshot, mas não é autorização.** Nada no histórico é
-   reescrito; a ação é revalidada no clique e devolve **409** com o estado atual
-   (`view_plan` / `view_recommendation`) em vez de criar um segundo registro.
-4. **Identidade = `topic` + `subject_key`** (`goal:<id>`, `debt:<id>`, `source:<id>`), validada
-   contra as entidades reais do perfil. Id inexistente **recusa o bloco**.
-5. **Título e diagnóstico também não julgam.** Léxico de julgamento com nível
-   (`domain/agent/language.py`) contra o nível que a classificação oficial sustenta. Chamada com
-   julgamento sem lastro é **recusada**, não corrigida.
-6. **Migração não aplicada no Docker** — pedido explícito. `subject_key` mora dentro do JSON do
-   bloco, então **não houve migração nova** neste commit.
-
-## Fora de escopo (não implementado nesta slice)
-
-- **Qualquer mudança em `apps/web`** — parada pedida pelo usuário.
-- **Status `draft`** na recomendação — proibido pelo pedido (regra 11). O ciclo segue
-  `pending/approved/rejected/expired/superseded`, e o estado do cálculo mora separado em
-  `simulation_status`.
-- **`simulation_status: "simulated"`** nunca é emitido: não existe vínculo simulação↔bloco
-  nesta etapa.
-- **`context_snapshot_id` e `follow_up_question`** do contrato TypeScript original — o projeto
-  já tem `pending_questions`, e não há nada no domínio para apontar um snapshot id.
-- **Aplicar a migração no Postgres do Docker** — o container segue em `e7d3b5a91c40`.
-- **`subject_key` para dívidas e fontes de renda** — nenhuma tool de leitura expõe esses ids
-  ainda; só `goal:` é produzível (via `main_goal_id`, novo em `get_dashboard_summary`).
-
-## Débito conhecido e assumido
-
-`apps/web/src/features/recommendations/SaveFromConversation.tsx` **está quebrado** desde o
-commit `2167564`: ele salva o texto da mensagem inteira e envia `payload`, que a rota não aceita
-mais. Não há conserto de uma linha — a granularidade mudou de mensagem para oportunidade, que é
-a etapa seguinte (AgentPanel). Reportado ao usuário; validação no navegador adiada até lá.
-
-## Verificação executada
-
-- `apps/api/.venv/Scripts/python.exe -m pytest`: **276 passed** ao fim de `2167564`
-  (263 ao fim de `ed789c2`; baseline antes da slice era 254).
-- Cadeia de migrações validada do zero num sqlite descartável em `ed789c2`
-  (`alembic upgrade head` → coluna `opportunities` presente; head único `a9c2e5f70b31`).
-- **Nenhuma verificação no navegador** — o frontend não foi tocado e o débito acima impede
-  validação end-to-end antes da próxima etapa.
-
-**Sem baseline**: os commits desta slice não têm arquivo em `.meta-harness/baselines/`. Os
-baselines existentes (`statuscard-before.json` etc.) são de slices de frontend e não servem
-aqui. O intérprete Python do projeto é `apps/api/.venv` (3.12); o Python do sistema não tem
-`psycopg` e faz a suíte quebrar com 60 erros de import.
+- Aplicar as migrações no Postgres em execução (duas pendentes: `a9c2e5f70b31`,
+  `c1e4a7b90d52`). Proibido pelo usuário.
+- Ampliar o catálogo de assuntos.
+- Ligar `simulate` a um caminho real.
+- Corrigir as duas falhas pré-existentes em `AutonomyPanel.test.tsx` (verificadas como
+  anteriores a estes commits, por `git stash`).
