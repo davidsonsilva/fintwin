@@ -260,11 +260,10 @@ def test_uma_resposta_com_quatro_oportunidades_vira_quatro_blocos(session: Sessi
     assert reserve.evidence_references == ("ev2",)
     assert goal.evidence_references == ()
 
-    # Ações próprias: quem tem motor pode simular; quem já tem plano ativo não
-    # oferece salvar de novo.
+    # Ações próprias: quem já tem plano ativo não oferece salvar de novo.
     assert commitment.available_actions == ("save",)
-    assert reserve.available_actions == ("simulate", "save")
-    assert provision.available_actions == ("simulate", "save")
+    assert reserve.available_actions == ("save",)
+    assert provision.available_actions == ("save",)
     assert goal.available_actions == ("view_plan",)
     assert goal.related_plan_id == plan_id
 
@@ -340,7 +339,10 @@ def test_assunto_simulavel_nasce_nao_simulado(session: Session) -> None:
     opportunity = reply.opportunities[0]
     assert opportunity.requires_simulation is True
     assert opportunity.simulation_status.value == "not_simulated"
-    assert "simulate" in opportunity.available_actions
+    # O assunto é simulável, mas ainda não há caminho de uma oportunidade até
+    # uma simulação. A lista de ações é o que dá para fazer agora, não o que o
+    # produto pretende oferecer — senão a interface exibe um botão morto.
+    assert "simulate" not in opportunity.available_actions
 
 
 def test_assunto_fora_do_catalogo_nao_vira_bloco(session: Session) -> None:

@@ -102,15 +102,19 @@ def available_actions(
 ) -> tuple[OpportunityAction, ...]:
     """As ações que o backend oferece — a IA não opina sobre isto.
 
-    `simulate` só aparece quando existe motor capaz de simular o assunto.
+    A lista é o que a pessoa pode fazer **agora**, não o que o produto pretende
+    oferecer. Por isso `simulate` não aparece: o motor existe, mas nada leva de
+    uma oportunidade a uma simulação — os parâmetros da decisão nascem de
+    `propose_simulation` e o bloco não os carrega. Anunciar a ação obrigaria a
+    interface a exibir um botão morto ou a inventar os parâmetros. Quando o
+    caminho existir, `topic.requires_simulation` volta a governar isto.
+
     Salvar é o caminho de quem ainda não registrou nada: se o assunto já virou
     plano em execução, ou já tem recomendação aguardando decisão, a ação é ver
     o que existe, não criar uma segunda cópia do mesmo assunto. O plano vence a
     recomendação porque é o estado mais avançado dos dois.
     """
     actions: list[OpportunityAction] = []
-    if topic.requires_simulation:
-        actions.append(OpportunityAction.SIMULATE)
     if related_plan_id is not None:
         actions.append(OpportunityAction.VIEW_PLAN)
     elif related_recommendation_id is not None:

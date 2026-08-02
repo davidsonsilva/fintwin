@@ -153,18 +153,9 @@ export function OpportunityCard({
                 </Link>
               );
             }
-            if (action === "simulate") {
-              // O backend oferece a ação, mas ainda não existe caminho que leve
-              // uma oportunidade a uma simulação: a simulação nasce da proposta
-              // do agente, com parâmetros que este bloco não carrega. Mostrar o
-              // botão desabilitado é mais honesto que escondê-lo ou que a
-              // interface inventar os parâmetros.
-              return (
-                <Button key={action} variant="outline" size="sm" disabled>
-                  Simular (em breve)
-                </Button>
-              );
-            }
+            // `simulate` não é mais oferecido pelo backend enquanto não existir
+            // caminho de uma oportunidade até uma simulação. Blocos gravados
+            // antes dessa decisão ainda podem carregá-lo; nada a desenhar.
             return null;
           })}
         </div>
