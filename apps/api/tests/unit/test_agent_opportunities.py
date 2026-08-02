@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from src.application.use_cases.agent_use_cases import SendAgentMessageUseCase
 from src.application.use_cases.debt_use_cases import CreateDebtUseCase
+from src.application.use_cases.goal_use_cases import CreateGoalUseCase
 from src.application.use_cases.income_use_cases import CreateIncomeSourceUseCase
 from src.application.use_cases.obligation_use_cases import CreateObligationUseCase
 from src.application.use_cases.profile_use_cases import CreateProfileUseCase
@@ -541,6 +542,15 @@ def test_resumo_do_dashboard_expoe_identificadores_das_entidades(session: Sessio
     profile = _make_profile(session)
     cartao = _add_debt(session, profile.id, "Cartão")
     salario = _add_income_source(session, profile.id, "Salário")
+    meta = CreateGoalUseCase(SqlAlchemyGoalRepository(session)).execute(
+        profile_id=profile.id,
+        description="Reserva de emergência",
+        target_amount=Money(Decimal("30000.00"), "BRL"),
+        current_amount=Money(Decimal("5000.00"), "BRL"),
+        deadline=None,
+        priority=1,
+        monthly_contribution=Money(Decimal("500.00"), "BRL"),
+    )
 
     resultado = _make_use_case(session, FakeLLM([]))._execute_read_tool(
         "get_dashboard_summary", {}, profile.id, "BRL"
@@ -564,6 +574,11 @@ def test_resumo_do_dashboard_expoe_identificadores_das_entidades(session: Sessio
             "frequency": "monthly",
         }
     ]
+    # Regressão: `main_goal_id` nunca tinha sido exercido com uma meta de
+    # verdade — todo teste anterior rodava com perfil sem metas, e a leitura
+    # quebrava com AttributeError no primeiro perfil real que tinha uma.
+    assert resultado["main_goal_id"] == meta.id
+    assert resultado["main_goal"] == "Reserva de emergência"
 
 
 def test_vencimentos_concentrados_viram_bloco(session: Session) -> None:

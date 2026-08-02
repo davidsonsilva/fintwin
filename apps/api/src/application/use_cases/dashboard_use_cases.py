@@ -35,6 +35,9 @@ def _sum_money(currency: str, values: list[Money]) -> Money:
 
 @dataclass
 class MainGoalSummary:
+    #: A identidade da meta, para quem consome o resumo poder apontá-la sem
+    #: depender da descrição.
+    id: str
     description: str
     progress_pct: Percentage
 
@@ -101,7 +104,9 @@ class GetDashboardSummaryUseCase:
             fraction = Decimal("0")
             if top_goal.target_amount.amount > 0:
                 fraction = min(top_goal.current_amount.amount / top_goal.target_amount.amount, Decimal("1"))
-            main_goal = MainGoalSummary(description=top_goal.description, progress_pct=Percentage(fraction))
+            main_goal = MainGoalSummary(
+                id=top_goal.id, description=top_goal.description, progress_pct=Percentage(fraction)
+            )
 
         today = date.today()
         upcoming_events = sorted((event for event in events if event.date >= today), key=lambda event: event.date)[:5]
