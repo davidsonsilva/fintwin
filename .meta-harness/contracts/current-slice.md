@@ -18,6 +18,32 @@
   fontes de renda.
 - `900ad81` — frontend: o AgentPanel renderiza um bloco por oportunidade e para de salvar a
   mensagem inteira.
+- `44fc674` — correção do `MainGoalSummary`, encontrada na validação integrada (ver abaixo).
+
+## Commit `44fc674`: o resumo carrega a identidade da meta
+
+`main_goal_id` foi exposto em `4952512` supondo que `summary.main_goal` fosse a entidade da
+meta. É um `MainGoalSummary`, que só tem `description` e `progress_pct`. O acesso a `.id`
+estourava `AttributeError` e derrubava `get_dashboard_summary` inteiro — **toda conversa com o
+agente respondia 500** para qualquer perfil que tivesse uma meta. Descoberto só ao aplicar a
+migração e conversar com o perfil real; nenhuma das quatro rodadas anteriores de revisão pegou.
+
+A causa da lacuna importa mais que o conserto: todos os testes rodavam com perfil **sem metas**,
+então a expressão ficava no ramo `else` e nunca era avaliada. Cobertura que só exercita o ramo
+vazio de um `if` não cobre o campo.
+
+Critérios para este commit:
+
+17. **A correção é mínima e no lugar certo.** `MainGoalSummary` passa a carregar `id`, preenchido
+    a partir da meta escolhida. Não pode haver `getattr` defensivo, `try/except` em volta do
+    acesso, nem `id` opcional com default — isso esconderia a próxima ocorrência do mesmo erro.
+
+18. **O teste de regressão exercita o caminho real.** Cria um perfil **com meta**, chama
+    `get_dashboard_summary` de verdade (não um fake do resumo) e afirma `main_goal_id`.
+    Verificado que falha sem a correção.
+
+19. **Nada além do bug.** Nenhuma mudança de comportamento em outro campo do resumo, nenhum
+    arquivo não relacionado, e o commit não carrega estado do harness nem untracked.
 
 ## O problema desta etapa
 
