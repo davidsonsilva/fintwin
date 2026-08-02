@@ -285,6 +285,9 @@ class AgentMessageModel(Base):
     tool_calls: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
     pending_action: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
     confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Nullable de propósito: as mensagens anteriores a esta coluna não são
+    #: migradas nem reescritas — ausência significa "resposta sem blocos".
+    opportunities: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     conversation: Mapped[ConversationModel] = relationship(back_populates="messages")

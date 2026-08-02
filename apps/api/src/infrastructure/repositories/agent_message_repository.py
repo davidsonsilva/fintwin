@@ -24,6 +24,7 @@ def _to_model(message: AgentMessage) -> AgentMessageModel:
         tool_calls=list(message.tool_calls),
         pending_action=dict(message.pending_action) if message.pending_action is not None else None,
         confirmed=message.confirmed,
+        opportunities=[dict(item) for item in message.opportunities] or None,
         created_at=message.created_at,
     )
 
@@ -37,6 +38,7 @@ def _to_entity(model: AgentMessageModel) -> AgentMessage:
         tool_calls=list(model.tool_calls),
         pending_action=dict(model.pending_action) if model.pending_action is not None else None,
         confirmed=model.confirmed,
+        opportunities=[dict(item) for item in model.opportunities or []],
         created_at=model.created_at,
     )
 

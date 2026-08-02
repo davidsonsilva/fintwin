@@ -28,8 +28,7 @@ from uuid import uuid4
 from src.domain.opportunity.engine import analyze_opportunity
 from src.domain.opportunity.entities import OpportunityResult, OpportunityStatus
 from src.domain.opportunity.fingerprint import compute_input_fingerprint
-from src.domain.preventive_plans.entities import PreventivePlan
-from src.domain.shared.enums import PlanStatus
+from src.domain.preventive_plans.entities import ACTIVE_PLAN_STATUSES, PreventivePlan
 from src.domain.recommendations import lifecycle
 from src.domain.recommendations.entities import (
     InsightSurface,
@@ -65,10 +64,6 @@ class _ProfileDataLoader:
 
     def load(self, profile_id: str) -> dict[str, Any]:
         return {key: repo.list_by_profile(profile_id) for key, repo in self._repos.items()}
-
-
-#: Um plano nestes estados ainda está endereçando o assunto.
-ACTIVE_PLAN_STATUSES = frozenset({PlanStatus.APPROVED, PlanStatus.IN_PROGRESS})
 
 
 class _EngineBackedUseCase:

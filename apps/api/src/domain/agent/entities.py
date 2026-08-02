@@ -33,6 +33,10 @@ class AgentMessage:
     tool_calls: Sequence[Mapping[str, Any]] = field(default_factory=list)
     pending_action: Optional[Mapping[str, Any]] = None
     confirmed: bool = False
+    #: Blocos estruturados da resposta, já serializados. Mensagens gravadas
+    #: antes desta capacidade simplesmente não têm nenhum — e continuam
+    #: válidas: nada é reescrito para trás.
+    opportunities: Sequence[Mapping[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.content and not self.tool_calls:

@@ -35,6 +35,13 @@ class IndicatorAssessment:
     label: str
 
 
+#: Identidade da política de classificação, para o consumidor saber *qual*
+#: régua produziu o veredito que ele está exibindo. A versão muda sempre que
+#: os cortes mudarem — sem isso, um card antigo e um novo diriam coisas
+#: diferentes sem nenhum sinal de que a régua é que mudou.
+INCOME_COMMITMENT_POLICY_ID = "income_commitment_bands"
+INCOME_COMMITMENT_POLICY_VERSION = "1"
+
 #: Faixas do comprometimento da renda (obrigações mensais / renda mensal).
 #: Os cortes são os que o gauge do dashboard já usava; centralizá-los aqui
 #: apenas tira as cópias de circulação.
