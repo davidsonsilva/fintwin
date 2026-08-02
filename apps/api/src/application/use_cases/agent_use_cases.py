@@ -65,6 +65,11 @@ _NO_EVIDENCE_FALLBACK = (
 
 _LOOKS_LIKE_MONEY = re.compile(r"r\$\s?\d|\breais\b|\d+[.,]\d{2}\b", re.IGNORECASE)
 
+#: No texto do bloco a régua é qualquer dígito, não o formato de moeda:
+#: percentual, contagem de meses e inteiro cru também são números que só o
+#: domínio produz. Ver `_unbacked_number_error`.
+_HAS_DIGIT = re.compile(r"\d")
+
 _SYSTEM_PROMPT = """Você é o agente conversacional do FinTwin AI, uma plataforma de simulação e prevenção financeira.
 
 Regras invioláveis:
@@ -82,7 +87,7 @@ Oportunidades acionáveis:
 - Cite em evidence_refs os identificadores `evidence_id` devolvidos pelas tools de leitura que sustentam aquela oportunidade específica.
 - Só existe oportunidade para os assuntos do catálogo (campo topic). Assunto fora do catálogo é explicado no texto e não vira bloco.
 - Quando a oportunidade for sobre uma entidade específica devolvida por uma tool (uma meta, uma dívida, uma fonte de renda), informe subject_key no formato "goal:<id>", "debt:<id>" ou "source:<id>", usando o identificador exato que a tool devolveu. Nunca invente um identificador: se você não recebeu o id, omita subject_key.
-- Se o texto da oportunidade citar qualquer valor financeiro, ele precisa vir de uma tool de leitura e a oportunidade precisa apontar essa leitura em evidence_refs. Sem evidência apontada, descreva a oportunidade sem valores.
+- Se o texto da oportunidade citar qualquer número — valor, percentual, quantidade de meses ou de parcelas — ele precisa vir de uma tool de leitura, e a oportunidade precisa apontar essa leitura em evidence_refs. Sem evidência apontada, descreva a oportunidade sem números.
 - Em title, diagnosis e suggested_actions descreva o que foi observado sem emitir julgamento próprio. Adjetivos de veredito — saudável, seguro, elevado, alto, excessivo, crítico, grave — e intensificadores como "bastante" ou "muito" só podem aparecer se a classificação oficial do assunto os sustentar. Sem classificação oficial, escreva de forma factual e neutra. Uma chamada rejeitada por isso deve ser refeita com o texto neutro, não abandonada.
 """
 
@@ -398,24 +403,31 @@ class SendAgentMessageUseCase:
             ]
         )
 
-    def _money_error(self, tool_input: Mapping[str, Any], refs: Sequence[str]) -> Optional[str]:
-        """Valor citado no bloco sem leitura que o sustente.
+    def _unbacked_number_error(
+        self, tool_input: Mapping[str, Any], refs: Sequence[str]
+    ) -> Optional[str]:
+        """Número citado no bloco sem leitura que o sustente.
 
         O guard do texto conversacional não alcança estes campos — o bloco é um
         canal novo, e sem isto ele viraria a rota de fuga do critério que a
         VS-09 fechou: "Reduza R$ 2.000" viraria card sem nenhuma tool ter sido
-        chamada. Aqui a exigência é mais estrita que a do texto: o valor tem que
-        estar amarrado à evidência *deste bloco*, não a qualquer leitura da
-        mensagem.
+        chamada.
+
+        Aqui a régua é qualquer dígito, não só o formato de dinheiro que
+        `_LOOKS_LIKE_MONEY` reconhece. "Reduza 2000 por mês", "o
+        comprometimento é 80%" e "sua reserva cobre 2 meses" são todos números
+        que só o domínio produz, e nenhum deles casa com um padrão de moeda. Num
+        card estruturado, um número sem lastro custa mais caro do que num
+        parágrafo: ele parece resultado de cálculo.
         """
-        if not _LOOKS_LIKE_MONEY.search(self._opportunity_text(tool_input)):
+        if not _HAS_DIGIT.search(self._opportunity_text(tool_input)):
             return None
         if refs:
             return None
         return (
-            "O texto da oportunidade cita um valor financeiro sem apontar a leitura que o "
-            "sustenta. Cite em evidence_refs a evidência de onde o número veio, ou descreva "
-            "a oportunidade sem valores."
+            "O texto da oportunidade cita um número sem apontar a leitura que o sustenta. "
+            "Cite em evidence_refs a evidência de onde o número veio, ou descreva a "
+            "oportunidade sem números."
         )
 
     def _judgment_error(
@@ -477,9 +489,9 @@ class SendAgentMessageUseCase:
         # Os dois guards abaixo recusam a chamada em vez de corrigi-la: o
         # backend não reescreve o texto da IA, só se recusa a exibir número ou
         # veredito sem lastro.
-        money_error = self._money_error(tool_input, refs)
-        if money_error is not None:
-            return {"status": "error", "error": money_error}
+        number_error = self._unbacked_number_error(tool_input, refs)
+        if number_error is not None:
+            return {"status": "error", "error": number_error}
 
         assessment = self._assessment_for(topic, evidence)
         judgment_error = self._judgment_error(tool_input, assessment)

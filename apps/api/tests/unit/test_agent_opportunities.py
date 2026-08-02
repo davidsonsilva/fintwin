@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import Any, Optional
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.orm import Session
 
 from src.application.use_cases.agent_use_cases import SendAgentMessageUseCase
@@ -497,23 +498,26 @@ def test_julgamento_sem_classificacao_oficial_nao_vira_bloco(session: Session) -
     assert reply.opportunities == []
 
 
-def test_valor_no_bloco_sem_evidencia_apontada_nao_vira_bloco(session: Session) -> None:
-    """O bloco é um canal novo — o guard anti-valor-inventado o alcança também.
-
-    Sem isto, "Reduza R$ 2.000" viraria card sem nenhuma tool ter sido chamada.
-    """
+@pytest.mark.parametrize(
+    "diagnosis",
+    [
+        "Dá para reduzir R$ 2.000 por mês nas parcelas.",
+        # Inteiro cru e percentual não casam com nenhum padrão de moeda, e são
+        # exatamente os formatos que um card faria parecer resultado de cálculo.
+        "Dá para reduzir 2000 por mês nas parcelas.",
+        "O comprometimento com dívidas é 80%.",
+        "Suas parcelas seguem por mais 20 meses.",
+    ],
+)
+def test_numero_no_bloco_sem_evidencia_apontada_nao_vira_bloco(
+    session: Session, diagnosis: str
+) -> None:
+    """O bloco é um canal novo — o guard anti-valor-inventado o alcança também."""
     profile = _make_profile(session)
 
     llm = FakeLLM(
         [
-            FakeResponse(
-                content=[
-                    _raise(
-                        "debt_service",
-                        diagnosis="Dá para reduzir R$ 2.000 por mês nas parcelas.",
-                    )
-                ]
-            ),
+            FakeResponse(content=[_raise("debt_service", diagnosis=diagnosis)]),
             FakeResponse(content=[FakeBlock(type="text", text="Vamos olhar as parcelas.")]),
         ]
     )
@@ -525,7 +529,7 @@ def test_valor_no_bloco_sem_evidencia_apontada_nao_vira_bloco(session: Session) 
     assert reply.opportunities == []
 
 
-def test_valor_no_bloco_com_evidencia_apontada_e_aceito(session: Session) -> None:
+def test_numero_no_bloco_com_evidencia_apontada_e_aceito(session: Session) -> None:
     profile = _make_profile(session)
     _with_income_and_obligation(session, profile.id)
 
