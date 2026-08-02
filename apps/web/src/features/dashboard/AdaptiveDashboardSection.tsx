@@ -15,8 +15,7 @@ const GAP = 16;
 /*
  * Larguras mínimas de CONTEÚDO — restrições de viabilidade do layout externo,
  * não alturas nem tamanhos impostos aos cards. Um layout que viole qualquer uma
- * delas é descartado ANTES de qualquer pontuação de simetria: legibilidade nunca
- * perde para equilíbrio visual.
+ * delas não entra na lista de composições possíveis.
  */
 const MIN_COMPACT_WIDTH = 260;
 const MIN_EVENTS_WIDTH = 320;
@@ -59,134 +58,65 @@ function useResizeSize<T extends HTMLElement>(dimension: "width" | "height", ini
   return [ref, size] as const;
 }
 
-/*
- * Mede a altura de vários elementos (um por `key`) com um único `ResizeObserver`
- * compartilhado — chamar um hook por card violaria as Rules of Hooks (o número
- * de cards é fixo aqui, mas `.map(() => useX())` não é estaticamente seguro).
- * `registerRef(key)` devolve sempre a MESMA função de ref para aquela chave
- * (cacheada), então trocar a coluna de um card não força um
- * unobserve/observe a cada render.
- */
-function useMultiHeightObserver() {
-  const [heights, setHeights] = useState<Record<string, number>>({});
-  const observerRef = useRef<ResizeObserver | null>(null);
-  const elementsRef = useRef(new Map<string, HTMLElement>());
-  const callbacksRef = useRef(new Map<string, (el: HTMLElement | null) => void>());
-
-  const registerRef = useCallback((key: string) => {
-    const cached = callbacksRef.current.get(key);
-    if (cached) return cached;
-
-    const callback = (el: HTMLElement | null) => {
-      if (!observerRef.current) {
-        observerRef.current = new ResizeObserver((entries) => {
-          setHeights((prev) => {
-            let changed = false;
-            const next = { ...prev };
-            for (const entry of entries) {
-              const entryKey = (entry.target as HTMLElement).getAttribute("data-measure-key");
-              if (!entryKey) continue;
-              const height = entry.contentRect.height;
-              if (Math.abs((next[entryKey] ?? 0) - height) >= 0.5) {
-                next[entryKey] = height;
-                changed = true;
-              }
-            }
-            return changed ? next : prev;
-          });
-        });
-      }
-      const observer = observerRef.current;
-      const prevEl = elementsRef.current.get(key);
-      if (prevEl && prevEl !== el) {
-        observer.unobserve(prevEl);
-        elementsRef.current.delete(key);
-      }
-      if (el) {
-        el.setAttribute("data-measure-key", key);
-        observer.observe(el);
-        elementsRef.current.set(key, el);
-      }
-    };
-
-    callbacksRef.current.set(key, callback);
-    return callback;
-  }, []);
-
-  return [registerRef, heights] as const;
-}
-
 function fits(compactAreaWidth: number, columnCount: number) {
   return (compactAreaWidth - GAP * (columnCount - 1)) / columnCount >= MIN_COMPACT_WIDTH;
 }
 
-type Candidate = { columnCount: number; eventsBeside: boolean };
+export type DashboardLayout = { columnCount: number; eventsBeside: boolean };
 
 /*
- * ETAPA 1 da decisão: quais composições são sequer admissíveis nesta largura.
- * Só o que sobra daqui vai para a pontuação — nenhum score pode ressuscitar um
- * layout que já falhou numa largura mínima.
+ * A composição é função APENAS da largura da seção.
  *
- * A regra que mais pega na prática é a combinação proibida
- * `columnCount === 1 && eventsBeside`: uma coluna compacta ao lado do card de
- * eventos produz cards compactos larguíssimos espremendo um card de eventos
- * estreito — pior dos dois mundos. Se os compactos só comportam uma coluna, o
- * card de eventos desce e usa a largura toda.
+ * Não é uma escolha estética: é o que impede o bug de oscilação. A versão
+ * anterior media a altura de cada card com `ResizeObserver` e pontuava as
+ * composições candidatas por altura total. Mas a altura de um card depende da
+ * largura da coluna, e a largura da coluna é justamente o que a decisão altera
+ * — a saída do algoritmo voltava para a entrada. Pior: as alturas medidas eram
+ * as da composição ATUAL, e eram aplicadas a candidatos cujas colunas têm outra
+ * largura, ou seja, todo candidato era pontuado com alturas erradas.
+ *
+ * Esse laço não tinha amortecimento nem ponto fixo garantido: em 3 colunas o
+ * card media alto, o que elegia 2 colunas; em 2 colunas media baixo, o que
+ * reelegia 3 colunas; e assim indefinidamente, sem redimensionamento nem
+ * interação. Basta que um card mude de altura entre as duas larguras de coluna
+ * candidatas — um título ou um valor que quebra numa e não na outra — para o
+ * sistema deixar de ter ponto fixo. Se converge ou fica alternando depende
+ * inteiramente do conteúdo, e o algoritmo não dava nenhuma garantia.
+ *
+ * Ordem de preferência: o maior número de colunas que cabe, com o card de
+ * eventos ao lado sempre que couber. Uma coluna só existe empilhada — uma
+ * coluna compacta ao lado do card de eventos produz compactos larguíssimos
+ * espremendo um card de eventos estreito, o pior dos dois mundos — e é o
+ * fallback que sempre cabe.
  */
-function viableCandidates(sectionWidth: number): Candidate[] {
-  const candidates: Candidate[] = [];
-
+export function composeLayout(sectionWidth: number): DashboardLayout {
   const besideCompactWidth = sectionWidth - GAP - eventsWidthWhenBeside(sectionWidth);
   for (const columnCount of [3, 2]) {
-    if (fits(besideCompactWidth, columnCount)) candidates.push({ columnCount, eventsBeside: true });
+    if (fits(besideCompactWidth, columnCount)) return { columnCount, eventsBeside: true };
   }
-
   for (const columnCount of [3, 2]) {
-    if (fits(sectionWidth, columnCount)) candidates.push({ columnCount, eventsBeside: false });
+    if (fits(sectionWidth, columnCount)) return { columnCount, eventsBeside: false };
   }
-
-  // Uma coluna só existe empilhada, e é o fallback que sempre cabe.
-  candidates.push({ columnCount: 1, eventsBeside: false });
-  return candidates;
-}
-
-/* Distribui os cards (em ordem semântica) sempre na coluna com menor altura
- * acumulada até aquele ponto — não reordena, só escolhe ONDE cada card entra. */
-function assignToColumns(cards: CompactCardSpec[], heights: Record<string, number>, columnCount: number) {
-  const columns: CompactCardSpec[][] = Array.from({ length: columnCount }, () => []);
-  const columnHeights = new Array(columnCount).fill(0);
-  cards.forEach((card) => {
-    const height = heights[card.key] ?? 0;
-    let shortest = 0;
-    for (let c = 1; c < columnCount; c += 1) {
-      if (columnHeights[c] < columnHeights[shortest]) shortest = c;
-    }
-    columnHeights[shortest] += columns[shortest].length > 0 ? height + GAP : height;
-    columns[shortest].push(card);
-  });
-  return { columns, columnHeights };
+  return { columnCount: 1, eventsBeside: false };
 }
 
 /*
- * ETAPA 2: entre os candidatos que já passaram nas restrições, o menor score.
+ * Distribuição em colunas por rodízio na ordem semântica dos cards: o primeiro
+ * vai para a coluna 0, o segundo para a 1, e assim por diante. Determinística,
+ * sem medir nada, e preserva a leitura da esquerda para a direita.
  *
- * `sectionHeight` é o custo principal e o que torna a comparação justa entre
- * "ao lado" e "embaixo": lado a lado a seção mede o mais alto dos dois blocos,
- * empilhado mede a soma. Sem esse termo, "embaixo" venceria sempre — ali não
- * existe diferença para o card de eventos a penalizar, e o score cairia para
- * quase zero mesmo desperdiçando meia tela de altura.
- *
- * `imbalance` (diferença entre a coluna mais alta e a mais baixa) é o
- * desempate: entre duas composições de altura parecida, fica a de colunas mais
- * parelhas.
+ * A versão anterior enfileirava cada card na coluna de menor altura acumulada.
+ * Com seis cards de alturas quase iguais (113 a 145px), qualquer variação
+ * subpixel na medição trocava a coluna de um card — mesmo container, mesmos
+ * dados, arranjo diferente. Como as colunas são `flex-1` e têm todas a mesma
+ * largura, o equilíbrio que se perde aqui é desprezível: para 6 cards em 3
+ * colunas o rodízio reproduz exatamente a distribuição que o algoritmo antigo
+ * escolhia.
  */
-function scoreLayout(columnHeights: number[], eventsHeight: number, eventsBeside: boolean) {
-  const gridHeight = Math.max(...columnHeights);
-  const imbalance = gridHeight - Math.min(...columnHeights);
-  const sectionHeight = eventsBeside
-    ? Math.max(gridHeight, eventsHeight)
-    : gridHeight + GAP + eventsHeight;
-  return sectionHeight + imbalance;
+export function assignToColumns(cards: CompactCardSpec[], columnCount: number) {
+  const columns: CompactCardSpec[][] = Array.from({ length: columnCount }, () => []);
+  cards.forEach((card, index) => columns[index % columnCount].push(card));
+  return columns;
 }
 
 /*
@@ -195,19 +125,8 @@ function scoreLayout(columnHeights: number[], eventsHeight: number, eventsBeside
  * compartilhada entre eles — era isso que esticava os compactos até a altura
  * do card de eventos antes desta refatoração).
  *
- * O que é novo aqui: quantidade de colunas dos compactos e se o card de eventos
- * fica ao lado ou desce para linha própria deixam de ser um breakpoint fixo e
- * passam a ser calculados a partir de medições reais (`ResizeObserver`):
- * largura da seção, altura natural de cada compacto, altura do card de
- * eventos. A decisão é sobre EM QUAL COLUNA cada card entra — nenhum card muda
- * de tamanho.
- *
- * Sem simulação de "que altura o card teria numa largura hipotética": medimos a
- * altura real do card na coluna em que ele está agora e recalculamos a
- * distribuição a partir disso. Isso é estável na prática porque as larguras de
- * coluna candidatas (2 ou 3 colunas, ambas acima de `MIN_COMPACT_WIDTH`) não
- * cruzam o ponto em que o header dos compactos muda de layout — a mesma
- * medição continua válida ao trocar a quantidade de colunas.
+ * A única medição que alimenta a decisão é a largura da própria seção, que
+ * ninguém aqui dentro altera. Nenhuma altura renderizada é lida.
  */
 export function AdaptiveDashboardSection({
   compactCards,
@@ -216,34 +135,16 @@ export function AdaptiveDashboardSection({
 }: {
   compactCards: CompactCardSpec[];
   eventsCard: ReactNode;
-  /** Mostra um selo com as medições/decisão ao vivo — só para depuração visual. */
+  /** Mostra um selo com a medição/decisão ao vivo — só para depuração visual. */
   debug?: boolean;
 }) {
   const [sectionRef, sectionWidth] = useResizeSize<HTMLDivElement>("width", 1200);
-  const [eventsRef, eventsHeight] = useResizeSize<HTMLDivElement>("height");
-  const [registerCardRef, cardHeights] = useMultiHeightObserver();
 
-  const layout = useMemo(() => {
-    const candidates = viableCandidates(sectionWidth);
-    const hasRealHeights = Object.keys(cardHeights).length > 0;
-
-    if (!hasRealHeights) {
-      // Antes da primeira medição não há como pontuar altura: fica o primeiro
-      // candidato viável (mais colunas, com eventos ao lado quando couber).
-      // Evita começar empilhado num desktop largo e reorganizar logo em seguida.
-      const first = candidates[0];
-      return { ...first, scored: [] as (Candidate & { score: number })[] };
-    }
-
-    const scored = candidates.map((candidate) => {
-      const { columnHeights } = assignToColumns(compactCards, cardHeights, candidate.columnCount);
-      return { ...candidate, score: scoreLayout(columnHeights, eventsHeight, candidate.eventsBeside) };
-    });
-    const best = scored.reduce((a, b) => (b.score < a.score ? b : a));
-    return { ...best, scored };
-  }, [sectionWidth, eventsHeight, cardHeights, compactCards]);
-
-  const { columns, columnHeights } = assignToColumns(compactCards, cardHeights, layout.columnCount);
+  const layout = useMemo(() => composeLayout(sectionWidth), [sectionWidth]);
+  const columns = useMemo(
+    () => assignToColumns(compactCards, layout.columnCount),
+    [compactCards, layout.columnCount]
+  );
 
   return (
     <div className="flex flex-col gap-2">
@@ -255,14 +156,13 @@ export function AdaptiveDashboardSection({
             <b className="text-[color:var(--ft-text-primary)]">{String(layout.eventsBeside)}</b>
           </div>
           <div>
-            alturas das colunas: [{columnHeights.map((h) => Math.round(h)).join(", ")}]px · eventos:{" "}
-            {Math.round(eventsHeight)}px
-          </div>
-          <div>
-            candidatos viáveis:{" "}
-            {layout.scored
-              .map((s) => `${s.columnCount}col${s.eventsBeside ? "+lado" : "+abaixo"}=${Math.round(s.score)}`)
-              .join(" · ") || "(sem medição ainda)"}
+            largura por card compacto:{" "}
+            {Math.round(
+              ((layout.eventsBeside ? sectionWidth - GAP - eventsWidthWhenBeside(sectionWidth) : sectionWidth) -
+                GAP * (layout.columnCount - 1)) /
+                layout.columnCount
+            )}
+            px (mínimo {MIN_COMPACT_WIDTH}px)
           </div>
         </div>
       ) : null}
@@ -275,9 +175,12 @@ export function AdaptiveDashboardSection({
       >
         <div className="flex items-start gap-[16px]">
           {columns.map((column, columnIndex) => (
-            <div key={columnIndex} className="flex min-w-0 flex-1 flex-col items-start gap-[16px]">
+            /* O índice é a identidade real da coluna: ela é uma posição fixa na
+             * fileira, não um dado. Os cards, esses sim, são keyados por
+             * `card.key` — trocar de coluna não pode remontar o card. */
+            <div key={`coluna-${columnIndex}`} className="flex min-w-0 flex-1 flex-col items-start gap-[16px]">
               {column.map((card) => (
-                <div key={card.key} ref={registerCardRef(card.key)} className="w-full">
+                <div key={card.key} data-compact-card={card.key} className="w-full">
                   {card.node}
                 </div>
               ))}
@@ -285,7 +188,7 @@ export function AdaptiveDashboardSection({
           ))}
         </div>
 
-        <div ref={eventsRef}>{eventsCard}</div>
+        <div>{eventsCard}</div>
       </section>
     </div>
   );
