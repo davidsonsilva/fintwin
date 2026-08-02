@@ -1,0 +1,15 @@
+REJECTED: the target commit violates acceptance criteria 3, 5, 7, 8, and 9; criteria 1, 2, 4, 6, 10–12, and 14 passed by inspection, while criterion 13 is NOT_VERIFIED. Commands executed successfully: the required git diff/stat/show commands and `git diff --check` (exit 0); `apps/api/.venv/Scripts/python.exe -m pytest` is NOT_VERIFIED (exit 1 because the venv points to missing `C:\Users\david\AppData\Local\Programs\Python\Python312\python.exe`).
+
+Full review comments:
+
+- [P1] Apply the evidence guard to structured opportunity text — D:\IA Projects\gemeo-financeiro\apps\api\src\application\use_cases\agent_use_cases.py:387-390
+  Severity: HIGH. A `raise_opportunity` call can put an invented monetary value in `title`, `diagnosis`, or `suggested_actions` (for example, `"Reduza R$ 2.000"`) without any read tool, and this path persists and returns it unchanged; `_LOOKS_LIKE_MONEY` only inspects `final_text`. Validate these structured fields against evidence/domain output or reject monetary content, otherwise the new cards bypass the anti-invented-value safeguard.
+
+- [P1] Reject judgment language unsupported by the assessment — D:\IA Projects\gemeo-financeiro\apps\api\src\application\use_cases\agent_use_cases.py:372-375
+  Severity: HIGH. The tool input is accepted verbatim, so a model can create a block such as `"Sua renda está bastante comprometida"` when the official tier is only `attention`, or make a judgment when `assessment` is null. Prompt wording is not enforcement; evaluate title, diagnosis, and suggested actions against the official assessment and reject unsupported terms before persisting the block.
+
+- [P2] Preserve entity-specific opportunities during deduplication — D:\IA Projects\gemeo-financeiro\apps\api\src\application\use_cases\agent_use_cases.py:367-370
+  Severity: MEDIUM. If one response identifies the same topic for two different real entities, such as two debts, this check discards the second block solely because its topic matches the first. The required identity is `topic + subject_key`; add and validate that key, then deduplicate on the pair so separate entities remain actionable.
+
+- [P1] Bind saves to the persisted opportunity and revalidate them — D:\IA Projects\gemeo-financeiro\apps\api\src\application\use_cases\agent_use_cases.py:391-395
+  Severity: HIGH. The newly emitted `save` state is only a snapshot: the existing save route still accepts a client-controlled payload and inserts it without loading this opportunity or checking whether an equivalent plan/recommendation appeared after the message. A client can therefore replace the recorded topic, diagnosis, actions, or evidence and create duplicate pending recommendations from a stale card; accept only the three identifiers, derive content from the stored block, and reuse the same equivalence check to return the current view action as 409.

@@ -1,77 +1,78 @@
-# Critérios de aceitação: Design system — fechamento da migração CSS→CVA
+# Critérios de aceitação: Oportunidades acionáveis na resposta do agente
 
-> Derivado de `planning/design-system-css-para-cva-e-meta-harness_20260727` (que deixou os
-> candidatos nomeados) e consolidado em `planning/migracao-css-cva-fechada_20260731` (Serena).
-> Slice puramente front-end: sem domínio, backend, schema, endpoint ou contrato de API.
+> Derivados dos pedidos verbatim do usuário em 2026-08-01 (11 regras + testes mínimos) e
+> 2026-08-02 (6 ajustes na aprovação). Registro em
+> `planning/oportunidades-estruturadas-na-conversa_20260801` (Serena).
+>
+> **Aviso de procedência**: escritos pelo agente que implementou a slice. Ver o aviso em
+> `current-slice.md`.
 
-1. **Neutralidade visual**: cada componente reproduz medida por medida a regra CSS que
-   substitui — dimensões, raio, cor, borda, tipografia, espaçamento e **curva/duração de
-   transição**. Divergência em qualquer uma delas é regressão, não melhoria. A comparação é
-   feita contra o original extraído com `git show <base>:<arquivo>`, do **CSS e do JSX**,
-   porque o JSX carrega decisões que o CSS não mostra (tamanho de glifo, classes combinadas).
-   Única exceção declarada: a remoção de `grid-auto-rows: minmax(0,1fr)` de
-   `.ft-grid--indicators`, correção intencional do bug que originou o trabalho.
+1. **O texto conversacional é preservado e não é fonte de dado estruturado.** A resposta em
+   linguagem natural continua no campo de texto da mensagem. Nenhum bloco é obtido analisando
+   Markdown depois da resposta — nem por regex, nem procurando seções como "O que fazer".
+   Verificação: o caminho que popula `opportunities` parte exclusivamente de chamadas de tool.
 
-2. **Regra global sai no mesmo commit**: nenhum componente novo entra sem que a classe `.ft-*`
-   equivalente seja removida de `design-system.css` no mesmo commit. O ganho vem de deletar
-   CSS, não de somar abstração.
+2. **Identificador estável dentro da mensagem.** Cada bloco tem `id` próprio, derivado do
+   `message_id`, distinto entre blocos da mesma resposta e estável entre a resposta e a leitura
+   do histórico.
 
-   Verificação, para `.ft-status-card`, `.ft-status-icon`, `.ft-status-title`,
-   `.ft-status-description`, `.ft-metric-icon` e `.ft-badge` (e seus modificadores), em todo
-   `apps/web/src`: **(a)** nenhuma declaração de regra CSS com esses seletores permanece; e
-   **(b)** nenhum uso em markup — `className`, `class`, ou string montada que vire nome de
-   classe — permanece.
+3. **Valores, classificações e severidades vêm das tools e do domínio.** `assessment` só existe
+   quando uma tool de leitura produziu a classificação **na mesma mensagem**: faixa de
+   comprometimento da renda (`income_commitment_bands`) ou severidade do Radar de Fragilidade
+   (policy = código da regra). Não pode existir caminho de código que fabrique tier, severity,
+   value, policy_id ou policy_version a partir do que a IA escreveu.
 
-   Menções em **comentário** são esperadas e não violam o critério: são o rastro que aponta
-   para onde a regra foi parar. Uma busca textual crua pelo seletor falha por causa da própria
-   documentação e não serve como verificação.
+4. **Sem classificação oficial, `assessment` é `null`.** Nunca um objeto vazio, nunca um valor
+   inventado, nunca um default "neutro" que a interface possa exibir como veredito.
 
-3. **Sem regressão de testes existentes**: nenhum teste pré-existente removido ou marcado
-   `skip`. A suíte de backend não é afetada por esta slice (nenhum arquivo de `apps/api`
-   tocado). **A suíte de frontend (Vitest) já falha na baseline** — ver
-   `.meta-harness/baselines/statuscard-before.json`; falha dela não conta como regressão desta
-   slice, mas também não pode piorar.
+5. **A IA não julga em nenhum campo.** Além de não informar números, o texto de `title`,
+   `diagnosis` e `suggested_actions` não pode carregar adjetivo de veredito nem intensificador
+   que a classificação oficial não sustente. Critério concreto do usuário: *"Sua renda está
+   bastante comprometida"* com `tier: attention` deve ser **barrado**. Sem assessment, nenhum
+   julgamento; com assessment, nada acima do nível dele; palavra tranquilizadora
+   (saudável, seguro) só quando a régua de fato tranquiliza. A chamada barrada é **recusada**,
+   não silenciosamente reescrita pelo backend.
 
-4. **Quality gates limpos além da baseline conhecida**: `npx tsc --noEmit` não introduz erros
-   novos além dos 3 pré-existentes em `ProfileStep.tsx` e `ResourceStepForm.tsx`
-   (incompatibilidade Zod/react-hook-form); `eslint` limpo nos arquivos tocados; nenhum import
-   órfão deixado para trás após a troca de classe por componente.
+6. **`available_actions` é definido pelo backend.** Nenhum campo vindo da IA influencia a lista.
+   Regras: `simulate` só quando existe motor capaz de simular o assunto; plano ativo para o
+   assunto oferece `view_plan` e **não** `save`; recomendação equivalente pendente oferece
+   `view_recommendation`; `save` só quando não há nem plano nem recomendação.
 
-5. **Tipo no lugar de string mágica**: onde a variante era escolhida por nome de classe CSS
-   (`badge: "ft-badge--danger"`) ou montada por template string
-   (`ft-metric-icon--${variant}`), passa a ser um tipo do design system (`BadgeTone`,
-   `IconChipTone`). Critério: valor inválido deve falhar em compilação, não silenciosamente em
-   runtime.
+7. **`available_actions` não é autorização.** O bloco persistido é snapshot do que foi exibido e
+   **não é reescrito** quando surge um plano ou recomendação depois. Mas toda ação é revalidada
+   no clique, contra o estado atual do perfil, e uma ação defasada retorna o estado atual
+   (`view_plan` ou `view_recommendation`) em vez de criar um registro duplicado. A regra de
+   equivalência usada na revalidação deve ser a **mesma** usada na montagem do bloco — duas
+   implementações separadas divergiriam, e é a segunda que autoriza.
 
-6. **Contrato mínimo por papel (ISP)**: props que só alguns consumidores usam são opcionais —
-   `action` no `StatusCard` (1 de 6 indicadores tem link de detalhe), `iconSize` no `IconChip`
-   (o CSS nunca amarrou glifo a chip: 38px aparece com glifo de 18px e de 22px). Nenhum
-   componente vira um `Card` gordo com props opcionais que ninguém usa.
+8. **O cliente não substitui o snapshot.** Ao salvar, o cliente envia apenas referências
+   (`conversation_id`, `message_id`, `opportunity_id`). Assunto, diagnóstico, ações e evidências
+   são lidos do bloco persistido. Não pode haver campo de conteúdo livre na rota que acabe no
+   registro.
 
-7. **Diferenças reais do CSS preservadas nas variantes, não na base**: a borda existe só no
-   chip de 48px (`.ft-metric-icon`), nunca no de 38px (`.ft-status-icon`) — logo mora na
-   variante `size`, não na base do CVA. Vale para qualquer diferença entre modificadores que a
-   base tentaria unificar.
+9. **Identidade é `topic` + `subject_key`.** Duas oportunidades do mesmo assunto sobre entidades
+   diferentes (duas dívidas) são dois blocos; sobre a mesma entidade, um só. `subject_key` é
+   validado contra as entidades reais do perfil — chave que não aponta para nada recusa o bloco.
+   Sem entidade específica, a identidade é só o `topic`.
 
-8. **Polimorfismo sem inchar o componente**: quando o elemento precisa ser outro (o `<Link>` do
-   `StatusCard`), usa-se a função de variantes direto no `className`
-   (`badgeVariants({ tone: "link" })`), mesmo padrão já adotado com `buttonVariants` — em vez
-   de adicionar prop `as`/`render` ao componente.
+10. **Ciclo de vida da recomendação intocado.** Nenhum status `draft`. O ciclo segue
+    `pending/approved/rejected/expired/superseded`, e o estado do cálculo mora separado em
+    `simulation_status` (`not_simulated` / `simulated` / `not_required`). Nesta etapa
+    `simulated` nunca é emitido.
 
-9. **Escopo respeitado**: nada da frente de layout é tocado, com **uma exceção explícita**.
+11. **Compatibilidade com o que já está gravado.** Mensagem antiga sem `opportunities` continua
+    sendo lida e renderizada. A coluna é nullable, **sem backfill**, e nenhuma mensagem
+    persistida é migrada ou reescrita. Bloco gravado antes de `subject_key` existir continua
+    válido.
 
-   Permanecem intactos: `.ft-metric-card`, `.ft-analytics-card`,
-   `.ft-card-header/title/subtitle/footer` e todas as `.ft-grid--*`, **exceto** a remoção de
-   `grid-auto-rows: minmax(0,1fr)` de `.ft-grid--indicators`, autorizada pelo critério 1 como
-   correção do bug que originou o trabalho. Nenhuma outra propriedade de `.ft-grid--indicators`
-   é alterada, e nenhuma outra `.ft-grid--*` é tocada.
+12. **O guard anti-valor-inventado não regride.** Só tools de leitura contam como evidência para
+    a checagem que substitui a resposta quando ela cita dinheiro sem lastro.
+    `raise_opportunity` e `propose_simulation` não podem contar — foi exatamente essa brecha que
+    o Meta Harness achou na VS-09.
 
-   `ui/card` (shadcn) permanece no onboarding, simulações e planos preventivos (exclusão
-   deliberada de 27/07). Espaçamento externo embutido no CSS original — o `margin-top: 10px` do
-   `.ft-badge` — é reproduzido, não corrigido: removê-lo é decisão de layout.
+13. **Sem regressão de testes.** Nenhum teste pré-existente removido ou marcado `skip`. Testes
+    alterados só onde o contrato da rota mudou por pedido do usuário (critério 8), e a intenção
+    original de cada um deve continuar coberta.
 
-10. **Verificação visual antes do commit**: toda tela afetada é conferida pelo usuário antes do
-    commit, não só a que motivou a mudança. Nesta slice foram quatro: tela inicial, dashboard,
-    radar de fragilidade e planos preventivos. O rebuild do container `web`
-    (`docker compose build web && up -d web`) é obrigatório antes de qualquer conferência — o
-    serviço não tem volume montado e serve build congelado.
+14. **Escopo respeitado**: nenhum arquivo de `apps/web` alterado, nenhuma migração aplicada no
+    Docker em execução, catálogo de assuntos não ampliado além de `due_date_concentration`.
