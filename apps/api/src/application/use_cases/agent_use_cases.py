@@ -115,7 +115,9 @@ def _tool_definitions() -> list[dict[str, Any]]:
             "name": "get_dashboard_summary",
             "description": (
                 "Obtém o resumo atual do dashboard do perfil: saldo líquido, obrigações mensais, "
-                "comprometimento de renda, meta principal e próximos eventos."
+                "comprometimento de renda, meta principal e próximos eventos. Traz também os "
+                "identificadores das dívidas e das fontes de renda do perfil, para montar "
+                "`subject_key` em raise_opportunity. Use sempre o id exato devolvido aqui."
             ),
             "input_schema": {"type": "object", "properties": {}, "required": []},
         },
@@ -277,6 +279,30 @@ class SendAgentMessageUseCase:
                 # em `subject_key` sem inventar um identificador.
                 "main_goal_id": summary.main_goal.id if summary.main_goal else None,
                 "upcoming_events_count": len(summary.upcoming_events),
+                # As entidades acompanham o resumo pelo mesmo motivo do id da meta:
+                # sem os identificadores reais, o agente só teria como apontar uma
+                # dívida ou uma fonte de renda inventando um id. Só o mínimo para
+                # identificar e situar cada uma — o restante vem das tools próprias.
+                "debts": [
+                    {
+                        "entity_type": SubjectKind.DEBT.value,
+                        "id": debt.id,
+                        "description": debt.description,
+                        "installment_amount": str(debt.installment_amount.amount),
+                        "remaining_installments": debt.remaining_installments,
+                    }
+                    for debt in self._debt_repo.list_by_profile(profile_id)
+                ],
+                "income_sources": [
+                    {
+                        "entity_type": SubjectKind.INCOME_SOURCE.value,
+                        "id": source.id,
+                        "description": source.description,
+                        "amount": str(source.amount.amount),
+                        "frequency": source.frequency.value,
+                    }
+                    for source in self._income_repo.list_by_profile(profile_id)
+                ],
             }
         if tool_name == "get_autonomy":
             result = GetAutonomyUseCase(

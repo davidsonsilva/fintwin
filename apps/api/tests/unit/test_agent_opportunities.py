@@ -147,6 +147,19 @@ def _add_debt(session: Session, profile_id: str, description: str) -> str:
     return debt.id
 
 
+def _add_income_source(session: Session, profile_id: str, description: str) -> str:
+    source = CreateIncomeSourceUseCase(SqlAlchemyIncomeSourceRepository(session)).execute(
+        profile_id=profile_id,
+        description=description,
+        amount=Money(Decimal("2500.00"), "BRL"),
+        frequency=Recurrence.MONTHLY,
+        start_date=date(2024, 1, 1),
+        end_date=None,
+        stability=IncomeStability.STABLE,
+    )
+    return source.id
+
+
 def _add_active_plan(session: Session, profile_id: str, risk_code: str) -> str:
     plan = PreventivePlan(
         id=str(uuid4()),
@@ -446,6 +459,109 @@ def test_entidade_inexistente_nao_vira_bloco(session: Session) -> None:
     )
 
     assert reply.opportunities == []
+
+
+def test_duas_fontes_de_renda_diferentes_viram_dois_blocos(session: Session) -> None:
+    profile = _make_profile(session)
+    salario = _add_income_source(session, profile.id, "Salário")
+    freela = _add_income_source(session, profile.id, "Freelas de design")
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise("income_concentration", block_id="o1", subject_key=f"source:{salario}"),
+                    _raise("income_concentration", block_id="o2", subject_key=f"source:{freela}"),
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="São duas fontes distintas.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E minhas rendas?"
+    )
+
+    assert [item.subject_key for item in reply.opportunities] == [f"source:{salario}", f"source:{freela}"]
+
+
+def test_a_mesma_fonte_de_renda_nao_vira_dois_blocos(session: Session) -> None:
+    profile = _make_profile(session)
+    salario = _add_income_source(session, profile.id, "Salário")
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise("income_concentration", block_id="o1", subject_key=f"source:{salario}"),
+                    _raise("income_concentration", block_id="o2", subject_key=f"source:{salario}"),
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Sobre o salário.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E o salário?"
+    )
+
+    assert len(reply.opportunities) == 1
+
+
+def test_entidade_de_outro_perfil_nao_vira_bloco(session: Session) -> None:
+    """O id existe no banco, mas não pertence a quem está conversando."""
+    dono = _make_profile(session)
+    outro = _make_profile(session)
+    divida_do_outro = _add_debt(session, outro.id, "Cartão do vizinho")
+    renda_do_outro = _add_income_source(session, outro.id, "Salário do vizinho")
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise("debt_service", block_id="o1", subject_key=f"debt:{divida_do_outro}"),
+                    _raise("income_concentration", block_id="o2", subject_key=f"source:{renda_do_outro}"),
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Sobre suas contas.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=dono.id, currency="BRL", conversation_id=None, message="E minhas contas?"
+    )
+
+    assert reply.opportunities == []
+
+
+def test_resumo_do_dashboard_expoe_identificadores_das_entidades(session: Session) -> None:
+    """Sem os ids reais na leitura, a IA só teria como apontar uma entidade inventando um id."""
+    profile = _make_profile(session)
+    cartao = _add_debt(session, profile.id, "Cartão")
+    salario = _add_income_source(session, profile.id, "Salário")
+
+    resultado = _make_use_case(session, FakeLLM([]))._execute_read_tool(
+        "get_dashboard_summary", {}, profile.id, "BRL"
+    )
+
+    assert resultado["debts"] == [
+        {
+            "entity_type": "debt",
+            "id": cartao,
+            "description": "Cartão",
+            "installment_amount": "400.00",
+            "remaining_installments": 20,
+        }
+    ]
+    assert resultado["income_sources"] == [
+        {
+            "entity_type": "source",
+            "id": salario,
+            "description": "Salário",
+            "amount": "2500.00",
+            "frequency": "monthly",
+        }
+    ]
 
 
 def test_vencimentos_concentrados_viram_bloco(session: Session) -> None:
