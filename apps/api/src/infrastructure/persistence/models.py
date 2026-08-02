@@ -257,6 +257,13 @@ class RecommendationModel(Base):
 
     conversation_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     message_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    #: Único: uma oportunidade vira no máximo uma recomendação. Revalidar no
+    #: clique não basta sozinho — duas requisições simultâneas passam as duas
+    #: pela checagem antes de qualquer INSERT confirmar. Quem decide a corrida
+    #: é o banco; quem perde recebe 409 com o registro que venceu.
+    opportunity_id: Mapped[Optional[str]] = mapped_column(
+        String(80), nullable=True, index=True, unique=True
+    )
 
     profile: Mapped[ProfileModel] = relationship(back_populates="recommendations")
 

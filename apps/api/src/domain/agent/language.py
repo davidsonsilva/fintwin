@@ -47,6 +47,10 @@ _JUDGMENT_TERMS: Mapping[str, int] = {
     "equilibrada": 0,
     "adequado": 0,
     "adequada": 0,
+    # O prompt do agente já listava "aceitável" entre as classificações que ele
+    # não pode declarar sozinho — o léxico precisa cobrir a mesma palavra.
+    "aceitavel": 0,
+    "aceitaveis": 0,
     "folgado": 0,
     "folgada": 0,
     # Atenção.

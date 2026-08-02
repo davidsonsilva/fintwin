@@ -497,6 +497,87 @@ def test_julgamento_sem_classificacao_oficial_nao_vira_bloco(session: Session) -
     assert reply.opportunities == []
 
 
+def test_valor_no_bloco_sem_evidencia_apontada_nao_vira_bloco(session: Session) -> None:
+    """O bloco é um canal novo — o guard anti-valor-inventado o alcança também.
+
+    Sem isto, "Reduza R$ 2.000" viraria card sem nenhuma tool ter sido chamada.
+    """
+    profile = _make_profile(session)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise(
+                        "debt_service",
+                        diagnosis="Dá para reduzir R$ 2.000 por mês nas parcelas.",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Vamos olhar as parcelas.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E minhas dívidas?"
+    )
+
+    assert reply.opportunities == []
+
+
+def test_valor_no_bloco_com_evidencia_apontada_e_aceito(session: Session) -> None:
+    profile = _make_profile(session)
+    _with_income_and_obligation(session, profile.id)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(content=[FakeBlock(type="tool_use", name="get_dashboard_summary", input={}, id="r1")]),
+            FakeResponse(
+                content=[
+                    _raise(
+                        "income_commitment",
+                        ["ev1"],
+                        diagnosis="Suas obrigações somam R$ 3.000 por mês.",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Segue o panorama.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="Panorama?"
+    )
+
+    assert reply.opportunities[0].evidence_references == ("ev1",)
+
+
+def test_aceitavel_e_julgamento_e_precisa_de_lastro(session: Session) -> None:
+    """O prompt já listava "aceitável" entre o que a IA não declara sozinha."""
+    profile = _make_profile(session)
+
+    llm = FakeLLM(
+        [
+            FakeResponse(
+                content=[
+                    _raise(
+                        "debt_service",
+                        title="Situação aceitável nas dívidas",
+                        diagnosis="As parcelas seguem em aberto.",
+                    )
+                ]
+            ),
+            FakeResponse(content=[FakeBlock(type="text", text="Vamos olhar as parcelas.")]),
+        ]
+    )
+
+    reply = _make_use_case(session, llm).execute(
+        profile_id=profile.id, currency="BRL", conversation_id=None, message="E minhas dívidas?"
+    )
+
+    assert reply.opportunities == []
+
+
 def test_julgamento_mais_forte_que_a_classificacao_nao_vira_bloco(session: Session) -> None:
     """Comprometimento em "atenção" não sustenta "bastante comprometida"."""
     profile = _make_profile(session)

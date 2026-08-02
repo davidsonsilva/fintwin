@@ -4,12 +4,21 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from src.domain.agent.entities import AgentMessage, Conversation
+from src.domain.recommendations.entities import (
+    Recommendation,
+    RecommendationKind,
+    RecommendationSource,
+    RecommendationStatus,
+)
 from src.domain.shared.enums import MessageRole
 from src.infrastructure.repositories.agent_message_repository import (
     SqlAlchemyAgentMessageRepository,
 )
 from src.infrastructure.repositories.conversation_repository import (
     SqlAlchemyConversationRepository,
+)
+from src.infrastructure.repositories.recommendation_repository import (
+    SqlAlchemyRecommendationRepository,
 )
 
 
@@ -301,6 +310,41 @@ def test_salvar_a_mesma_oportunidade_de_novo_devolve_o_estado_atual(
     assert detail["current_action"] == "view_recommendation"
     assert detail["related_recommendation_id"] == primeira.json()["id"]
     assert len(client.get(f"/api/v1/profiles/{profile_id}/recommendations").json()) == 1
+
+
+def test_o_banco_barra_dois_registros_para_a_mesma_oportunidade(
+    client: TestClient, session: Session
+) -> None:
+    """A unicidade é do banco, não da revalidação em memória.
+
+    Duas requisições simultâneas passariam as duas pela revalidação antes de
+    qualquer INSERT confirmar; é o índice único que decide a corrida.
+    """
+    profile_id = _profile_com_folga(client)
+    _resposta_com_oportunidade(session, profile_id)
+    client.post(
+        f"/api/v1/profiles/{profile_id}/recommendations/from-conversation",
+        json={"conversation_id": "conv-1", "message_id": "msg-9", "opportunity_id": "msg-9-op1"},
+    )
+
+    repo = SqlAlchemyRecommendationRepository(session)
+    vencedora = repo.get_by_opportunity_id("msg-9-op1")
+    perdedora = Recommendation(
+        id="outra",
+        profile_id=profile_id,
+        kind=RecommendationKind.CONVERSATION_ADVICE,
+        source=RecommendationSource.CONVERSATION,
+        status=RecommendationStatus.PENDING,
+        generated_at=datetime(2026, 8, 1),
+        payload={"topic": "debt_service"},
+        input_fingerprint="fp",
+        opportunity_id="msg-9-op1",
+    )
+
+    gravada = repo.add_for_opportunity(perdedora)
+
+    assert gravada.id == vencedora.id
+    assert len(repo.list_by_profile(profile_id)) == 1
 
 
 def test_oportunidade_inexistente_devolve_404(client: TestClient, session: Session) -> None:

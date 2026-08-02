@@ -358,21 +358,28 @@ class RegisterConversationRecommendationUseCase(_EngineBackedUseCase):
         if existing_id is not None:
             raise OpportunityActionOutdatedError("view_recommendation", recommendation_id=existing_id)
 
-        return self._repo.add(
-            Recommendation(
-                id=str(uuid4()),
-                profile_id=profile_id,
-                kind=RecommendationKind.CONVERSATION_ADVICE,
-                source=RecommendationSource.CONVERSATION,
-                status=RecommendationStatus.PENDING,
-                generated_at=now or datetime.utcnow(),
-                payload=self._payload_from(block),
-                input_fingerprint=self._fingerprint(profile_id, currency),
-                scenario=ANALYSIS_SCENARIO,
-                conversation_id=conversation_id,
-                message_id=message_id,
-            )
+        candidate = Recommendation(
+            id=str(uuid4()),
+            profile_id=profile_id,
+            kind=RecommendationKind.CONVERSATION_ADVICE,
+            source=RecommendationSource.CONVERSATION,
+            status=RecommendationStatus.PENDING,
+            generated_at=now or datetime.utcnow(),
+            payload=self._payload_from(block),
+            input_fingerprint=self._fingerprint(profile_id, currency),
+            scenario=ANALYSIS_SCENARIO,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            opportunity_id=opportunity_id,
         )
+        # A revalidação acima resolve o caso normal, mas não a corrida: dois
+        # cliques simultâneos passariam os dois por ela antes de qualquer INSERT
+        # confirmar. Quem decide é a unicidade no banco; quem perde recebe o
+        # registro que venceu, não um segundo registro do mesmo assunto.
+        saved = self._repo.add_for_opportunity(candidate)
+        if saved.id != candidate.id:
+            raise OpportunityActionOutdatedError("view_recommendation", recommendation_id=saved.id)
+        return saved
 
     def _load_opportunity(
         self, profile_id: str, conversation_id: str, message_id: str, opportunity_id: str

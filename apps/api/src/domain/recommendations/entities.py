@@ -95,6 +95,10 @@ class Recommendation:
     #: Origem quando `source` é `conversation`.
     conversation_id: Optional[str] = None
     message_id: Optional[str] = None
+    #: Bloco de oportunidade que originou o registro. Único: uma oportunidade
+    #: vira no máximo uma recomendação, e quem garante isso é o banco — dois
+    #: cliques simultâneos no mesmo card não podem virar dois registros.
+    opportunity_id: Optional[str] = None
 
     def is_open(self) -> bool:
         return self.status is RecommendationStatus.PENDING

@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.domain.recommendations.entities import (
@@ -34,6 +35,7 @@ _FIELDS = (
     "plan_id",
     "conversation_id",
     "message_id",
+    "opportunity_id",
 )
 
 
@@ -55,6 +57,7 @@ def _to_entity(model: RecommendationModel) -> Recommendation:
         plan_id=model.plan_id,
         conversation_id=model.conversation_id,
         message_id=model.message_id,
+        opportunity_id=model.opportunity_id,
     )
 
 
@@ -80,11 +83,41 @@ class SqlAlchemyRecommendationRepository:
             plan_id=recommendation.plan_id,
             conversation_id=recommendation.conversation_id,
             message_id=recommendation.message_id,
+            opportunity_id=recommendation.opportunity_id,
         )
         self._session.add(model)
         self._session.commit()
         self._session.refresh(model)
         return _to_entity(model)
+
+    def add_for_opportunity(self, recommendation: Recommendation) -> Recommendation:
+        """Insere disputando a unicidade da oportunidade no banco.
+
+        Devolve o que ficou gravado — que pode ser o registro de outra
+        requisição, se ela chegou primeiro. Cabe a quem chama comparar o id e
+        tratar a corrida perdida.
+        """
+        try:
+            return self.add(recommendation)
+        except IntegrityError:
+            self._session.rollback()
+            # Só engolimos o erro se for de fato a corrida esperada. Qualquer
+            # outra causa (FK para um perfil excluído, por exemplo) sobe —
+            # inspecionar a mensagem do driver seria específico de banco, então
+            # revalidamos consultando o estado real.
+            existing = self.get_by_opportunity_id(recommendation.opportunity_id)
+            if existing is None:
+                raise
+            return existing
+
+    def get_by_opportunity_id(self, opportunity_id: Optional[str]) -> Optional[Recommendation]:
+        if opportunity_id is None:
+            return None
+        stmt = select(RecommendationModel).where(
+            RecommendationModel.opportunity_id == opportunity_id
+        )
+        model = self._session.execute(stmt).scalars().first()
+        return _to_entity(model) if model is not None else None
 
     def save(self, recommendation: Recommendation) -> Recommendation:
         """Persiste uma transição já validada pelo domínio."""

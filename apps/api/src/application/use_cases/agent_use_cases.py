@@ -82,6 +82,7 @@ Oportunidades acionáveis:
 - Cite em evidence_refs os identificadores `evidence_id` devolvidos pelas tools de leitura que sustentam aquela oportunidade específica.
 - Só existe oportunidade para os assuntos do catálogo (campo topic). Assunto fora do catálogo é explicado no texto e não vira bloco.
 - Quando a oportunidade for sobre uma entidade específica devolvida por uma tool (uma meta, uma dívida, uma fonte de renda), informe subject_key no formato "goal:<id>", "debt:<id>" ou "source:<id>", usando o identificador exato que a tool devolveu. Nunca invente um identificador: se você não recebeu o id, omita subject_key.
+- Se o texto da oportunidade citar qualquer valor financeiro, ele precisa vir de uma tool de leitura e a oportunidade precisa apontar essa leitura em evidence_refs. Sem evidência apontada, descreva a oportunidade sem valores.
 - Em title, diagnosis e suggested_actions descreva o que foi observado sem emitir julgamento próprio. Adjetivos de veredito — saudável, seguro, elevado, alto, excessivo, crítico, grave — e intensificadores como "bastante" ou "muito" só podem aparecer se a classificação oficial do assunto os sustentar. Sem classificação oficial, escreva de forma factual e neutra. Uma chamada rejeitada por isso deve ser refeita com o texto neutro, não abandonada.
 """
 
@@ -386,6 +387,37 @@ class SendAgentMessageUseCase:
             return None, f"Entidade não encontrada neste perfil: {subject_key!r}."
         return subject_key, None
 
+    @staticmethod
+    def _opportunity_text(tool_input: Mapping[str, Any]) -> str:
+        """Tudo que a IA escreveu no bloco e a interface vai exibir."""
+        return " ".join(
+            [
+                str(tool_input.get("title") or ""),
+                str(tool_input.get("diagnosis") or ""),
+                *[str(action) for action in tool_input.get("suggested_actions") or []],
+            ]
+        )
+
+    def _money_error(self, tool_input: Mapping[str, Any], refs: Sequence[str]) -> Optional[str]:
+        """Valor citado no bloco sem leitura que o sustente.
+
+        O guard do texto conversacional não alcança estes campos — o bloco é um
+        canal novo, e sem isto ele viraria a rota de fuga do critério que a
+        VS-09 fechou: "Reduza R$ 2.000" viraria card sem nenhuma tool ter sido
+        chamada. Aqui a exigência é mais estrita que a do texto: o valor tem que
+        estar amarrado à evidência *deste bloco*, não a qualquer leitura da
+        mensagem.
+        """
+        if not _LOOKS_LIKE_MONEY.search(self._opportunity_text(tool_input)):
+            return None
+        if refs:
+            return None
+        return (
+            "O texto da oportunidade cita um valor financeiro sem apontar a leitura que o "
+            "sustenta. Cite em evidence_refs a evidência de onde o número veio, ou descreva "
+            "a oportunidade sem valores."
+        )
+
     def _judgment_error(
         self, tool_input: Mapping[str, Any], assessment: Optional[OpportunityAssessment]
     ) -> Optional[str]:
@@ -393,14 +425,7 @@ class SendAgentMessageUseCase:
         level = (
             supported_level(assessment.tier, assessment.severity) if assessment is not None else None
         )
-        text = " ".join(
-            [
-                str(tool_input.get("title") or ""),
-                str(tool_input.get("diagnosis") or ""),
-                *[str(action) for action in tool_input.get("suggested_actions") or []],
-            ]
-        )
-        terms = unsupported_judgment_terms(text, level)
+        terms = unsupported_judgment_terms(self._opportunity_text(tool_input), level)
         if not terms:
             return None
         if level is None:
@@ -443,18 +468,23 @@ class SendAgentMessageUseCase:
         if not diagnosis:
             return {"status": "error", "error": "Uma oportunidade precisa de diagnosis."}
 
-        assessment = self._assessment_for(topic, evidence)
-        judgment_error = self._judgment_error(tool_input, assessment)
-        if judgment_error is not None:
-            # A chamada é recusada, não corrigida: o backend não reescreve o
-            # texto da IA, só se recusa a exibir um veredito sem lastro.
-            return {"status": "error", "error": judgment_error}
-
         known_evidence = {item["id"] for item in evidence}
         # Referência a evidência inexistente é descartada em silêncio para o
         # usuário, mas devolvida ao modelo: ele precisa saber que o vínculo não
         # colou, e a interface não pode exibir um lastro que não existe.
         refs = [ref for ref in (tool_input.get("evidence_refs") or []) if ref in known_evidence]
+
+        # Os dois guards abaixo recusam a chamada em vez de corrigi-la: o
+        # backend não reescreve o texto da IA, só se recusa a exibir número ou
+        # veredito sem lastro.
+        money_error = self._money_error(tool_input, refs)
+        if money_error is not None:
+            return {"status": "error", "error": money_error}
+
+        assessment = self._assessment_for(topic, evidence)
+        judgment_error = self._judgment_error(tool_input, assessment)
+        if judgment_error is not None:
+            return {"status": "error", "error": judgment_error}
 
         plan_id = related_plan_id(self._plan_repo, profile_id, topic)
         opportunity = opportunity_blocks.build_opportunity(

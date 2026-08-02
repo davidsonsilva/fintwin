@@ -71,6 +71,20 @@ class FakeRecommendationRepo:
         self.rows[recommendation.id] = recommendation
         return recommendation
 
+    def add_for_opportunity(self, recommendation: Recommendation) -> Recommendation:
+        """Imita a unicidade do banco: quem chega depois recebe quem venceu."""
+        existing = self.get_by_opportunity_id(recommendation.opportunity_id)
+        if existing is not None:
+            return existing
+        return self.add(recommendation)
+
+    def get_by_opportunity_id(self, opportunity_id) -> Optional[Recommendation]:
+        if opportunity_id is None:
+            return None
+        return next(
+            (r for r in self.rows.values() if r.opportunity_id == opportunity_id), None
+        )
+
     def save(self, recommendation: Recommendation) -> Recommendation:
         self.rows[recommendation.id] = recommendation
         return recommendation
@@ -508,6 +522,33 @@ def test_salvar_duas_vezes_devolve_a_recomendacao_ja_registrada() -> None:
 
     assert exc.value.current_action == "view_recommendation"
     assert exc.value.recommendation_id == primeira.id
+    assert len(world.registry()) == 1
+
+
+def test_corrida_de_dois_cliques_nao_cria_dois_registros() -> None:
+    """Revalidar em memória não decide a corrida — a unicidade no banco decide.
+
+    Simula as duas requisições passando pela revalidação antes de qualquer
+    INSERT confirmar: o repositório é quem barra a segunda.
+    """
+    world = World()
+    world.answer_with_opportunity()
+    vencedora = world.save_opportunity()
+
+    perdedora = Recommendation(
+        id="outra",
+        profile_id=PROFILE,
+        kind=RecommendationKind.CONVERSATION_ADVICE,
+        source=RecommendationSource.CONVERSATION,
+        status=RecommendationStatus.PENDING,
+        generated_at=datetime(2026, 8, 1),
+        payload={"topic": "income_commitment"},
+        input_fingerprint="fp",
+        opportunity_id="msg-9-op1",
+    )
+    gravada = world.recommendations.add_for_opportunity(perdedora)
+
+    assert gravada.id == vencedora.id
     assert len(world.registry()) == 1
 
 
