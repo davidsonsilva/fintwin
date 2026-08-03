@@ -123,7 +123,12 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
      */
     <Card.Root interactive className="h-auto self-start">
       <Card.Header
-        className="ft-card-header"
+        /* Sem `.ft-card-header`: só este card não leva a linha divisória entre
+           título e dados. A classe traz `border-bottom` não-layered (um utility
+           como `border-b-0` perde em especificidade); `CardHeader` já cobre
+           flex/items-start/justify-between/gap, então só falta reproduzir o
+           afastamento inferior. */
+        className="mb-[18px]"
         title={
           /* Sem `.ft-card-title`: a regra não-layered fixaria 16px e venceria o
              clamp. Valores reproduzidos. */
@@ -157,10 +162,19 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
            * o ponto onde a legenda deixa de caber de fato, não onde ela perderia o
            * tamanho de widescreen. Abaixo disso a redução acabou e a saída é
            * reorganizar: donut em cima, legenda com a largura toda.
+           *
+           * A coluna da legenda era `minmax(0,1fr)`: estica para preencher toda a
+           * sobra do card. Isso é inofensivo quando o card é um entre três na
+           * fileira (~414px), mas na faixa intermediária este card fica sozinho na
+           * linha e ocupa a largura cheia da seção (~860-960px) — aí o `1fr` vira
+           * um vácuo entre o nome da categoria e as colunas de %/valor, que ficam
+           * pregadas na borda direita. `fit-content(300px)` resolve: a legenda cresce
+           * até o que o conteúdo pede (nome mais comprido incluso), nunca além de
+           * 300px, e a sobra vira respiro à direita — não um vão no meio.
            */
           <div
             className={cn(
-              "grid grid-cols-[clamp(118px,44cqi,246px)_minmax(0,1fr)] items-center gap-[clamp(8px,2.4cqi,16px)]",
+              "grid grid-cols-[clamp(118px,44cqi,246px)_fit-content(300px)] items-center gap-[clamp(8px,2.4cqi,16px)]",
               "@max-[330px]/card:grid-cols-[minmax(0,1fr)] @max-[330px]/card:justify-items-center"
             )}
           >
@@ -210,8 +224,10 @@ export function ExpenseBreakdownChart({ profileId }: { profileId: string }) {
             <div className="ft-chart-legend @max-[330px]/card:w-full">
               {data.map((item, index) => (
                 <div key={item.category} className="ft-legend-item">
-                  <span className="ft-legend-dot" style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }} />
-                  <span className="ft-legend-name capitalize">{item.category}</span>
+                  <span className="ft-legend-category">
+                    <span className="ft-legend-dot" style={{ background: SLICE_COLORS[index % SLICE_COLORS.length] }} />
+                    <span className="ft-legend-name capitalize">{item.category}</span>
+                  </span>
                   <span className="ft-legend-percent">{formatPercent(item.percentage)}</span>
                   <span className="ft-legend-value">{formatAmount(item.amount.amount)}</span>
                 </div>
