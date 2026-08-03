@@ -144,3 +144,48 @@ de 262px a 296px.
 24. **O teste de regressão cobre a banda que reproduz o bug.** O terceiro caso de
     `dashboard-layout-stability.spec.ts` afirma um único layout distinto com o viewport parado em
     1490/1520/1550/1580px — larguras em que o código anterior media 4 layouts distintos.
+
+## Registro de recomendações refeito (`ef30e78`, `716ff9f`)
+
+**Atribuição por commit — leia antes de aplicar qualquer critério.** Os dois commits são
+etapas distintas e **não devem ser avaliados contra a lista inteira**:
+
+- `ef30e78` cobre a transformação do registro em lista. Critérios **25 a 32 e 34**.
+- `716ff9f` cobre exclusivamente o ajuste interno do Badge. Critério **33, e só ele**.
+
+O critério 33 não se aplica a `ef30e78`: o offset não existe naquele commit por construção,
+porque é o conteúdo do commit seguinte. Cobrá-lo ali produz finding onde não há defeito.
+
+25. **Nenhuma funcionalidade perdida.** Filtros (seis, com `aria-pressed`), status, origem
+    (ícone + rótulo), data, encadeamento de versões (`supersedes_id`/`superseded_by_id`) e as
+    duas ações continuam existindo e apontando para os mesmos destinos.
+
+26. **O padding duplicado sumiu por construção, não por ajuste.** Não pode haver dois nós na
+    mesma cadeia contribuindo padding vertical para a mesma linha. A moldura vai com `p-0`.
+
+27. **Altura natural.** Nenhuma altura fixa, `min-h` ou `h-` na linha ou no seu conteúdo. Um
+    título de duas linhas cresce a linha em vez de cortar.
+
+28. **Sem `interactive` e sem hover deslocante.** A linha tem até duas ações com destinos
+    distintos, logo não é integralmente clicável. Nenhum `translate` em hover de linha.
+
+29. **Tokens, não literais.** Nenhum hex hardcoded introduzido. `#b49cff` foi removido dos três
+    lugares onde estava. Cores e espaçamentos saem de `--ft-*`.
+
+30. **Tipografia pela escala.** `text-[15px]`/`[13px]`/`[12px]` não podem persistir onde a
+    escala do §4.4 tem equivalente (`--ft-font-size-heading-3`, `-body-sm`, `-caption`).
+
+31. **Cinco status distinguíveis sem regra de domínio nova.** `STATUS_TONES`, `STATUS_LABELS`,
+    `STATUS_HINTS` e o `RecommendationStatus` em `types.ts` intocados. A diferenciação extra é
+    puramente de apresentação e local ao arquivo da tela.
+
+32. **Nenhuma outra tela alterada.** O diff toca exclusivamente
+    `RecommendationRegistry.tsx`. `Badge`, `Card`, `Button`, `types.ts` e `design-system.css`
+    não podem aparecer no diff.
+
+33. **A correção do badge não muda a caixa.** `pt-[3px] pb-px` mantém a soma do padding em 4px
+    e a pílula em 22px; é deslocamento do texto, não mudança de tamanho.
+    **Pertence exclusivamente a `716ff9f`.**
+
+34. **Estados cobertos.** Vazio, carregando e erro têm tratamento próprio, e o carregamento não
+    pode voltar a ser spinner central (§11.12).

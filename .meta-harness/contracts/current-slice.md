@@ -118,3 +118,82 @@ AgentPanel:
 - Ligar `simulate` a um caminho real.
 - Corrigir as duas falhas pré-existentes em `AutonomyPanel.test.tsx` (verificadas como
   anteriores a estes commits, por `git stash`).
+
+---
+
+# Etapa adicional: Registro de recomendações refeito contra o Design System
+
+> **Escopo desta rodada.** Revise **somente** os dois commits abaixo. Tudo o que veio antes
+> (blocos estruturados, AgentPanel, oscilação da fileira de indicadores) já foi revisado e
+> aprovado — não reavalie, exceto para apontar regressão introduzida por estes dois.
+
+## Commits sob revisão
+
+- `ef30e78` — a tela `Registro de recomendações` deixa de ser uma pilha de cards e passa a ser
+  uma lista dentro de uma moldura única, refeita contra `imagens/FinTwin AI — Design System.md`.
+- `716ff9f` — correção de 1px no alinhamento vertical do texto dentro do badge de status,
+  aplicada no ponto de chamada.
+
+## Origem
+
+Pedido verbatim do usuário (2026-08-02): usar `imagens/FinTwin AI — Design System.md` como
+referência, preservar toda a funcionalidade, remover o padding duplicado, usar altura natural,
+não usar `Card.Root interactive` se o item não for integralmente clicável, não usar hover com
+deslocamento em linhas de registro, usar tokens, remover `#b49cff` hardcoded, trocar classes
+tipográficas arbitrárias por padrões do Design System quando existirem, diferenciar os cinco
+status sem criar novas regras de domínio, e **não alterar outras telas**.
+
+## Decisões que o revisor deve julgar
+
+- **Registro virou `<li>` dentro de um `Card.Root` único**, com `p-0` na moldura e o padding
+  só na linha. É a leitura do §11.2 (card é Header/Content/Footer em torno de um valor
+  principal e uma visualização — um registro não tem nenhum dos dois) combinada com o §7
+  (separar superfícies próximas com borda discreta, não acumular sombra). O revisor deve
+  dizer se concorda com a leitura ou se o documento comportava manter cards.
+- **Trilho colorido de 3px por status.** O badge sozinho não distinguia `rejected` de
+  `superseded`, que compartilham o tom neutro. O mapa `STATUS_RAIL` é local ao arquivo;
+  `STATUS_TONES` em `types.ts` não foi tocado. O revisor deve confirmar que isso não é uma
+  regra de domínio nova disfarçada de apresentação.
+- **Correção do badge feita no chamador, não em `badgeVariants`.** A causa está no primitivo
+  (`min-h-[22px]` fecha a altura exata, `items-center` fica sem folga, e o padding simétrico
+  não compensa a descendente não usada). Corrigir lá mudaria toda tela que usa Badge, o que o
+  usuário proibiu. O revisor deve julgar se a duplicação no chamador é aceitável dado o veto.
+- **`assignToColumns`/oscilação não têm relação com esta etapa.** Arquivo diferente.
+
+## Fora de escopo desta etapa (registrado como tarefa separada, não corrigir)
+
+- `.ft-header` tem `height: 98px` fixo com `.ft-header-left` em `position: absolute`; em 390px
+  um título de duas linhas transborda e colide com o conteúdo abaixo. **Pré-existente**,
+  atinge qualquer página com título longo. Apontar como regressão desta etapa é falso positivo.
+- Correção global do primitivo `Badge` e revisão dos seus consumidores.
+- As duas falhas pré-existentes em `AutonomyPanel.test.tsx`.
+- Os 3 erros de `tsc` pré-existentes em `ProfileStep.tsx` e `ResourceStepForm.tsx`.
+
+## Resultado da revisão desta etapa
+
+Rodada em duas execuções, uma por commit (o harness usa `TARGET^` como base, então não há
+como cobrir dois commits numa chamada só).
+
+| Commit | Relatório | Veredito | Findings |
+|---|---|---|---|
+| `ef30e78` | `codex-review-20260802-212910.md` | APPROVED_WITH_WARNINGS | 1 MEDIUM |
+| `716ff9f` | `codex-review-20260802-213304.md` | APPROVED | 0 |
+
+**O finding MEDIUM de `ef30e78` é falso positivo, causado por este contrato — não por defeito
+no código.** A primeira versão da lista de critérios era cumulativa: os critérios 25–34 foram
+escritos cobrindo os dois commits, e cada commit foi revisado contra a lista inteira. O
+critério 33 descreve o offset do Badge, que só existe em `716ff9f`; cobrado contra `ef30e78`,
+ele aponta uma ausência que é a definição do commit seguinte, não uma falha.
+
+A confirmação está na segunda execução, que avaliou o mesmo critério no commit a que ele
+pertence e o aprovou: *"O diff é restrito ao ajuste de padding dos dois badges e atende ao
+critério 33 sem alterar a caixa"*. Somados, os dois commits satisfazem os critérios 25 a 34.
+
+Nenhuma correção de código foi feita em resposta a este finding. O contrato foi ajustado para
+atribuir cada critério ao seu commit — ver o cabeçalho "Atribuição por commit" em
+`acceptance-criteria.md`.
+
+**Limitação da revisão**: `vitest` e `next build` ficaram NOT_VERIFIED nas duas execuções, por
+EPERM do sandbox do Codex ao criar diretório temporário. `tsc` alcançou apenas os três
+diagnósticos pré-existentes fora do diff. O veredito APPROVED vale por inspeção de diff, não
+por suíte executada pelo revisor.
