@@ -754,24 +754,38 @@ body.ft-scroll-locked {
   font-weight: var(--ft-font-weight-medium);
 }
 
-/* Três colunas de dados — nome à esquerda, % centralizada, valor à direita — e o
-   grid vive na LISTA, não na linha. Com um grid por linha as colunas `auto` são
-   dimensionadas isoladamente e "950,00" empurra a coluna para longe de
-   "2.200,00"; aqui todas as linhas dividem as mesmas trilhas. */
-/* Tudo aqui é fluido no `@container/card`: fonte, gaps e as trilhas numéricas.
-   A coluna do percentual era fixa em 48px — largura de widescreen que sobrava em
-   card estreito e roubava espaço do nome. Agora as três colunas de conteúdo são
-   `minmax(0,1fr) auto auto`: nome elástico, percentual e valor no tamanho exato
-   do texto. */
+/* Três colunas de dados — categoria à esquerda, % centralizada, valor à direita — e
+   o grid vive na LISTA, não na linha. Com um grid por linha as colunas dimensionadas
+   por conteúdo ficariam isoladas e "950,00" divergiria de "2.200,00"; aqui todas as
+   linhas dividem as mesmas trilhas.
+
+   `auto` puro nas colunas 2 e 3 tinha um problema: sem piso, a largura de cada uma
+   dependia do valor mais largo do conjunto — trocar os dados fazia o eixo do
+   percentual e do valor "dançar" de uma renderização para outra. `minmax(38px,auto)`
+   e `minmax(54px,auto)` fixam um piso estável (cabe "100%" e "9.999,99") sem
+   desperdiçar espaço quando o conteúdo é menor.
+
+   Os pisos são medidos, não estimados: no card real da fileira de analytics (3
+   colunas lado a lado, ~414px de card, legenda com ~199px de largura), o maior
+   percentual mede 36px e o maior valor 49px — 38/54 dão uma folga de ~2-5px sem
+   sufocar a coluna do nome. Um primeiro chute em 64px/88px (~152px, quase toda a
+   largura da legenda) espremeu a coluna do nome a ~30px e quebrou nomes letra a
+   letra ("M/or/adia") — sempre medir `getBoundingClientRect` no card real antes de
+   fixar um piso aqui. */
 .ft-chart-legend {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(38px, auto) minmax(54px, auto);
   align-items: center;
   column-gap: clamp(4px, 1.4cqi, 8px);
   row-gap: clamp(8px, 2cqi, 14px);
 
-  /* Cabe confortavelmente ~8 categorias em uma linha cada; só rola se passar disso. */
-  max-height: 230px;
+  /* Cabe confortavelmente ~8 categorias em uma linha cada; só rola se passar disso.
+     230px era o cálculo exato para 7 linhas no maior font/gap do clamp (7×21px +
+     6×14px = 231px) — 1px acima do teto, gerando scroll sempre que a categoria mais
+     larga da fileira acionasse o teto do clamp. 236px dá a mesma folga pretendida
+     sem abrir mão do "só rola se passar de ~8". Pré-existente, não introduzido
+     agora — só corrigido porque a causa raiz apareceu junto desta investigação. */
+  max-height: 236px;
   overflow-y: auto;
   padding-right: 6px;
 
@@ -784,7 +798,17 @@ body.ft-scroll-locked {
   display: contents;
 }
 
+/* Ponto colorido + nome viram uma célula só (coluna 1), não duas trilhas do
+   grid — o contrato é 3 colunas de dado, e o ponto é parte da categoria. */
+.ft-legend-category {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .ft-legend-dot {
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
