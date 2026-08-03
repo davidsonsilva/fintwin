@@ -216,12 +216,24 @@ function RegistryRow({
       <div className={cn(ROW_PADDING, "flex flex-col gap-[var(--ft-space-3)]")}>
         <div className={cn(TEXT_CAPTION, "flex flex-wrap items-center gap-[var(--ft-space-2)]")}>
           {/* `mt-0` anula o `mt-[10px]` embutido na base do Badge, que
-           * desalinharia a pill numa linha de metadados. */}
-          <Badge tone={STATUS_TONES[recommendation.status]} className="mt-0">
+           * desalinharia a pill numa linha de metadados.
+           *
+           * `pt-[3px] pb-px` no lugar do `py-[2px]` da base: a pílula tem
+           * altura fixa de 22px (16px de line-box + 4 de padding + 2 de borda),
+           * então `items-center` não tem folga para atuar e a posição do texto
+           * fica inteiramente a cargo do padding. Como o padding é simétrico
+           * mas a descendente da fonte não é usada por nenhum dos rótulos
+           * (Pendente, Aprovada, Rejeitada, Expirada, Substituída — nenhum tem
+           * descendente), sobra espaço embaixo e o texto sobe. 1px para baixo
+           * corrige. Somatório inalterado: a pílula continua com 22px.
+           *
+           * A causa está em `badgeVariants`, não aqui — mas corrigir lá mexeria
+           * em todas as telas que usam Badge, o que está fora deste escopo. */}
+          <Badge tone={STATUS_TONES[recommendation.status]} className="mt-0 pt-[3px] pb-px">
             {STATUS_LABELS[recommendation.status]}
           </Badge>
           {recommendation.stale && (
-            <Badge tone="warning" className="mt-0">
+            <Badge tone="warning" className="mt-0 pt-[3px] pb-px">
               Desatualizada
             </Badge>
           )}
