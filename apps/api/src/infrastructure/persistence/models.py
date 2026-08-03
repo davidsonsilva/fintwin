@@ -59,6 +59,9 @@ class ProfileModel(Base):
     conversations: Mapped[list["ConversationModel"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan"
     )
+    recommendations: Mapped[list["RecommendationModel"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan"
+    )
 
 
 class AccountModel(Base):
@@ -218,6 +221,53 @@ class PreventivePlanModel(Base):
     profile: Mapped[ProfileModel] = relationship(back_populates="preventive_plans")
 
 
+class RecommendationModel(Base):
+    """Registro de Recomendações — a memória de decisão do FinTwin.
+
+    O `payload` guarda a resposta inteira do motor no momento em que ela foi
+    gerada e nunca é recalculado: a decisão do usuário precisa ser auditável
+    contra exatamente os números que ele viu.
+
+    `input_fingerprint` é a impressão digital dos dados financeiros usados.
+    Comparada com a impressão atual, revela que a recomendação envelheceu sem
+    precisar rodar o motor de novo.
+
+    `supersedes_id`/`superseded_by_id` encadeiam versões: dados novos produzem
+    outra recomendação ligada à anterior, jamais uma sobrescrita silenciosa.
+    """
+
+    __tablename__ = "recommendations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(36), ForeignKey("profiles.id"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    scenario: Mapped[str] = mapped_column(String(30), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    selected_scenario: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+
+    supersedes_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    superseded_by_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    plan_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+
+    conversation_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    message_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    #: Único: uma oportunidade vira no máximo uma recomendação. Revalidar no
+    #: clique não basta sozinho — duas requisições simultâneas passam as duas
+    #: pela checagem antes de qualquer INSERT confirmar. Quem decide a corrida
+    #: é o banco; quem perde recebe 409 com o registro que venceu.
+    opportunity_id: Mapped[Optional[str]] = mapped_column(
+        String(80), nullable=True, index=True, unique=True
+    )
+
+    profile: Mapped[ProfileModel] = relationship(back_populates="recommendations")
+
+
 class ConversationModel(Base):
     __tablename__ = "conversations"
 
@@ -242,6 +292,9 @@ class AgentMessageModel(Base):
     tool_calls: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
     pending_action: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
     confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Nullable de propósito: as mensagens anteriores a esta coluna não são
+    #: migradas nem reescritas — ausência significa "resposta sem blocos".
+    opportunities: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     conversation: Mapped[ConversationModel] = relationship(back_populates="messages")

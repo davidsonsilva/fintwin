@@ -30,6 +30,12 @@ class RuleDefinition:
     threshold: str
 
 
+#: Versão do conjunto de regras. Acompanha a severidade quando ela é servida
+#: fora do Radar (por exemplo, na classificação de uma oportunidade da
+#: conversa), para que o consumidor saiba qual régua a produziu.
+RULES_VERSION = "1"
+
+
 RULES: dict[str, RuleDefinition] = {
     "INCOME_CONCENTRATION": RuleDefinition(
         code="INCOME_CONCENTRATION",

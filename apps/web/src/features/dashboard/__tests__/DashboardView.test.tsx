@@ -9,11 +9,32 @@ import { ApiError } from "@/lib/api-client";
 import { dashboardApi } from "../api";
 import { DashboardView } from "../DashboardView";
 
+// `useRouter` só existe dentro do App Router; o card Insight navega para a
+// tela da recomendação depois de detectar.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => "/dashboard/profile-1",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("../api", () => ({
   dashboardApi: {
     getSummary: vi.fn(),
     getProjection: vi.fn(),
     getAutonomy: vi.fn(),
+  },
+}));
+
+// O card Insight consulta o registro de recomendações; aqui interessa o
+// dashboard, não a superfície de detecção (coberta pelos testes do ciclo).
+vi.mock("@/features/recommendations/api", () => ({
+  recommendationApi: {
+    getInsight: vi.fn().mockResolvedValue({
+      recommendation: null,
+      diagnosis: null,
+      active_plan_id: null,
+    }),
+    detect: vi.fn(),
   },
 }));
 
@@ -73,6 +94,7 @@ describe("DashboardView", () => {
       net_balance: { amount: "12500.00", currency: "BRL" },
       monthly_obligations_total: { amount: "4950.00", currency: "BRL" },
       income_commitment_pct: "0.5",
+      income_commitment_status: { tier: "attention" as const, label: "Atenção ao comprometimento" },
       main_goal: { description: "Entrada de imóvel próprio", progress_pct: "0.15" },
       upcoming_events: [
         {

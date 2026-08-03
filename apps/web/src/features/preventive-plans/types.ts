@@ -20,6 +20,9 @@ export const RISK_CODE_LABELS: Record<string, string> = {
   UNPROVISIONED_ANNUAL_EXPENSE: "Despesa anual sem provisionamento",
   UNCOVERED_FUTURE_INSTALLMENTS: "Parcelas futuras não cobertas pela renda",
   INCOMPATIBLE_GOAL: "Meta incompatível com o fluxo atual",
+  // Único código que não vem do Radar de Fragilidade: nasce de uma
+  // oportunidade aprovada, não de um risco detectado.
+  GOAL_ACCELERATION_OPPORTUNITY: "Acelerar a meta principal",
 };
 
 export const STATUS_LABELS: Record<PlanStatus, string> = {

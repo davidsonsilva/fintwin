@@ -1,0 +1,19 @@
+{
+  "findings": [
+    {
+      "title": "[P2] Do not render simulation as an unavailable action",
+      "body": "When the backend includes `simulate` (which it does for opportunities such as reserve/provision), this renders an explicitly disabled “Simular (em breve)” button with no executable flow. That turns an advertised `available_actions` action into a dead placeholder; until a server-backed simulation route exists, the backend should not offer this action for these cards, or the card must navigate through the real proposal flow.",
+      "confidence_score": 0.93,
+      "priority": 2,
+      "code_location": {
+        "absolute_file_path": "D:\\IA Projects\\gemeo-financeiro\\apps\\web\\src\\features\\agent\\OpportunityCard.tsx",
+        "line_range": {
+          "start": 163,
+          "end": 164
+        }
+      }
+    }
+  ],
+  "overall_correctness": "patch is incorrect",
+  "overall_explanation": "The structured opportunity rendering and reference-only save path are otherwise consistent with the reviewed contract, but the exposed simulation action is non-functional. `git diff --check` and lint on the changed TypeScript files passed; Vitest, build, and backend pytest were not verifiable in the read-only environment, while full typecheck/lint only reproduced baseline diagnostics TS2322, TS2345, TS2769, react-hooks/immutability, and @typescript-eslint/no-explicit-any."
+}

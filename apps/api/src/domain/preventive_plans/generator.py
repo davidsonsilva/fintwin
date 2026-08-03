@@ -34,6 +34,8 @@ from src.domain.preventive_plans.entities import PreventivePlan
 from src.domain.projection.engine import project_cashflow
 from src.domain.projection.scenario import ScenarioParameters
 from src.domain.shared.enums import Direction, PlanStatus, Recurrence
+from src.domain.shared.formatting import format_date, format_money, format_percentage
+from src.domain.shared.percentage import Percentage
 from src.domain.shared.money import Money
 
 _GENERATION_HORIZON_MONTHS = 3
@@ -92,10 +94,12 @@ def _template_income_concentration(
     finding: FragilityFinding, ctx: FragilityContext, currency: str, today: date
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     main_description = finding.evidence.get("main_source_description", "a fonte principal")
+    # A evidência guarda a fração como string ("0.82"), não como Percentage.
     percentage = finding.evidence.get("main_source_percentage", "")
+    share = f" concentra {format_percentage(Percentage(Decimal(percentage)))} da renda mensal" if percentage else ""
     description = (
-        f"Diversificar fontes de renda ou reforçar a margem de segurança: {main_description} "
-        f"concentra {percentage} da renda mensal."
+        f"Diversificar fontes de renda ou reforçar a margem de segurança: {main_description}"
+        f"{share}."
     )
     actions = [_action(description, None, _default_due_date(today))]
     return actions, _expected_result(False, None)
@@ -109,7 +113,7 @@ def _template_essential_expense_ratio(
     needed = max(essential - target, Decimal("0"))
     impact = _money(needed, currency)
     description = (
-        f"Reduzir despesas essenciais recorrentes em {impact} por mês para trazer o "
+        f"Reduzir despesas essenciais recorrentes em {format_money(impact)} por mês para trazer o "
         "comprometimento da renda de volta a 60%."
     )
     actions = [_action(description, impact, _default_due_date(today))]
@@ -123,7 +127,7 @@ def _template_debt_service_ratio(
     needed = max(ctx.debt_service_monthly.amount - target, Decimal("0"))
     impact = _money(needed, currency)
     description = (
-        f"Priorizar a quitação de dívidas para reduzir o serviço da dívida em {impact} por mês "
+        f"Priorizar a quitação de dívidas para reduzir o serviço da dívida em {format_money(impact)} por mês "
         "e voltar a 30% da renda."
     )
     actions = [_action(description, impact, _default_due_date(today))]
@@ -148,7 +152,7 @@ def _template_projected_reserve_decline(
     total_negative = sum((period.net_cashflow.amount for period in periods), Decimal("0"))
     magnitude = abs(total_negative) / Decimal("3") if periods else Decimal("0")
     impact = _money(magnitude, currency)
-    description = f"Reservar {impact} por mês para compensar a tendência de queda projetada no fluxo de caixa."
+    description = f"Reservar {format_money(impact)} por mês para compensar a tendência de queda projetada no fluxo de caixa."
     actions = [_action(description, impact, _default_due_date(today))]
     return actions, _expected_result(True, _autonomy_change_from_impact(impact, ctx))
 
@@ -176,8 +180,8 @@ def _template_projected_deficit_90_days(
     first_deficit = ctx.projection.first_deficit_period
     due_date = _period_to_date(first_deficit) if first_deficit else _default_due_date(today)
     description = (
-        f"Provisionar {impact} até {due_date.isoformat()} para cobrir o déficit projetado "
-        f"(saldo mínimo projetado: {ctx.projection.lowest_balance})."
+        f"Provisionar {format_money(impact)} até {format_date(due_date)} para cobrir o déficit projetado "
+        f"(saldo mínimo projetado: {format_money(ctx.projection.lowest_balance)})."
     )
     actions = [_action(description, impact, due_date)]
     return actions, _expected_result(True, _autonomy_change_from_impact(impact, ctx))
@@ -199,7 +203,7 @@ def _template_reserve_below_three_months(
     monthly_amount = (total_gap / _FUNDING_PERIOD_MONTHS).quantize(Decimal("0.01"), rounding=ROUND_UP)
     impact = _money(monthly_amount, currency)
     description = (
-        f"Aumentar a reserva de emergência em {impact} por mês até {due_date.isoformat()} "
+        f"Aumentar a reserva de emergência em {format_money(impact)} por mês até {format_date(due_date)} "
         "para atingir 3 meses de autonomia básica."
     )
     actions = [_action(description, impact, due_date)]
@@ -217,7 +221,7 @@ def _template_unprovisioned_annual_expense(
         if event.recurrence == Recurrence.YEARLY and event.direction == Direction.EXPENSE:
             total_annual += event.amount.amount
     impact = _money(total_annual / Decimal("12"), currency)
-    description = f"Provisionar {impact} por mês para cobrir despesas anuais não provisionadas."
+    description = f"Provisionar {format_money(impact)} por mês para cobrir despesas anuais não provisionadas."
     actions = [_action(description, impact, _default_due_date(today))]
     return actions, _expected_result(False, None)
 
@@ -229,7 +233,7 @@ def _template_uncovered_future_installments(
     excess = max(ctx.debt_service_monthly.amount - disposable, Decimal("0"))
     impact = _money(excess, currency)
     description = (
-        f"Priorizar a quitação de dívidas: o serviço da dívida excede em {impact} por mês a renda "
+        f"Priorizar a quitação de dívidas: o serviço da dívida excede em {format_money(impact)} por mês a renda "
         "disponível após despesas essenciais."
     )
     actions = [_action(description, impact, _default_due_date(today))]
@@ -253,7 +257,7 @@ def _template_incompatible_goal(
     gap = max(top_goal.monthly_contribution.amount - disposable, Decimal("0"))
     impact = _money(gap, currency)
     description = (
-        f"Ajustar a meta '{top_goal.description}': reduzir a contribuição mensal em {impact} "
+        f"Ajustar a meta '{top_goal.description}': reduzir a contribuição mensal em {format_money(impact)} "
         "ou estender o prazo, para caber na renda disponível."
     )
     actions = [_action(description, impact, _default_due_date(today))]

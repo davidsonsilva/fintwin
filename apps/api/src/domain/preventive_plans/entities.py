@@ -15,6 +15,11 @@ from typing import Any, Mapping, Optional, Sequence
 from src.domain.shared.enums import PlanStatus
 
 
+#: Um plano nestes estados ainda está endereçando o assunto — quem pergunta
+#: "isso já está sendo tratado?" pergunta por esta lista.
+ACTIVE_PLAN_STATUSES = frozenset({PlanStatus.APPROVED, PlanStatus.IN_PROGRESS})
+
+
 @dataclass
 class PreventivePlan:
     id: str

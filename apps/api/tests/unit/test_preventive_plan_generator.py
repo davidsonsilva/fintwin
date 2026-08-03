@@ -385,3 +385,26 @@ def test_regenerates_plan_for_risk_code_whose_existing_plan_is_terminal() -> Non
 
     second_round = _generate(accounts=accounts, incomes=incomes, existing_plans=[rejected])
     assert "INCOME_CONCENTRATION" in {plan.risk_code for plan in second_round}
+
+
+def test_nenhuma_descricao_gerada_vaza_representacao_de_desenvolvedor() -> None:
+    """Rede sobre os templates, não só sobre o perfil de demonstração.
+
+    O cenário abaixo dispara vários templates de uma vez, incluindo o de
+    déficit projetado — que escapou da primeira correção porque o perfil de
+    demonstração não o aciona.
+    """
+    import re
+
+    plans = _generate(
+        accounts=[_account("100.00")],
+        incomes=[_income("500.00")],
+        obligations=[_obligation("3000.00", essential=True)],
+    )
+    assert plans
+
+    for plan in plans:
+        for action in plan.actions:
+            texto = action["description"]
+            assert not re.search(r"\d\s*(BRL|USD|EUR)\b", texto), texto
+            assert not re.search(r"\d{4}-\d{2}-\d{2}", texto), texto

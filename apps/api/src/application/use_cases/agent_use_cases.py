@@ -23,17 +23,35 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Mapping, Optional
+from decimal import Decimal
+from typing import Any, Mapping, Optional, Sequence
 from uuid import uuid4
 
 from src.application.use_cases.autonomy_use_cases import GetAutonomyUseCase
 from src.application.use_cases.dashboard_use_cases import GetDashboardSummaryUseCase
 from src.application.use_cases.fragility_use_cases import ListFragilitiesUseCase
+from src.application.use_cases.opportunity_links import related_plan_id, related_recommendation_id
+from src.domain.agent import opportunities as opportunity_blocks
 from src.domain.agent.entities import AgentMessage, Conversation
+from src.domain.agent.language import supported_level, unsupported_judgment_terms
+from src.domain.agent.opportunities import ActionableOpportunity, OpportunityAssessment
+from src.domain.agent.topics import (
+    AGENT_TOPICS,
+    TOPIC_CODES,
+    AgentTopic,
+    AssessmentSource,
+    SubjectKind,
+)
 from src.domain.decisions.entities import Simulation
 from src.domain.decisions.types import DECISION_TYPES
 from src.domain.decisions.validation import InvalidDecisionParametersError, validate_decision_parameters
+from src.domain.fragility.rules import RULES_VERSION
 from src.domain.shared.enums import MessageRole, Severity
+from src.domain.shared.indicators import (
+    INCOME_COMMITMENT_POLICY_ID,
+    INCOME_COMMITMENT_POLICY_VERSION,
+    classify_income_commitment,
+)
 
 _MANDATORY_LIMITATION = (
     "O FinTwin AI MVP é uma ferramenta educacional e de simulação. Ele não oferece "
@@ -47,14 +65,30 @@ _NO_EVIDENCE_FALLBACK = (
 
 _LOOKS_LIKE_MONEY = re.compile(r"r\$\s?\d|\breais\b|\d+[.,]\d{2}\b", re.IGNORECASE)
 
+#: No texto do bloco a régua é qualquer dígito, não o formato de moeda:
+#: percentual, contagem de meses e inteiro cru também são números que só o
+#: domínio produz. Ver `_unbacked_number_error`.
+_HAS_DIGIT = re.compile(r"\d")
+
 _SYSTEM_PROMPT = """Você é o agente conversacional do FinTwin AI, uma plataforma de simulação e prevenção financeira.
 
 Regras invioláveis:
 - Você NUNCA calcula ou declara um valor financeiro por conta própria. Todo número que você mencionar na resposta deve vir do resultado de uma tool chamada nesta mesma conversa.
+- Você NUNCA classifica um indicador como saudável, aceitável, elevado ou crítico por conta própria, e NUNCA cita um limiar ("acima de 50%", "o ideal é até 30%") que não tenha vindo de uma tool. Os limiares do FinTwin são definidos no domínio: use exatamente o campo de classificação devolvido pela tool (por exemplo `income_commitment_status.label`). Se a tool não trouxer classificação para um indicador, apresente o número sem julgá-lo.
 - Se faltar um dado necessário para propor uma simulação, pergunte objetivamente qual dado falta, em vez de assumir um valor.
 - A tool propose_simulation NÃO persiste nada — apenas valida os parâmetros. A simulação só é executada e salva depois que o usuário confirmar explicitamente na interface.
 - Não invente fragilidades, indicadores ou simulações que não vieram de uma tool.
 - Você não substitui o dashboard: seu papel é explicar resultados, não ser a única forma de interação.
+
+Oportunidades acionáveis:
+- Sempre que sua resposta identificar uma oportunidade financeira acionável, declare-a com a tool raise_opportunity — uma chamada por oportunidade. Se a resposta tem quatro oportunidades, são quatro chamadas.
+- O texto da resposta é apenas a explicação em linguagem natural. Não escreva seções como "O que fazer", não numere oportunidades e não repita o conteúdo dos blocos em formato de lista estruturada: a interface monta os blocos a partir das chamadas da tool, não do seu texto.
+- Em raise_opportunity você NÃO informa valores, percentuais, classificações, severidades, limiares nem prioridade de risco. O backend anexa a classificação oficial quando ela existe; quando não existe, a oportunidade sai sem classificação — e você também não a inventa no texto.
+- Cite em evidence_refs os identificadores `evidence_id` devolvidos pelas tools de leitura que sustentam aquela oportunidade específica.
+- Só existe oportunidade para os assuntos do catálogo (campo topic). Assunto fora do catálogo é explicado no texto e não vira bloco.
+- Quando a oportunidade for sobre uma entidade específica devolvida por uma tool (uma meta, uma dívida, uma fonte de renda), informe subject_key no formato "goal:<id>", "debt:<id>" ou "source:<id>", usando o identificador exato que a tool devolveu. Nunca invente um identificador: se você não recebeu o id, omita subject_key.
+- Se o texto da oportunidade citar qualquer número — valor, percentual, quantidade de meses ou de parcelas — ele precisa vir de uma tool de leitura, e a oportunidade precisa apontar essa leitura em evidence_refs. Sem evidência apontada, descreva a oportunidade sem números.
+- Em title, diagnosis e suggested_actions descreva o que foi observado sem emitir julgamento próprio. Adjetivos de veredito — saudável, seguro, elevado, alto, excessivo, crítico, grave — e intensificadores como "bastante" ou "muito" só podem aparecer se a classificação oficial do assunto os sustentar. Sem classificação oficial, escreva de forma factual e neutra. Uma chamada rejeitada por isso deve ser refeita com o texto neutro, não abandonada.
 """
 
 _MAX_TOOL_ITERATIONS = 3
@@ -65,7 +99,14 @@ _COMPONENT_BY_TOOL = {
     "list_fragilities": "fragilities",
 }
 
-_ALLOWED_TOOLS = frozenset({"get_dashboard_summary", "get_autonomy", "list_fragilities", "propose_simulation"})
+_ALLOWED_TOOLS = frozenset(
+    {"get_dashboard_summary", "get_autonomy", "list_fragilities", "propose_simulation", "raise_opportunity"}
+)
+
+#: Tools cujo resultado conta como evidência de leitura. `propose_simulation` e
+#: `raise_opportunity` não leem nada do perfil — tratá-las como evidência
+#: reabriria a brecha do guard anti-valor-inventado (achado da VS-09).
+_READ_TOOLS = frozenset({"get_dashboard_summary", "get_autonomy", "list_fragilities"})
 
 
 def _tool_definitions() -> list[dict[str, Any]]:
@@ -74,7 +115,9 @@ def _tool_definitions() -> list[dict[str, Any]]:
             "name": "get_dashboard_summary",
             "description": (
                 "Obtém o resumo atual do dashboard do perfil: saldo líquido, obrigações mensais, "
-                "comprometimento de renda, meta principal e próximos eventos."
+                "comprometimento de renda, meta principal e próximos eventos. Traz também os "
+                "identificadores das dívidas e das fontes de renda do perfil, para montar "
+                "`subject_key` em raise_opportunity. Use sempre o id exato devolvido aqui."
             ),
             "input_schema": {"type": "object", "properties": {}, "required": []},
         },
@@ -111,6 +154,52 @@ def _tool_definitions() -> list[dict[str, Any]]:
                 "required": ["decision_type", "parameters"],
             },
         },
+        {
+            "name": "raise_opportunity",
+            "description": (
+                "Declara UMA oportunidade financeira acionável identificada nesta resposta. Chame "
+                "uma vez por oportunidade. Não informe valores, percentuais, classificações, "
+                "severidades nem limiares: o backend anexa a classificação oficial do assunto "
+                "quando ela existe. Não persiste nada — apenas estrutura o bloco que a interface "
+                "vai exibir."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "topic": {"type": "string", "enum": list(TOPIC_CODES)},
+                    "subject_key": {
+                        "type": "string",
+                        "description": (
+                            "Entidade específica do assunto, no formato 'goal:<id>', 'debt:<id>' ou "
+                            "'source:<id>', com o id exato devolvido por uma tool. Omita quando o "
+                            "assunto não apontar uma entidade."
+                        ),
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Título curto da oportunidade, em português, sem julgamento próprio.",
+                    },
+                    "diagnosis": {
+                        "type": "string",
+                        "description": (
+                            "O que foi observado, em uma ou duas frases, sem números inventados e sem "
+                            "adjetivos de veredito que a classificação oficial não sustente."
+                        ),
+                    },
+                    "suggested_actions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "O que a pessoa pode fazer, uma ação por item.",
+                    },
+                    "evidence_refs": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Identificadores `evidence_id` das tools de leitura que sustentam esta oportunidade.",
+                    },
+                },
+                "required": ["topic", "title", "diagnosis", "suggested_actions"],
+            },
+        },
     ]
 
 
@@ -123,6 +212,8 @@ class AgentReply:
     pending_action: Optional[dict[str, Any]] = None
     components_to_update: list[str] = field(default_factory=list)
     pending_questions: list[str] = field(default_factory=list)
+    #: Blocos estruturados da resposta. Uma resposta pode conter vários.
+    opportunities: list[ActionableOpportunity] = field(default_factory=list)
     evidence: list[dict[str, Any]] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
     limitations: list[str] = field(default_factory=lambda: [_MANDATORY_LIMITATION])
@@ -149,6 +240,8 @@ class SendAgentMessageUseCase:
         goal_repo: Any,
         event_repo: Any,
         fragility_repo: Any,
+        recommendation_repo: Any,
+        plan_repo: Any,
     ) -> None:
         self._llm = llm_client
         self._conversation_repo = conversation_repo
@@ -160,21 +253,56 @@ class SendAgentMessageUseCase:
         self._goal_repo = goal_repo
         self._event_repo = event_repo
         self._fragility_repo = fragility_repo
+        self._recommendation_repo = recommendation_repo
+        self._plan_repo = plan_repo
 
     def _execute_read_tool(self, tool_name: str, tool_input: Mapping[str, Any], profile_id: str, currency: str) -> dict[str, Any]:
         if tool_name == "get_dashboard_summary":
             summary = GetDashboardSummaryUseCase(
                 self._account_repo, self._income_repo, self._obligation_repo, self._goal_repo, self._event_repo
             ).execute(profile_id, currency)
+            commitment = summary.income_commitment_pct
+            # O número sozinho não diz nada, e o prompt proíbe o agente de
+            # classificá-lo. A classificação vem junto, da mesma régua que o
+            # gauge do dashboard usa.
+            assessment = classify_income_commitment(commitment.as_fraction()) if commitment else None
             return {
                 "net_balance": str(summary.net_balance.amount),
                 "currency": summary.currency,
                 "monthly_obligations_total": str(summary.monthly_obligations_total.amount),
-                "income_commitment_pct": (
-                    str(summary.income_commitment_pct.as_fraction()) if summary.income_commitment_pct else None
+                "income_commitment_pct": str(commitment.as_fraction()) if commitment else None,
+                "income_commitment_status": (
+                    {"tier": assessment.tier.value, "label": assessment.label} if assessment is not None else None
                 ),
                 "main_goal": summary.main_goal.description if summary.main_goal else None,
+                # O id acompanha a meta para o agente poder apontar a entidade
+                # em `subject_key` sem inventar um identificador.
+                "main_goal_id": summary.main_goal.id if summary.main_goal else None,
                 "upcoming_events_count": len(summary.upcoming_events),
+                # As entidades acompanham o resumo pelo mesmo motivo do id da meta:
+                # sem os identificadores reais, o agente só teria como apontar uma
+                # dívida ou uma fonte de renda inventando um id. Só o mínimo para
+                # identificar e situar cada uma — o restante vem das tools próprias.
+                "debts": [
+                    {
+                        "entity_type": SubjectKind.DEBT.value,
+                        "id": debt.id,
+                        "description": debt.description,
+                        "installment_amount": str(debt.installment_amount.amount),
+                        "remaining_installments": debt.remaining_installments,
+                    }
+                    for debt in self._debt_repo.list_by_profile(profile_id)
+                ],
+                "income_sources": [
+                    {
+                        "entity_type": SubjectKind.INCOME_SOURCE.value,
+                        "id": source.id,
+                        "description": source.description,
+                        "amount": str(source.amount.amount),
+                        "frequency": source.frequency.value,
+                    }
+                    for source in self._income_repo.list_by_profile(profile_id)
+                ],
             }
         if tool_name == "get_autonomy":
             result = GetAutonomyUseCase(
@@ -225,6 +353,197 @@ class SendAgentMessageUseCase:
 
         return {"status": "ready", "decision_type": decision_type, "parameters": parameters}
 
+    def _assessment_for(
+        self, topic: AgentTopic, evidence: Sequence[Mapping[str, Any]]
+    ) -> Optional[OpportunityAssessment]:
+        """A classificação oficial do assunto, se alguma tool de leitura a produziu.
+
+        Não há caminho para uma classificação fabricada: ou ela veio do domínio
+        nesta mesma mensagem, ou a oportunidade sai sem `assessment`.
+        """
+        if topic.assessment is AssessmentSource.INCOME_COMMITMENT:
+            for item in evidence:
+                if item["tool"] != "get_dashboard_summary":
+                    continue
+                status = item["result"].get("income_commitment_status")
+                if status is None:
+                    continue
+                raw_pct = item["result"].get("income_commitment_pct")
+                return OpportunityAssessment(
+                    value=Decimal(raw_pct) if raw_pct is not None else None,
+                    tier=status["tier"],
+                    policy_id=INCOME_COMMITMENT_POLICY_ID,
+                    policy_version=INCOME_COMMITMENT_POLICY_VERSION,
+                )
+        if topic.assessment is AssessmentSource.FRAGILITY_FINDING:
+            for item in evidence:
+                if item["tool"] != "list_fragilities":
+                    continue
+                for finding in item["result"]["findings"]:
+                    if finding["code"] in topic.fragility_codes:
+                        return OpportunityAssessment(
+                            severity=finding["severity"],
+                            policy_id=finding["code"],
+                            policy_version=RULES_VERSION,
+                        )
+        return None
+
+    def _resolve_subject_key(
+        self, raw: Any, topic: AgentTopic, profile_id: str
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Valida `subject_key` contra as entidades reais do perfil.
+
+        Devolve `(chave, erro)`. Uma identidade que não aponta para nada é pior
+        que identidade nenhuma: ela separaria dois blocos do mesmo assunto sem
+        que exista diferença real entre eles.
+        """
+        if raw in (None, ""):
+            return None, None
+        if topic.subject_kind is None:
+            return None, f"O assunto {topic.code!r} não aponta uma entidade específica."
+
+        subject_key = str(raw).strip()
+        kind, _, entity_id = subject_key.partition(":")
+        if kind != topic.subject_kind.value or not entity_id:
+            return None, (
+                f"subject_key deve ter o formato '{topic.subject_kind.value}:<id>' para o assunto {topic.code!r}."
+            )
+
+        repo = {
+            SubjectKind.GOAL: self._goal_repo,
+            SubjectKind.DEBT: self._debt_repo,
+            SubjectKind.INCOME_SOURCE: self._income_repo,
+        }[topic.subject_kind]
+        if not any(entity.id == entity_id for entity in repo.list_by_profile(profile_id)):
+            return None, f"Entidade não encontrada neste perfil: {subject_key!r}."
+        return subject_key, None
+
+    @staticmethod
+    def _opportunity_text(tool_input: Mapping[str, Any]) -> str:
+        """Tudo que a IA escreveu no bloco e a interface vai exibir."""
+        return " ".join(
+            [
+                str(tool_input.get("title") or ""),
+                str(tool_input.get("diagnosis") or ""),
+                *[str(action) for action in tool_input.get("suggested_actions") or []],
+            ]
+        )
+
+    def _unbacked_number_error(
+        self, tool_input: Mapping[str, Any], refs: Sequence[str]
+    ) -> Optional[str]:
+        """Número citado no bloco sem leitura que o sustente.
+
+        O guard do texto conversacional não alcança estes campos — o bloco é um
+        canal novo, e sem isto ele viraria a rota de fuga do critério que a
+        VS-09 fechou: "Reduza R$ 2.000" viraria card sem nenhuma tool ter sido
+        chamada.
+
+        Aqui a régua é qualquer dígito, não só o formato de dinheiro que
+        `_LOOKS_LIKE_MONEY` reconhece. "Reduza 2000 por mês", "o
+        comprometimento é 80%" e "sua reserva cobre 2 meses" são todos números
+        que só o domínio produz, e nenhum deles casa com um padrão de moeda. Num
+        card estruturado, um número sem lastro custa mais caro do que num
+        parágrafo: ele parece resultado de cálculo.
+        """
+        if not _HAS_DIGIT.search(self._opportunity_text(tool_input)):
+            return None
+        if refs:
+            return None
+        return (
+            "O texto da oportunidade cita um número sem apontar a leitura que o sustenta. "
+            "Cite em evidence_refs a evidência de onde o número veio, ou descreva a "
+            "oportunidade sem números."
+        )
+
+    def _judgment_error(
+        self, tool_input: Mapping[str, Any], assessment: Optional[OpportunityAssessment]
+    ) -> Optional[str]:
+        """Julgamento no texto que a classificação oficial não sustenta."""
+        level = (
+            supported_level(assessment.tier, assessment.severity) if assessment is not None else None
+        )
+        terms = unsupported_judgment_terms(self._opportunity_text(tool_input), level)
+        if not terms:
+            return None
+        if level is None:
+            return (
+                "Este assunto não tem classificação oficial, então o texto não pode julgar. "
+                f"Reescreva de forma factual, sem: {', '.join(terms)}."
+            )
+        return (
+            "O texto usa um julgamento mais forte do que a classificação oficial do assunto "
+            f"sustenta. Reescreva sem: {', '.join(terms)}."
+        )
+
+    def _raise_opportunity(
+        self,
+        tool_input: Mapping[str, Any],
+        profile_id: str,
+        message_id: str,
+        evidence: Sequence[Mapping[str, Any]],
+        raised: list[ActionableOpportunity],
+    ) -> dict[str, Any]:
+        topic = AGENT_TOPICS.get(tool_input.get("topic"))
+        if topic is None:
+            return {"status": "error", "error": f"Assunto fora do catálogo: {tool_input.get('topic')!r}"}
+
+        subject_key, subject_error = self._resolve_subject_key(
+            tool_input.get("subject_key"), topic, profile_id
+        )
+        if subject_error is not None:
+            return {"status": "error", "error": subject_error}
+
+        identity = opportunity_blocks.identity_of(topic.code, subject_key)
+        if any(existing.identity == identity for existing in raised):
+            # Mesma identidade é a mesma oportunidade. Dois blocos idênticos
+            # competiriam pelas mesmas ações; duas dívidas diferentes, não —
+            # por isso a identidade inclui a entidade.
+            return {"status": "already_raised", "topic": topic.code, "subject_key": subject_key}
+
+        title = (tool_input.get("title") or "").strip() or topic.label
+        diagnosis = (tool_input.get("diagnosis") or "").strip()
+        if not diagnosis:
+            return {"status": "error", "error": "Uma oportunidade precisa de diagnosis."}
+
+        known_evidence = {item["id"] for item in evidence}
+        # Referência a evidência inexistente é descartada em silêncio para o
+        # usuário, mas devolvida ao modelo: ele precisa saber que o vínculo não
+        # colou, e a interface não pode exibir um lastro que não existe.
+        refs = [ref for ref in (tool_input.get("evidence_refs") or []) if ref in known_evidence]
+
+        # Os dois guards abaixo recusam a chamada em vez de corrigi-la: o
+        # backend não reescreve o texto da IA, só se recusa a exibir número ou
+        # veredito sem lastro.
+        number_error = self._unbacked_number_error(tool_input, refs)
+        if number_error is not None:
+            return {"status": "error", "error": number_error}
+
+        assessment = self._assessment_for(topic, evidence)
+        judgment_error = self._judgment_error(tool_input, assessment)
+        if judgment_error is not None:
+            return {"status": "error", "error": judgment_error}
+
+        plan_id = related_plan_id(self._plan_repo, profile_id, topic)
+        opportunity = opportunity_blocks.build_opportunity(
+            opportunity_id=f"{message_id}-op{len(raised) + 1}",
+            topic=topic,
+            subject_key=subject_key,
+            title=title,
+            diagnosis=diagnosis,
+            suggested_actions=[str(action) for action in tool_input.get("suggested_actions") or []],
+            evidence_references=refs,
+            assessment=assessment,
+            related_plan_id=plan_id,
+            related_recommendation_id=(
+                None
+                if plan_id is not None
+                else related_recommendation_id(self._recommendation_repo, profile_id, topic, subject_key)
+            ),
+        )
+        raised.append(opportunity)
+        return {"status": "registered", **opportunity_blocks.to_dict(opportunity), "accepted_evidence_refs": refs}
+
     def execute(
         self,
         profile_id: str,
@@ -249,6 +568,7 @@ class SendAgentMessageUseCase:
 
         tool_calls: list[dict[str, Any]] = []
         evidence: list[dict[str, Any]] = []
+        raised: list[ActionableOpportunity] = []
         pending_action: Optional[dict[str, Any]] = None
         pending_questions: list[str] = []
         components_to_update: list[str] = []
@@ -293,14 +613,26 @@ class SendAgentMessageUseCase:
                     tool_results.append(
                         {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result, ensure_ascii=False)}
                     )
+                elif block.name == "raise_opportunity":
+                    result = self._raise_opportunity(block.input, profile_id, message_id, evidence, raised)
+                    tool_results.append(
+                        {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result, ensure_ascii=False)}
+                    )
                 else:
                     result = self._execute_read_tool(block.name, block.input, profile_id, currency)
                     component = _COMPONENT_BY_TOOL.get(block.name)
                     if component and component not in components_to_update:
                         components_to_update.append(component)
-                    evidence.append({"tool": block.name, "result": result})
+                    # O id acompanha o resultado para o modelo poder apontar,
+                    # em `evidence_refs`, qual leitura sustenta cada bloco.
+                    evidence_id = f"ev{len(evidence) + 1}"
+                    evidence.append({"id": evidence_id, "tool": block.name, "result": result})
                     tool_results.append(
-                        {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result, ensure_ascii=False)}
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps({"evidence_id": evidence_id, **result}, ensure_ascii=False),
+                        }
                     )
             conversation_messages.append({"role": "user", "content": tool_results})
 
@@ -321,6 +653,7 @@ class SendAgentMessageUseCase:
                 content=final_text,
                 tool_calls=tool_calls,
                 pending_action=pending_action,
+                opportunities=[opportunity_blocks.to_dict(item) for item in raised],
                 created_at=datetime.utcnow(),
             )
         )
@@ -333,6 +666,7 @@ class SendAgentMessageUseCase:
             pending_action=pending_action,
             components_to_update=components_to_update,
             pending_questions=pending_questions,
+            opportunities=raised,
             evidence=evidence,
         )
 

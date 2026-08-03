@@ -22,10 +22,17 @@ export interface UpcomingEventDto {
   direction: string;
 }
 
+/** Veredito do domínio sobre um indicador — servido junto do número. */
+export interface IndicatorAssessmentDto {
+  tier: "healthy" | "attention" | "high" | "critical";
+  label: string;
+}
+
 export interface DashboardSummaryDto {
   net_balance: MoneyDto;
   monthly_obligations_total: MoneyDto;
   income_commitment_pct: string | null;
+  income_commitment_status: IndicatorAssessmentDto | null;
   main_goal: MainGoalSummaryDto | null;
   upcoming_events: UpcomingEventDto[];
 }

@@ -34,6 +34,21 @@ const TRACKING_OPTIONS: Record<string, { value: PlanStatus; label: string }[]> =
   ],
 };
 
+/** "2028-05-01" -> "01/05/2028". A data crua vinha do domínio em ISO. */
+function formatDueDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return day ? `${day}/${month}/${year}` : value;
+}
+
+function formatAutonomyChange(value: string) {
+  const months = Number(value);
+  const label = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(Math.abs(months));
+  const noun = Math.abs(months) === 1 ? "mês" : "meses";
+  if (months < 0) return `Custo em autonomia: ${label} ${noun} a menos`;
+  if (months > 0) return `Ganho de autonomia estimado: ${label} ${noun}`;
+  return "Sem impacto na autonomia";
+}
+
 export function PlanCard({ plan }: { plan: PreventivePlanDto }) {
   const queryClient = useQueryClient();
 
@@ -62,7 +77,7 @@ export function PlanCard({ plan }: { plan: PreventivePlanDto }) {
                     {formatMoney(action.expected_monthly_impact.amount, action.expected_monthly_impact.currency)} ·{" "}
                   </>
                 )}
-                Prazo: {action.due_date}
+                Prazo: {formatDueDate(action.due_date)}
               </p>
             </div>
           ))}
@@ -71,7 +86,9 @@ export function PlanCard({ plan }: { plan: PreventivePlanDto }) {
         <div className="text-xs text-muted-foreground">
           <p>Déficit evitado: {plan.expected_result.deficit_avoided ? "sim" : "não"}</p>
           {plan.expected_result.autonomy_change_months && (
-            <p>Ganho de autonomia estimado: {plan.expected_result.autonomy_change_months} meses</p>
+            /* "Ganho" era mentira quando o número vinha negativo: acelerar uma
+               meta custa autonomia, e o plano precisa dizer isso sem maquiar. */
+            <p>{formatAutonomyChange(plan.expected_result.autonomy_change_months)}</p>
           )}
         </div>
 

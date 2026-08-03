@@ -16,6 +16,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Home,
+  Lightbulb,
   MessageCircleMore,
   ShieldAlert,
   Sparkles,
@@ -55,6 +56,7 @@ function buildNavItems(profileId: string): NavItem[] {
     { href: `/dashboard/${profileId}`, label: "Início", icon: Home },
     { href: `/dashboard/${profileId}/fragilities`, label: "Radar de fragilidade", icon: ShieldAlert },
     { href: `/dashboard/${profileId}/simulations`, label: "Simulações", icon: TrendingUp },
+    { href: `/dashboard/${profileId}/recomendacoes`, label: "Recomendações", icon: Lightbulb },
     { href: `/dashboard/${profileId}/plans`, label: "Planos preventivos", icon: Sparkles },
   ];
 }

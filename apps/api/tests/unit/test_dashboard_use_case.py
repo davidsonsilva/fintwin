@@ -258,3 +258,22 @@ def test_snapshot_add_reraises_integrity_error_unrelated_to_the_expected_race(se
                 created_at=datetime.utcnow(),
             )
         )
+
+
+def test_classificacao_do_comprometimento_e_unica_no_dominio() -> None:
+    """Os limiares vivem num lugar só.
+
+    Antes existiam três classificadores independentes — o gauge do dashboard,
+    o texto do card de insight e o julgamento que a IA fazia por conta própria
+    — e o mesmo 56% aparecia como "saudável" numa tela e "crítico" na conversa.
+    """
+    from decimal import Decimal
+
+    from src.domain.shared.indicators import IndicatorTier, classify_income_commitment
+
+    assert classify_income_commitment(Decimal("0.38")).tier is IndicatorTier.HEALTHY
+    assert classify_income_commitment(Decimal("0.40")).tier is IndicatorTier.HEALTHY
+    # O caso que motivou a correção: 56% não é crítico.
+    assert classify_income_commitment(Decimal("0.56")).tier is IndicatorTier.ATTENTION
+    assert classify_income_commitment(Decimal("0.61")).tier is IndicatorTier.HIGH
+    assert classify_income_commitment(Decimal("0.90")).tier is IndicatorTier.CRITICAL

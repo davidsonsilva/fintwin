@@ -29,7 +29,9 @@ from src.infrastructure.repositories.fragility_repository import SqlAlchemyFragi
 from src.infrastructure.repositories.goal_repository import SqlAlchemyGoalRepository
 from src.infrastructure.repositories.income_repository import SqlAlchemyIncomeSourceRepository
 from src.infrastructure.repositories.obligation_repository import SqlAlchemyObligationRepository
+from src.infrastructure.repositories.preventive_plan_repository import SqlAlchemyPreventivePlanRepository
 from src.infrastructure.repositories.profile_repository import SqlAlchemyProfileRepository
+from src.infrastructure.repositories.recommendation_repository import SqlAlchemyRecommendationRepository
 from src.infrastructure.repositories.simulation_repository import SqlAlchemySimulationRepository
 from src.interfaces.http.rate_limit import agent_message_rate_limiter
 from src.interfaces.http.schemas.agent import AgentMessageHistoryItem, AgentMessageRequest, AgentMessageResponse
@@ -64,6 +66,8 @@ def _build_send_message_use_case(session: Session, llm_client) -> SendAgentMessa
         goal_repo=SqlAlchemyGoalRepository(session),
         event_repo=SqlAlchemyEventRepository(session),
         fragility_repo=SqlAlchemyFragilityRepository(session),
+        recommendation_repo=SqlAlchemyRecommendationRepository(session),
+        plan_repo=SqlAlchemyPreventivePlanRepository(session),
     )
 
 

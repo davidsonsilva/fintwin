@@ -9,8 +9,7 @@
  */
 
 
-import { CalendarClock, ShieldAlert, ShieldCheck, Sparkles, TrendingDown, Wallet } from "lucide-react";
-import Image from "next/image";
+import { CalendarClock, ShieldAlert, ShieldCheck, TrendingDown, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
@@ -18,13 +17,12 @@ import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { useSidebarContext } from "@/components/shell/SidebarContext";
-import { Button as FtButton } from "@/design-system/components/Button";
 import { CompactStatCard } from "@/design-system/components/CompactStatCard";
 import { MetricCard } from "@/design-system/components/MetricCard";
 import { ApiError } from "@/lib/api-client";
 
 import { fragilityApi } from "@/features/fragility/api";
+import { InsightCard } from "@/features/recommendations/InsightCard";
 
 import { dashboardApi } from "./api";
 import { AdaptiveDashboardSection } from "./AdaptiveDashboardSection";
@@ -65,7 +63,6 @@ function getLayoutDebugServerSnapshot() {
 }
 
 export function DashboardView({ profileId }: { profileId: string }) {
-  const { openAgent } = useSidebarContext();
 
   // `useSyncExternalStore`, não `useEffect`+`setState`: a URL é estado externo ao
   // React, e este é o jeito de ler estado externo sem o padrão "efeito que só
@@ -298,7 +295,11 @@ export function DashboardView({ profileId }: { profileId: string }) {
                   <BalanceHistoryChart profileId={profileId} />
                 </div>
                 <div className="min-w-0 @min-[760px]/analytics:flex-1">
-                  <IncomeCommitmentCard profileId={profileId} incomeCommitmentPct={data.income_commitment_pct} />
+                  <IncomeCommitmentCard
+                    profileId={profileId}
+                    incomeCommitmentPct={data.income_commitment_pct}
+                    commitmentStatus={data.income_commitment_status}
+                  />
                 </div>
               </div>
             </section>
@@ -306,22 +307,13 @@ export function DashboardView({ profileId }: { profileId: string }) {
 
           <ProjectionChart profileId={profileId} />
 
-          <div className="ft-ai-insight">
-            <div className="ft-ai-avatar">
-              <Image src="/agent-icon.png" alt="" width={76} height={76} className="rounded-full object-cover" />
-            </div>
-            <div>
-              <p className="ft-ai-title">Insight do seu Gêmeo Financeiro</p>
-              <p className="ft-ai-text">
-                Converse com o Gêmeo Financeiro para receber recomendações personalizadas com base nos dados reais
-                do seu perfil.
-              </p>
-            </div>
-            <FtButton onClick={openAgent} className="[@media(max-width:1024px)]:col-[1/-1]">
-              <Sparkles size={16} />
-              Ver recomendações
-            </FtButton>
-          </div>
+          {/*
+           * Card Insight — superfície viva de detecção. Mostra o próximo
+           * assunto que merece atenção e some quando ele é decidido. Não é
+           * histórico (isso é o registro) nem acompanhamento de execução
+           * (isso são os planos preventivos).
+           */}
+          <InsightCard profileId={profileId} />
         </>
       )}
     </div>

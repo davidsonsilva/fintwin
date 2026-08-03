@@ -1,77 +1,191 @@
-# Critérios de aceitação: Design system — fechamento da migração CSS→CVA
+# Critérios de aceitação: entidades reais no `subject_key` + AgentPanel
 
-> Derivado de `planning/design-system-css-para-cva-e-meta-harness_20260727` (que deixou os
-> candidatos nomeados) e consolidado em `planning/migracao-css-cva-fechada_20260731` (Serena).
-> Slice puramente front-end: sem domínio, backend, schema, endpoint ou contrato de API.
+> Derivados do pedido verbatim do usuário em 2026-08-02. Registro em
+> `planning/oportunidades-estruturadas-na-conversa_20260801` (Serena).
+>
+> **Aviso de procedência**: escritos pelo agente que implementou a etapa. Ver o aviso em
+> `current-slice.md`. Cobrem apenas os commits `4952512` e `900ad81`.
 
-1. **Neutralidade visual**: cada componente reproduz medida por medida a regra CSS que
-   substitui — dimensões, raio, cor, borda, tipografia, espaçamento e **curva/duração de
-   transição**. Divergência em qualquer uma delas é regressão, não melhoria. A comparação é
-   feita contra o original extraído com `git show <base>:<arquivo>`, do **CSS e do JSX**,
-   porque o JSX carrega decisões que o CSS não mostra (tamanho de glifo, classes combinadas).
-   Única exceção declarada: a remoção de `grid-auto-rows: minmax(0,1fr)` de
-   `.ft-grid--indicators`, correção intencional do bug que originou o trabalho.
+## Backend complementar (`4952512`)
 
-2. **Regra global sai no mesmo commit**: nenhum componente novo entra sem que a classe `.ft-*`
-   equivalente seja removida de `design-system.css` no mesmo commit. O ganho vem de deletar
-   CSS, não de somar abstração.
+1. **Os identificadores saem de uma leitura já existente.** Nenhuma tool nova foi criada, e a
+   tool estendida continua sendo de leitura pura (nada é escrito, nenhum efeito colateral).
 
-   Verificação, para `.ft-status-card`, `.ft-status-icon`, `.ft-status-title`,
-   `.ft-status-description`, `.ft-metric-icon` e `.ft-badge` (e seus modificadores), em todo
-   `apps/web/src`: **(a)** nenhuma declaração de regra CSS com esses seletores permanece; e
-   **(b)** nenhum uso em markup — `className`, `class`, ou string montada que vire nome de
-   classe — permanece.
+2. **Só o necessário para identificar e situar.** Cada entidade devolve id, descrição, o valor
+   relevante e o tipo. Nada além disso — em particular, nenhum campo que permita ao agente
+   derivar uma classificação por conta própria.
 
-   Menções em **comentário** são esperadas e não violam o critério: são o rastro que aponta
-   para onde a regra foi parar. Uma busca textual crua pelo seletor falha por causa da própria
-   documentação e não serve como verificação.
+3. **Escopo por perfil.** As entidades são listadas pelo `profile_id` da conversa. Não pode
+   existir caminho que devolva dívida ou fonte de renda de outro perfil.
 
-3. **Sem regressão de testes existentes**: nenhum teste pré-existente removido ou marcado
-   `skip`. A suíte de backend não é afetada por esta slice (nenhum arquivo de `apps/api`
-   tocado). **A suíte de frontend (Vitest) já falha na baseline** — ver
-   `.meta-harness/baselines/statuscard-before.json`; falha dela não conta como regressão desta
-   slice, mas também não pode piorar.
+4. **A validação de `subject_key` não afrouxou.** Continua verificando formato **e** existência
+   contra as entidades reais do perfil. Um id produzido livremente pelo modelo — inclusive um id
+   que exista, mas em outro perfil — recusa o bloco.
 
-4. **Quality gates limpos além da baseline conhecida**: `npx tsc --noEmit` não introduz erros
-   novos além dos 3 pré-existentes em `ProfileStep.tsx` e `ResourceStepForm.tsx`
-   (incompatibilidade Zod/react-hook-form); `eslint` limpo nos arquivos tocados; nenhum import
-   órfão deixado para trás após a troca de classe por componente.
+5. **O guard anti-valor-inventado não regride.** A tool agora devolve números (parcela, valor da
+   renda). Isso não pode abrir caminho para um bloco citar número sem apontar `evidence_refs`: a
+   régua continua sendo "qualquer dígito no texto do bloco exige evidência apontada".
 
-5. **Tipo no lugar de string mágica**: onde a variante era escolhida por nome de classe CSS
-   (`badge: "ft-badge--danger"`) ou montada por template string
-   (`ft-metric-icon--${variant}`), passa a ser um tipo do design system (`BadgeTone`,
-   `IconChipTone`). Critério: valor inválido deve falhar em compilação, não silenciosamente em
-   runtime.
+6. **Testes cobrindo as quatro garantias pedidas**: duas dívidas → dois blocos; duas fontes →
+   dois blocos; mesma entidade → um bloco; entidade inexistente **ou de outro perfil** →
+   recusada.
 
-6. **Contrato mínimo por papel (ISP)**: props que só alguns consumidores usam são opcionais —
-   `action` no `StatusCard` (1 de 6 indicadores tem link de detalhe), `iconSize` no `IconChip`
-   (o CSS nunca amarrou glifo a chip: 38px aparece com glifo de 18px e de 22px). Nenhum
-   componente vira um `Card` gordo com props opcionais que ninguém usa.
+## AgentPanel (`900ad81`)
 
-7. **Diferenças reais do CSS preservadas nas variantes, não na base**: a borda existe só no
-   chip de 48px (`.ft-metric-icon`), nunca no de 38px (`.ft-status-icon`) — logo mora na
-   variante `size`, não na base do CVA. Vale para qualquer diferença entre modificadores que a
-   base tentaria unificar.
+7. **O texto natural é preservado.** `reply` continua sendo renderizado inteiro na bolha. Os
+   blocos são adicionais, não substitutos, e nada do texto é consumido ou reescrito.
 
-8. **Polimorfismo sem inchar o componente**: quando o elemento precisa ser outro (o `<Link>` do
-   `StatusCard`), usa-se a função de variantes direto no `className`
-   (`badgeVariants({ tone: "link" })`), mesmo padrão já adotado com `buttonVariants` — em vez
-   de adicionar prop `as`/`render` ao componente.
+8. **Um bloco por item de `opportunities`.** Sem agrupamento, sem filtro, sem reordenação
+   inventada pelo cliente.
 
-9. **Escopo respeitado**: nada da frente de layout é tocado, com **uma exceção explícita**.
+9. **Os botões saem apenas de `available_actions`.** Não pode existir botão condicionado a outro
+   campo (`related_plan_id`, `requires_simulation`, `simulation_status`) sem que a ação
+   correspondente esteja na lista. Os demais campos podem ser usados para *montar o destino* de
+   uma ação já oferecida — não para decidir que ela existe.
 
-   Permanecem intactos: `.ft-metric-card`, `.ft-analytics-card`,
-   `.ft-card-header/title/subtitle/footer` e todas as `.ft-grid--*`, **exceto** a remoção de
-   `grid-auto-rows: minmax(0,1fr)` de `.ft-grid--indicators`, autorizada pelo critério 1 como
-   correção do bug que originou o trabalho. Nenhuma outra propriedade de `.ft-grid--indicators`
-   é alterada, e nenhuma outra `.ft-grid--*` é tocada.
+10. **O caminho antigo foi removido.** `SaveFromConversation.tsx` não existe mais e não há
+    referência remanescente a ele. Nenhuma outra rota do app salva a mensagem inteira.
 
-   `ui/card` (shadcn) permanece no onboarding, simulações e planos preventivos (exclusão
-   deliberada de 27/07). Espaçamento externo embutido no CSS original — o `margin-top: 10px` do
-   `.ft-badge` — é reproduzido, não corrigido: removê-lo é decisão de layout.
+11. **O cliente envia só referências.** A chamada de salvar carrega exatamente
+    `conversation_id`, `message_id`, `opportunity_id`. Nenhum texto, título ou diagnóstico do
+    cliente pode chegar ao registro.
 
-10. **Verificação visual antes do commit**: toda tela afetada é conferida pelo usuário antes do
-    commit, não só a que motivou a mudança. Nesta slice foram quatro: tela inicial, dashboard,
-    radar de fragilidade e planos preventivos. O rebuild do container `web`
-    (`docker compose build web && up -d web`) é obrigatório antes de qualquer conferência — o
-    serviço não tem volume montado e serve build congelado.
+12. **409 é obedecido, não contornado.** Ao receber `action_outdated`, o card passa a oferecer a
+    ação que o backend indicou (`view_plan` / `view_recommendation`) e deixa de oferecer salvar.
+    Não pode haver retry automático nem criação de um segundo registro.
+
+13. **Nada é inferido no cliente.** Nenhuma classificação, severidade ou rótulo de tier é
+    calculado, traduzido ou exibido a partir de `assessment`; nenhuma decisão sobre simulação é
+    tomada localmente.
+
+14. **Mensagem sem oportunidades continua só texto.** Ausência do campo (mensagens antigas) e
+    lista vazia se comportam igual: nenhum bloco, nenhum botão.
+
+## Ambos
+
+15. **Sem regressão de testes.** Nenhum teste pré-existente removido ou marcado `skip`. As duas
+    falhas de `AutonomyPanel.test.tsx` são anteriores a estes commits — apontá-las como
+    regressão é falso positivo.
+
+16. **Escopo respeitado**: nenhuma migração aplicada no Postgres em execução, catálogo de
+    assuntos não ampliado, ciclo de vida da recomendação intocado.
+
+## Oscilação da fileira de indicadores (`37b75f5`)
+
+Pedido do usuário (verbatim, 2026-08-02): "Para a mesma largura do container e o mesmo conjunto
+de cards, o resultado do layout deve ser sempre idêntico. Prefira determinar a composição apenas
+pela largura do container e por breakpoints determinísticos. Não use a altura resultante dos
+próprios cards como entrada de um algoritmo que depois altera a largura deles." E: "Não faça uma
+correção cosmética removendo animações ou transitions."
+
+17. **O laço foi cortado, não amortecido.** Nenhuma altura renderizada alimenta a decisão de
+    composição. Não vale resolver com debounce, epsilon maior, `requestAnimationFrame`, flag de
+    "já decidiu" ou guarda de igualdade sobre o mesmo algoritmo realimentado — a dependência
+    saída→entrada tem que ter deixado de existir.
+
+18. **A composição é função pura da largura da seção.** `composeLayout(w)` não lê estado, ref,
+    data, relógio nem aleatoriedade. Mesma largura ⇒ mesmo resultado, sempre, independente do
+    caminho percorrido até aquela largura.
+
+19. **A distribuição em colunas também é determinística.** Qual card entra em qual coluna não
+    pode depender de medição. O revisor deve julgar se trocar o balanceamento por altura pelo
+    rodízio é perda aceitável — a justificativa alegada é que as colunas são `flex-1` de mesma
+    largura e que, para 6 cards em 3 colunas, o rodízio reproduz a distribuição antiga.
+
+20. **Nada foi corrigido por cosmética.** Nenhuma animação, `transition` ou `will-change` foi
+    removida para esconder o sintoma.
+
+21. **Keys por identidade.** Os cards continuam keyados por `card.key`; trocar de coluna não
+    remonta o card.
+
+22. **As restrições de legibilidade sobreviveram.** `MIN_COMPACT_WIDTH` e `MIN_EVENTS_WIDTH`
+    continuam filtrando composições inviáveis; a simplificação não pode ter passado a permitir
+    card compacto abaixo do mínimo.
+
+23. **Teste de regressão no navegador existe e mede o que promete.** Carrega o dashboard, espera
+    estabilizar, captura os bounding boxes dos seis cards, espera ≥5s sem interação e confirma
+    que nada mudou; e verifica que a mesma largura, alcançada descendo e subindo, produz a mesma
+    composição.
+
+### Reprodução do sintoma (`39fa802`)
+
+A primeira versão deste contrato registrava que a oscilação não tinha sido reproduzida. Isso foi
+corrigido: ela **foi** reproduzida no perfil real, com o código anterior restaurado no container.
+
+A banda estava fora de todas as larguras varridas antes. Ela existe porque o card de eventos
+precisa estar **ao lado** e ser **mais alto que a grade**: aí `max(gridHeight, eventsHeight)`
+vale `eventsHeight` para todos os candidatos, o termo dominante do score se anula, e a escolha
+entre 2 e 3 colunas passa a ser decidida só pelo desequilíbrio entre colunas — o termo mais
+sensível a variação de altura. Isso exige seção entre ~1148px e ~1209px, ou seja viewport
+~1480-1600px.
+
+Medição, viewport parado, sem interação, 50 amostras em 5,5s por largura:
+
+| viewport | antes (`37b75f5^`) | depois (`37b75f5`) |
+|---|---|---|
+| 1480 | 4 layouts distintos | 1 |
+| 1490 | 4 | 1 |
+| 1500 | 4 | 1 |
+| 1510 | 4 | 1 |
+| 1520 | 4 | 1 |
+| 1530 | 3 | 1 |
+| 1540 | 3 | 1 |
+| 1550 | 4 | 1 |
+| 1560 | 3 | 1 |
+| 1570 | 4 | 1 |
+| 1580 | 4 | 1 |
+| 1590 | 3 | 1 |
+| 1600 | 3 | 1 |
+
+Antes, a contagem de colunas na banda também era errática (2 em 1480, 3 em 1490-1510, 2 em 1520,
+3 em 1530...). Depois, 3 colunas em toda a banda, com a largura do card crescendo monotonicamente
+de 262px a 296px.
+
+24. **O teste de regressão cobre a banda que reproduz o bug.** O terceiro caso de
+    `dashboard-layout-stability.spec.ts` afirma um único layout distinto com o viewport parado em
+    1490/1520/1550/1580px — larguras em que o código anterior media 4 layouts distintos.
+
+## Registro de recomendações refeito (`ef30e78`, `716ff9f`)
+
+**Atribuição por commit — leia antes de aplicar qualquer critério.** Os dois commits são
+etapas distintas e **não devem ser avaliados contra a lista inteira**:
+
+- `ef30e78` cobre a transformação do registro em lista. Critérios **25 a 32 e 34**.
+- `716ff9f` cobre exclusivamente o ajuste interno do Badge. Critério **33, e só ele**.
+
+O critério 33 não se aplica a `ef30e78`: o offset não existe naquele commit por construção,
+porque é o conteúdo do commit seguinte. Cobrá-lo ali produz finding onde não há defeito.
+
+25. **Nenhuma funcionalidade perdida.** Filtros (seis, com `aria-pressed`), status, origem
+    (ícone + rótulo), data, encadeamento de versões (`supersedes_id`/`superseded_by_id`) e as
+    duas ações continuam existindo e apontando para os mesmos destinos.
+
+26. **O padding duplicado sumiu por construção, não por ajuste.** Não pode haver dois nós na
+    mesma cadeia contribuindo padding vertical para a mesma linha. A moldura vai com `p-0`.
+
+27. **Altura natural.** Nenhuma altura fixa, `min-h` ou `h-` na linha ou no seu conteúdo. Um
+    título de duas linhas cresce a linha em vez de cortar.
+
+28. **Sem `interactive` e sem hover deslocante.** A linha tem até duas ações com destinos
+    distintos, logo não é integralmente clicável. Nenhum `translate` em hover de linha.
+
+29. **Tokens, não literais.** Nenhum hex hardcoded introduzido. `#b49cff` foi removido dos três
+    lugares onde estava. Cores e espaçamentos saem de `--ft-*`.
+
+30. **Tipografia pela escala.** `text-[15px]`/`[13px]`/`[12px]` não podem persistir onde a
+    escala do §4.4 tem equivalente (`--ft-font-size-heading-3`, `-body-sm`, `-caption`).
+
+31. **Cinco status distinguíveis sem regra de domínio nova.** `STATUS_TONES`, `STATUS_LABELS`,
+    `STATUS_HINTS` e o `RecommendationStatus` em `types.ts` intocados. A diferenciação extra é
+    puramente de apresentação e local ao arquivo da tela.
+
+32. **Nenhuma outra tela alterada.** O diff toca exclusivamente
+    `RecommendationRegistry.tsx`. `Badge`, `Card`, `Button`, `types.ts` e `design-system.css`
+    não podem aparecer no diff.
+
+33. **A correção do badge não muda a caixa.** `pt-[3px] pb-px` mantém a soma do padding em 4px
+    e a pílula em 22px; é deslocamento do texto, não mudança de tamanho.
+    **Pertence exclusivamente a `716ff9f`.**
+
+34. **Estados cobertos.** Vazio, carregando e erro têm tratamento próprio, e o carregamento não
+    pode voltar a ser spinner central (§11.12).
