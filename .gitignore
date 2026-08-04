@@ -13,3 +13,11 @@ __pycache__/
 
 # Artefatos da skill visual-rebuild (capturas, specs, relatorios)
 .visual/
+
+# Artefatos gerados (regeram sob demanda)
+graphify-out/
+.meta-harness/raw/
+apps/api/fintwin_api.egg-info/
+
+# Midia pesada (estoura o limite de 100 MB do GitHub) — demo foi pro YouTube
+imagens/*.mp4

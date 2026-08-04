@@ -8,11 +8,38 @@ substitui — toda resposta do agente que contenha números vem de uma chamada
 real a um caso de uso, nunca de cálculo do próprio modelo de linguagem.
 
 Especificação completa do produto: [`docs/Spec.md`](docs/Spec.md).
+Visão de arquitetura e fluxo de dados: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Demonstração em vídeo
+
+[youtu.be/iuUjemtm7f4](https://youtu.be/iuUjemtm7f4) — onboarding, dashboard,
+radar de fragilidade, simulador de decisões, planos preventivos e agente
+conversacional.
 
 ## Status
 
 MVP completo (VS-01 a VS-10, ver seção 30 do Spec para a ordem das Vertical
 Slices e seção 31 para os critérios de aceitação).
+
+## Segurança — leia antes de expor a aplicação
+
+Este projeto é um **MVP de demonstração para rodar localmente**, não um
+serviço pronto para produção multiusuário. Especificamente:
+
+- **Não há autenticação.** Qualquer chamada à API que informe um `profile_id`
+  válido lê e escreve os dados daquele perfil — não há verificação de dono.
+- **CORS aceita credenciais** (`allow_credentials=True`) com origens
+  configuráveis por `CORS_ALLOW_ORIGINS`; inócuo sem sessão, mas exige
+  atenção antes de introduzir autenticação.
+- **Rate limit é em memória, por processo** — protege apenas contra abuso
+  trivial do endpoint pago da Anthropic num único worker; não é um limitador
+  distribuído.
+- **Credenciais padrão do Postgres** (`fintwin`/`fintwin` em
+  `.env.example`) servem só para desenvolvimento local.
+
+**Não exponha esta instância na internet pública sem antes adicionar
+autenticação e revisar CORS/rate limit.** Detalhes completos na seção
+"Limitações conhecidas" abaixo.
 
 ## Arquitetura
 
